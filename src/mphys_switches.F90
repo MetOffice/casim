@@ -253,8 +253,11 @@ MODULE mphys_switches
   LOGICAL, TARGET :: l_pisub   = .TRUE.  ! sublimation of ice
   LOGICAL, TARGET :: l_pimlt   = .TRUE.  ! ice melting
 
-  LOGICAL :: l_tidy_conserve_E = .true.
-  LOGICAL :: l_tidy_conserve_q = .true.
+  LOGICAL :: l_tidy_conserve_E = .false.
+  LOGICAL :: l_tidy_conserve_q = .false.
+  LOGICAL :: l_tidy_negonly    = .true.  ! Only tidy up negative (i.e. not small) values 
+
+  LOGICAL :: l_preventsmall = .false.  ! Modify tendencies to prevent production of small quantities
 
   TYPE :: process_switch
      LOGICAL, POINTER :: l_pcond ! Condensation

@@ -7,7 +7,7 @@ USE mphys_switches, ONLY:    &
      , l_2mc, l_2mr, l_3mr                    &
      , l_aaut, i_am4, i_am5, &
      cloud_params, rain_params, l_process        &
-     , l_separate_rain
+     , l_separate_rain, l_preventsmall
 USE mphys_constants, ONLY: rhow, fixed_cloud_number
 USE mphys_parameters, ONLY: mu_aut, rain_params
 USE process_routines, ONLY: process_rate   &
@@ -68,6 +68,7 @@ IF (cloud_mass > ql_small .AND. cloud_number > nl_small) THEN
   dmass = 1350.0*cloud_mass**2.47*     &
          (cloud_number/1.0e6*rho(k))**(-1.79)
   dmass = MIN(.25*cloud_mass/dt, dmass)
+  if (l_preventsmall .and. dmass < qr_small) dmass=0.0
   IF (l_2mc)dnumber1 = dmass/(cloud_mass/cloud_number)
 
   mu_qc = MIN(15.0_wp, (1000.0E6/cloud_number + 2.0))

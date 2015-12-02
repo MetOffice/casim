@@ -111,7 +111,7 @@ IF (qv/qws(k) < 1.0-ss_small .AND. qfields(k, i_ql) == 0.0 .AND. rain_mass > qr_
   IF (l_3mr)dm3 = dm1*m3/m1
 
   IF (l_2mr) THEN
-    IF (dnumber*dt > rain_number .OR. dmass*dt >= rain_mass-EPSILON(rain_mass)) THEN
+    IF (dnumber*dt > rain_number .OR. dmass*dt >= rain_mass-qr_tidy) THEN
       dmass=rain_mass/dt
       dnumber=rain_number/dt
       IF (l_3mr)dm3=m3/dt

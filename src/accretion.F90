@@ -6,7 +6,7 @@ USE mphys_switches, ONLY:                            &
      i_ql, i_qr, i_nl, i_nr, i_m3r                   &
      , l_2mc, l_2mr                                  &
      , l_aacc, i_am4, i_am5, l_process               &
-     , active_rain, isol
+     , active_rain, isol, l_preventsmall
 USE mphys_constants, ONLY: fixed_cloud_number
 USE mphys_parameters, ONLY: hydro_params
 USE process_routines, ONLY: process_rate, i_pracw, i_aacw
@@ -77,6 +77,7 @@ IF (cloud_mass > ql_small .AND. rain_mass > qr_small) THEN
     dmass = sweepout(n0, lam, mu, params, rho(k)) * cloud_mass
   END IF
 
+  if (l_preventsmall .and. dmass < qr_small) dmass=0.0
   IF (l_2mc)dnumber = dmass/(cloud_mass/cloud_number)
 
   this_proc%source(i_ql) = -dmass

@@ -38,7 +38,7 @@ USE mphys_switches, ONLY: hydro_complexity, aero_complexity,                &
      , l_passive, ntotala, ntotalq                                          &
      , active_number, isol, iinsol, l_raci_g, l_onlycollect, l_pracr        &
      , pswitch, l_isub, l_pos1, l_pos2, l_pos3, l_pos4, l_pos5, l_pos6      &
-     , i_hstart, nsubsteps, nsubseds
+     , i_hstart, nsubsteps, nsubseds, l_tidy_negonly
 
 USE distributions, ONLY: query_distributions, dist_lambda, dist_mu, dist_n0
 USE passive_fields, ONLY: set_passive_fields, TdegK
@@ -1165,13 +1165,24 @@ DO n=1,nsubsteps
 
   END IF
 
+  IF (nsubsteps>1)then
       !-------------------------------
       ! Reset process rates if they
       ! are to be re-used
       !-------------------------------
-  IF (nsubsteps>1)CALL zero_procs(procs)
-  IF (nsubsteps>1 .AND. l_process)CALL zero_procs(aerosol_procs)
-
+    CALL zero_procs(procs)
+    IF (l_process)CALL zero_procs(aerosol_procs)
+      !---------------------------------------------------------------
+      ! Re-Determine (and possibly limit) size distribution
+      !---------------------------------------------------------------
+    CALL query_distributions(cloud_params, qfields, dist_lambda, dist_mu, dist_n0, icall=nsubseds+3)
+    CALL query_distributions(rain_params, qfields, dist_lambda, dist_mu, dist_n0, icall=nsubseds+3)
+    IF (.NOT. l_warm_loc) THEN
+      CALL query_distributions(ice_params, qfields, dist_lambda, dist_mu, dist_n0, icall=nsubseds+3)
+      CALL query_distributions(snow_params, qfields, dist_lambda, dist_mu, dist_n0, icall=nsubseds+3)
+      CALL query_distributions(graupel_params, qfields, dist_lambda, dist_mu, dist_n0, icall=nsubseds+3)
+    END IF
+  END IF
 
 END DO
 IF (l_debug_common)PRINT*,'DEBUG5'
@@ -1189,7 +1200,7 @@ IF (pswitch%l_tidy2) THEN
       CALL qtidy(step_length, k, qfields, procs, aerofields     &
          , aeroact, dustact, aeroice, dustliq           &
          , aerosol_procs, i_tidy2, i_atidy2,     &
-         l_negonly=.TRUE.)
+         l_negonly=l_tidy_negonly)
     END IF
 
   END DO

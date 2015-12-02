@@ -8,7 +8,7 @@ USE mphys_switches, ONLY: i_qv, i_ql, i_nl, i_th,      &
      i_am4, i_am1, i_an1, i_am2, i_an2, i_am3, i_an3,  &
      i_am6, i_an6, i_am9, i_an11, i_an12,  &
      cloud_params, l_process, l_passivenumbers,l_passivenumbers_ice, aero_index, &
-     active_cloud, active_number
+     active_cloud, active_number, l_preventsmall
 
 USE process_routines, ONLY: process_rate, i_cond, i_aact
 USE mphys_constants, ONLY: Lv, cp
@@ -162,6 +162,7 @@ IF ((qv/qs > 1.0 - ss_small .OR. cloud_mass > 0.0) .AND. l_docloud) THEN
 #endif
 
 
+
 #if DEF_MODEL==MODEL_KiD
   CALL save_dg(k_here, i_here, qv, 'qv_in_cond', i_dgtime)
   CALL save_dg(k_here, i_here, qs, 'qs_in_cond', i_dgtime)
@@ -170,7 +171,7 @@ IF ((qv/qs > 1.0 - ss_small .OR. cloud_mass > 0.0) .AND. l_docloud) THEN
 #endif
 
   IF (dmass > 0.0_wp) THEN ! condensation
-
+    
     IF (dmass*dt + cloud_mass > ql_small) THEN ! is it worth bothering with?
 
       IF (cloud_params%l_2m) THEN
