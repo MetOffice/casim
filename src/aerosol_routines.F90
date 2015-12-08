@@ -460,7 +460,7 @@ IF (.NOT. l_warm) THEN
         END IF
 
         IF (l_passivenumbers) THEN
-          nitot=aerofields(k,i_an11)*ratio_ali
+          nitot=aerofields(k,i_an11)*ratio_ail
         ELSE
           nitot=nhtot
         END IF
