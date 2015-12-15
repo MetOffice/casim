@@ -11,7 +11,7 @@ USE mphys_switches, ONLY: i_qv, i_ql, i_qi, i_ni, i_th   &
      , contact_efficiency, immersion_efficiency
 USE process_routines, ONLY: process_rate, i_inuc,   &
      i_dnuc
-USE mphys_parameters, ONLY: nucleated_ice_mass, cloud_params
+USE mphys_parameters, ONLY: nucleated_ice_mass, cloud_params, ice_params
 USE mphys_constants, ONLY: Ls, cp, pi
 USE qsat_funs, ONLY: qsaturation, qisaturation
 USE thresholds, ONLY: ql_small, w_small, ni_tidy, nl_tidy
@@ -74,7 +74,7 @@ REAL(wp) :: cloud_number, cloud_mass
 TYPE(process_rate), POINTER :: this_proc
 TYPE(process_rate), POINTER :: aero_proc
 
-REAL(wp) :: qs, qis, nitot, Si, Sw, limit, dN_imm, dN_contact, ql
+REAL(wp) :: qs, qis, Si, Sw, limit, dN_imm, dN_contact, ql
 
 INTEGER :: kk
 
@@ -123,13 +123,12 @@ END SELECT
 
 IF (l_condition) THEN
   this_proc => procs(k, i_inuc%id)
-  ice_number = qfields(k, i_ni)
-
-  nitot=0.0
-  IF (l_itotsg) THEN
-    IF (l_2ms) nitot = nitot + qfields(k, i_ns)
-    IF (l_2mg) nitot = nitot + qfields(k, i_ng)
-  END IF
+  
+  if (ice_params%l_2m)then
+    ice_number = qfields(k, i_ni)
+  else
+    ice_number = 1.e3 ! PRAGMATIC SM HACK
+  end if
 
   dN_contact=0.0
   dN_imm=0.0

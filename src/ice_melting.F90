@@ -73,7 +73,7 @@ mass = qfields(k, params%i_1m)
 
 IF (mass > thresh_tidy(params%i_1m) .AND. TdegC(k) > 0.0) THEN
 
-  number = qfields(k, params%i_2m)
+  if (params%l_2m)number = qfields(k, params%i_2m)
 
   IF (params%id == ice_params%id) THEN ! instantaneous removal
     iaproc=i_dimlt
@@ -82,15 +82,18 @@ IF (mass > thresh_tidy(params%i_1m) .AND. TdegC(k) > 0.0) THEN
     this_proc => procs(k, iproc%id)
 
     dmass=mass/dt
-    dnumber=number/dt
+    
+    if (params%l_2m)then
+      dnumber=number/dt
+      this_proc%source(ice_params%i_2m) = -dnumber
+      IF (rain_params%l_2m) THEN
+        this_proc%source(rain_params%i_2m) = dnumber
+      END IF
+    end if
 
     this_proc%source(ice_params%i_1m) = -dmass
     this_proc%source(rain_params%i_1m) = dmass
 
-    this_proc%source(ice_params%i_2m) = -dnumber
-    IF (rain_params%l_2m) THEN
-      this_proc%source(rain_params%i_2m) = dnumber
-    END IF
     IF (rain_params%l_3m) THEN
       m1=qfields(k, rain_params%i_1m)/rain_params%c_x
       m2=qfields(k, rain_params%i_2m)

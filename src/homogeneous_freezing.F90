@@ -59,7 +59,11 @@ LOGICAL :: l_ziegler=.TRUE.
 th = qfields(k, i_th)
 Tc = th*exner(k) - 273.15
 qr = qfields(k, i_qr)
-nr = qfields(k, i_nr)
+if (rain_params%l_2m)then
+  nr = qfields(k, i_nr)
+else
+  nr = 1000. ! PRAGMATIC SM HACK
+end if
 
 l_condition=(Tc < -4.0 .AND. qr > thresh_small(i_qr))
 l_freezeall=.FALSE.

@@ -69,6 +69,8 @@ REAL(wp) :: n0, lam, mu
 
 REAL(wp) :: Eff  !< splintering efficiency
 
+if (.not. ice_params%l_2m) return
+
 Eff = 1.0 - ABS(TdegC(k) + 5.0)/2.5 ! linear increase between -2.5/-7.5 and -5C
 
 IF (Eff > 0.0) THEN
