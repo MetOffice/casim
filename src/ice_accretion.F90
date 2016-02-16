@@ -1,308 +1,285 @@
-MODULE ice_accretion
+module ice_accretion
+  use variable_precision, only: wp, iwp
+  use passive_fields, only: rho, pressure, w, exner, TdegC
+  use mphys_switches, only: hydro_complexity,  i_ql, l_process,   &
+       cloud_params, rain_params, i_am4, i_am7, i_am8, i_am9
+  use type_process, only: process_name
+  use process_routines, only: process_rate,   &
+       i_iacw, i_sacw, i_saci, i_raci, i_sacr, i_gacw, i_gacr, i_gaci, i_gacs, &
+       i_diacw, i_dsacw, i_dgacw, i_dsacr, i_dgacr, i_draci
+  use mphys_parameters, only: hydro_params
+  use mphys_constants, only: Ls, cp
+  use qsat_funs, only: qsaturation, qisaturation
+  use thresholds, only: thresh_small
+  use activation, only: activate
+  use aerosol_routines, only: aerosol_phys, aerosol_chem, aerosol_active
 
-USE variable_precision, ONLY: wp, iwp
-USE passive_fields, ONLY: rho, pressure, w, exner, TdegC
-USE mphys_switches, ONLY: hydro_complexity,  i_ql, l_process,   &
-     cloud_params, rain_params, i_am4, i_am7, i_am8, i_am9
-USE type_process, ONLY: process_name
-USE process_routines, ONLY: process_rate,   &
-     i_iacw, i_sacw, i_saci, i_raci, i_sacr, i_gacw, i_gacr, i_gaci, i_gacs, &
-     i_diacw, i_dsacw, i_dgacw, i_dsacr, i_dgacr, i_draci
-USE mphys_parameters, ONLY: hydro_params
-USE mphys_constants, ONLY: Ls, cp
-USE qsat_funs, ONLY: qsaturation, qisaturation
-USE thresholds, ONLY: thresh_small
-USE activation, ONLY: activate
-USE aerosol_routines, ONLY: aerosol_phys, aerosol_chem, aerosol_active
-
-USE m3_incs, ONLY: m3_inc_type2, m3_inc_type3
-USE distributions, ONLY: dist_lambda, dist_mu, dist_n0
-USE sweepout_rate, ONLY: sweepout, binary_collection
+  use m3_incs, only: m3_inc_type2, m3_inc_type3
+  use distributions, only: dist_lambda, dist_mu, dist_n0
+  use sweepout_rate, only: sweepout, binary_collection
 
 #if DEF_MODEL==MODEL_KiD
-USE diagnostics, ONLY: save_dg, i_dgtime, i_here, k_here
-USE runtime, ONLY: time
+  use diagnostics, only: save_dg, i_dgtime, i_here, k_here
+  use runtime, only: time
 #elif DEF_MODEL==MODEL_LEM
-USE com_params, ONLY: time
+  use com_params, only: time
 #elif  DEF_MODEL==MODEL_MONC
-USE diaghelp_monc, ONLY: i_here, j_here
+  use diaghelp_monc, only: i_here, j_here
 #else
-USE diaghelp_um, ONLY: i_here,j_here
-USE UM_ParCore, ONLY: mype
+  use diaghelp_um, only: i_here,j_here
+  use UM_ParCore, only: mype
 #endif
-USE special, ONLY: pi, Gammafunc
+  use special, only: pi, Gammafunc
 
-IMPLICIT NONE
+  implicit none
+  private
 
-CONTAINS
+  public iacc
+contains
 
-SUBROUTINE iacc(dt, k, params_X, params_Y, params_Z, qfields, procs,   &
-     aeroact, dustliq, aerosol_procs)
-
+  subroutine iacc(dt, k, params_X, params_Y, params_Z, qfields, procs,   &
+       aeroact, dustliq, aerosol_procs)
     !
     !< CODE TIDYING: Move efficiencies into parameters
 
-REAL(wp), INTENT(IN) :: dt
-INTEGER, INTENT(IN) :: k
-TYPE(hydro_params), INTENT(IN) :: params_X !< parameters for species which does the collecting
-TYPE(hydro_params), INTENT(IN) :: params_Y !< parameters for species which is collected
-TYPE(hydro_params), INTENT(IN) :: params_Z !< parameters for species to which resulting amalgamation is sent
-REAL(wp), INTENT(IN), TARGET :: qfields(:,:)
-TYPE(process_rate), INTENT(INOUT), TARGET :: procs(:,:)
+    real(wp), intent(in) :: dt
+    integer, intent(in) :: k
+    type(hydro_params), intent(in) :: params_X !< parameters for species which does the collecting
+    type(hydro_params), intent(in) :: params_Y !< parameters for species which is collected
+    type(hydro_params), intent(in) :: params_Z !< parameters for species to which resulting amalgamation is sent
+    real(wp), intent(in), target :: qfields(:,:)
+    type(process_rate), intent(inout), target :: procs(:,:)
 
     ! aerosol fields
-TYPE(aerosol_active), INTENT(IN) :: aeroact(:)
-TYPE(aerosol_active), INTENT(IN) :: dustliq(:)
+    type(aerosol_active), intent(in) :: aeroact(:)
+    type(aerosol_active), intent(in) :: dustliq(:)
 
     ! optional aerosol fields to be processed
-TYPE(process_rate), INTENT(INOUT), TARGET :: aerosol_procs(:,:)
+    type(process_rate), intent(inout), target :: aerosol_procs(:,:)
 
-TYPE(process_name) :: iproc, iaproc  ! processes selected depending on
-                                         ! which species we're depositing on.
+    type(process_name) :: iproc, iaproc  ! processes selected depending on
+    ! which species we're depositing on.
 
-REAL(wp) :: dmass_Y, dnumber_Y, dmac, dmad
-REAL(wp) :: dmass_X, dmass_Z, dnumber_X, dnumber_Z
+    real(wp) :: dmass_Y, dnumber_Y, dmac, dmad
+    real(wp) :: dmass_X, dmass_Z, dnumber_X, dnumber_Z
 
-REAL(wp) :: number_X, mass_X, m3_X, m1, m2, m3
-REAL(wp) :: mass_Y, number_Y, m3_Y
-TYPE(process_rate), POINTER :: this_proc, aero_proc
+    real(wp) :: number_X, mass_X, m3_X, m1, m2, m3
+    real(wp) :: mass_Y, number_Y, m3_Y
+    type(process_rate), pointer :: this_proc, aero_proc
 
-REAL(wp) :: n0_X, lam_X, mu_X
-REAL(wp) :: n0_Y, lam_Y, mu_Y
-REAL(wp) :: dm1, dm2
+    real(wp) :: n0_X, lam_X, mu_X
+    real(wp) :: n0_Y, lam_Y, mu_Y
+    real(wp) :: dm1, dm2
 
-REAL(wp) :: Eff ! collection efficiencies need to re-evaluate these
-                    ! and put them in properly to mphys_parameters
+    real(wp) :: Eff ! collection efficiencies need to re-evaluate these and put them in properly to mphys_parameters
 
-LOGICAL :: l_condition, l_alternate_Z, l_freezeall_X, l_freezeall_y
-LOGICAL :: l_slow ! fall speed is slow compared to interactive species
+    logical :: l_condition, l_alternate_Z, l_freezeall_X, l_freezeall_y
+    logical :: l_slow ! fall speed is slow compared to interactive species
+    logical :: l_aero ! If true then this process will modify aerosol
 
-LOGICAL :: l_aero ! If true then this process will modify aerosol
+    mass_Y=qfields(k, params_Y%i_1m)
+    mass_X=qfields(k, params_X%i_1m)
 
-mass_Y = qfields(k, params_Y%i_1m)
-mass_X = qfields(k, params_X%i_1m)
+    l_condition=mass_X > thresh_small(params_X%i_1m) .and. mass_Y > thresh_small(params_Y%i_1m)
+    l_freezeall_X=.false.
+    l_freezeall_Y=.false.
 
-l_condition = mass_X > thresh_small(params_X%i_1m) .AND.     &
-       mass_Y > thresh_small(params_Y%i_1m)
-l_freezeall_X=.FALSE.
-l_freezeall_Y=.FALSE.
-
-IF (l_condition) THEN
-
+    if (l_condition) then
       ! initialize variables which may not have been set
-  number_X=0.0
-  m3_X=0.0
-  dnumber_Y=0.0
+      number_X=0.0
+      m3_X=0.0
+      dnumber_Y=0.0
 
-  l_alternate_Z = params_X%id /= params_Z%id
-  l_aero=.FALSE.
+      l_alternate_Z=params_X%id /= params_Z%id
+      l_aero=.false.
 
-  SELECT CASE (params_Y%id)
-    CASE(1_iwp) ! cloud liquid is collected
-      l_slow=.TRUE. ! Y catagory falls slowly compared to X
-      SELECT CASE (params_X%id)
-        CASE (3_iwp) !ice collects
+      select case (params_Y%id)
+      case(1_iwp) ! cloud liquid is collected
+        l_slow=.true. ! Y catagory falls slowly compared to X
+        select case (params_X%id)
+        case (3_iwp) !ice collects
           iproc=i_iacw
           Eff=1.0
           iaproc=i_diacw
-          l_aero=.TRUE.
-        CASE (4_iwp) !snow collects
+          l_aero=.true.
+        case (4_iwp) !snow collects
           iproc=i_sacw
           Eff=1.0
           iaproc=i_dsacw
-          l_aero=.TRUE.
-        CASE (5_iwp) !graupel collects
+          l_aero=.true.
+        case (5_iwp) !graupel collects
           iproc=i_gacw
           Eff=1.0
           iaproc=i_dgacw
-          l_aero=.TRUE.
-      END SELECT
-    CASE(2_iwp) ! rain is collected
-      l_slow=.FALSE. ! Y catagory falls slowly compared to X
-      SELECT CASE (params_X%id)
-        CASE (4_iwp) !snow collects
+          l_aero=.true.
+        end select
+      case(2_iwp) ! rain is collected
+        l_slow=.false. ! Y catagory falls slowly compared to X
+        select case (params_X%id)
+        case (4_iwp) !snow collects
           iproc=i_sacr
           Eff=1.0
           iaproc=i_dsacr
-          l_aero=.TRUE.
-        CASE (5_iwp) !graupel collects
+          l_aero=.true.
+        case (5_iwp) !graupel collects
           iproc=i_gacr
           Eff=1.0
           iaproc=i_dgacr
-          l_aero=.TRUE.
-      END SELECT
-    CASE(3_iwp)! cloud ice is collected
-      l_slow=.TRUE. ! Y catagory falls slowly compared to X
-      SELECT CASE (params_X%id)
-        CASE (2_iwp) !rain collects
+          l_aero=.true.
+        end select
+      case(3_iwp)! cloud ice is collected
+        l_slow=.true. ! Y catagory falls slowly compared to X
+        select case (params_X%id)
+        case (2_iwp) !rain collects
           iproc=i_raci
           Eff=1.0
           iaproc=i_draci
-          l_aero=.TRUE.
-        CASE (4_iwp) !snow collects
+          l_aero=.true.
+        case (4_iwp) !snow collects
           iproc=i_saci
           !Eff=1.0
-          Eff = MIN(1.0_wp, 0.2*EXP(0.08*TdegC(k)))
-        CASE (5_iwp) !graupel collects
+          Eff = min(1.0_wp, 0.2*exp(0.08*TdegC(k)))
+        case (5_iwp) !graupel collects
           iproc=i_gaci
           !Eff=1.0
-          Eff = MIN(1.0_wp, 0.2*EXP(0.08*TdegC(k)))
-      END SELECT
-    CASE(4_iwp) ! snow is collected
-      l_slow=.FALSE. ! Y catagory falls slowly compared to X
-      SELECT CASE (params_X%id)
-        CASE (5_iwp) !graupel collects
+          Eff = min(1.0_wp, 0.2*exp(0.08*TdegC(k)))
+        end select
+      case(4_iwp) ! snow is collected
+        l_slow=.false. ! Y catagory falls slowly compared to X
+        select case (params_X%id)
+        case (5_iwp) !graupel collects
           iproc=i_gacs
           !Eff=1.0
-          Eff = MIN(1.0_wp, 0.2*EXP(0.08*TdegC(k)))
-      END SELECT
-  END SELECT
+          Eff = min(1.0_wp, 0.2*exp(0.08*TdegC(k)))
+        end select
+      end select
 
-  this_proc => procs(k, iproc%id)
+      this_proc=>procs(k, iproc%id)
 
-  IF (params_X%l_2m) number_X = qfields(k, params_X%i_2m)
-  IF (params_X%l_3m) m3_X = qfields(k, params_X%i_3m)
+      if (params_X%l_2m) number_X=qfields(k, params_X%i_2m)
+      if (params_X%l_3m) m3_X=qfields(k, params_X%i_3m)
 
-  n0_X = dist_n0(k,params_X%id)
-  mu_X = dist_mu(k,params_X%id)
-  lam_X = dist_lambda(k,params_X%id)
+      n0_X=dist_n0(k,params_X%id)
+      mu_X=dist_mu(k,params_X%id)
+      lam_X=dist_lambda(k,params_X%id)
 
-  IF (l_slow) THEN  ! collected species is approximated to have zero fallspeed
+      if (l_slow) then  ! collected species is approximated to have zero fallspeed
+        dmass_Y=-Eff*sweepout(n0_X, lam_X, mu_X, params_X, rho(k))*mass_Y
+        dmass_Y=max(dmass_Y, -mass_Y/dt)
 
-    dmass_Y = -Eff*sweepout(n0_X, lam_X, mu_X, params_X, rho(k)) * mass_Y
-    dmass_Y = MAX(dmass_Y, -mass_Y/dt)
+        if (params_Y%l_2m) then
+          number_Y=qfields(k, params_Y%i_2m)
+          dnumber_Y=dmass_Y*number_Y/mass_Y
+        end if
 
-    IF (params_Y%l_2m) THEN
-      number_Y = qfields(k, params_Y%i_2m)
-      dnumber_Y = dmass_Y * number_Y / mass_Y
-    END IF
-
-    IF (l_alternate_Z) THEN ! We move resulting collision to another species.
-      IF (params_Y%l_2m) THEN
-        number_Y = qfields(k, params_Y%i_2m)
-      ELSE
+        if (l_alternate_Z) then ! We move resulting collision to another species.
+          if (params_Y%l_2m) then
+            number_Y=qfields(k, params_Y%i_2m)
+          else
             ! we need an else in here
-      END IF
-      dmass_X =  -Eff*sweepout(n0_X, lam_X, mu_X, params_X, rho(k), mass_weight=.TRUE.) * number_Y
-      dmass_X = MAX(dmass_X, -mass_X/dt)
-      dnumber_X = dnumber_Y !dmass_Y*number_X/mass_Y
-      dmass_Z = -1.0*( dmass_X + dmass_Y )
-      dnumber_Z = -1.0*dnumber_X
-    END IF
+          end if
+          dmass_X=-Eff*sweepout(n0_X, lam_X, mu_X, params_X, rho(k), mass_weight=.true.) * number_Y
+          dmass_X=max(dmass_X, -mass_X/dt)
+          dnumber_X=dnumber_Y !dmass_Y*number_X/mass_Y
+          dmass_Z=-1.0*(dmass_X + dmass_Y)
+          dnumber_Z=-1.0*dnumber_X
+        end if
+      else  ! both species have significant fall velocity
+        if (params_Y%l_2m) then
+          number_Y=qfields(k, params_Y%i_2m)
+        end if
+        if (params_Y%l_3m) m3_Y=qfields(k, params_Y%i_3m)
 
-  ELSE  ! both species have significant fall velocity
+        n0_Y=dist_n0(k,params_Y%id)
+        mu_Y=dist_mu(k,params_Y%id)
+        lam_Y=dist_lambda(k,params_Y%id)
 
-    IF (params_Y%l_2m) THEN
-      number_Y = qfields(k, params_Y%i_2m)
-    ELSE
-          ! we need an else in here
-    END IF
-    IF (params_Y%l_3m) m3_Y = qfields(k, params_Y%i_3m)
+        dmass_Y=-Eff*binary_collection(n0_X, lam_X, mu_X, n0_Y, lam_Y, mu_Y, params_X, params_Y, rho(k), mass_weight=.true.)
+        dmass_Y=max(dmass_Y, -mass_Y/dt)
 
-    n0_Y = dist_n0(k,params_Y%id)
-    mu_Y = dist_mu(k,params_Y%id)
-    lam_Y = dist_lambda(k,params_Y%id)
+        if (params_Y%l_2m) then
+          dnumber_Y=-Eff*binary_collection(n0_X, lam_X, mu_X, n0_Y, lam_Y, mu_Y, params_X, params_Y, rho(k))
+        end if
 
-    dmass_Y   = -Eff*binary_collection(n0_X, lam_X, mu_X, n0_Y, lam_Y, mu_Y, params_X, params_Y, rho(k), mass_weight=.TRUE.)
-    dmass_Y = MAX(dmass_Y, -mass_Y/dt)
-
-    IF (params_Y%l_2m) THEN
-      dnumber_Y = -Eff*binary_collection(n0_X, lam_X, mu_X, n0_Y, lam_Y, mu_Y, params_X, params_Y, rho(k))
-    END IF
-
-    IF (l_alternate_Z) THEN ! We move resulting collision to another species.
-      dmass_X =  -Eff*binary_collection(n0_Y, lam_Y, mu_Y, n0_X, lam_X, mu_X, params_Y, params_X, rho(k), mass_weight=.TRUE.)
-      dmass_X = MAX(dmass_X, -mass_X/dt)
-      dnumber_X = dnumber_Y
-      dmass_Z = -1.0*( dmass_X + dmass_Y )
-      dnumber_Z = -1.0*dnumber_X
-    END IF
-
-  END IF
-
+        if (l_alternate_Z) then ! We move resulting collision to another species.
+          dmass_X=-Eff*binary_collection(n0_Y, lam_Y, mu_Y, n0_X, lam_X, mu_X, params_Y, params_X, rho(k), mass_weight=.true.)
+          dmass_X=max(dmass_X, -mass_X/dt)
+          dnumber_X=dnumber_Y
+          dmass_Z=-1.0*(dmass_X + dmass_Y)
+          dnumber_Z=-1.0*dnumber_X
+        end if
+      end if
 
       ! PRAGMATIC HACK - FIX ME (ALTHOUGH I QUITE LIKE IT)
       ! If most of the collected particles are to be removed then remove all of them
-  IF (-dmass_Y*dt >0.95*mass_Y .OR. (params_Y%l_2m .AND. -dnumber_Y*dt > 0.95*number_Y)) THEN
-    dmass_Y=-mass_Y/dt
-    dnumber_Y=-number_Y/dt
-    l_freezeall_Y=.TRUE.
-  END IF
+      if (-dmass_Y*dt >0.95*mass_Y .or. (params_Y%l_2m .and. -dnumber_Y*dt > 0.95*number_Y)) then
+        dmass_Y=-mass_Y/dt
+        dnumber_Y=-number_Y/dt
+        l_freezeall_Y=.true.
+      end if
       ! If most of the collecting particles are to be removed then remove all of them
-  IF (l_alternate_Z .AND. (-dmass_X*dt >0.95*mass_X .OR.     &
-         (params_X%l_2m .AND. -dnumber_X*dt > 0.95*number_X))) THEN
-    dmass_X=-mass_X/dt
-    dnumber_X=-number_X/dt
-    l_freezeall_X=.TRUE.
-    dmass_Z = -1.0*( dmass_X + dmass_Y )
-    dnumber_Z = -1.0*dnumber_X
-  END IF
+      if (l_alternate_Z .and. (-dmass_X*dt >0.95*mass_X .or. (params_X%l_2m .and. -dnumber_X*dt > 0.95*number_X))) then
+        dmass_X=-mass_X/dt
+        dnumber_X=-number_X/dt
+        l_freezeall_X=.true.
+        dmass_Z = -1.0*( dmass_X + dmass_Y )
+        dnumber_Z = -1.0*dnumber_X
+      end if
 
-  IF (.NOT. l_alternate_Z) THEN
-    dmass_X=-dmass_Y
-    dnumber_X=0.0
-    dnumber_Z=0.0
-    dmass_Z=0.0
-  END IF
+      if (.not. l_alternate_Z) then
+        dmass_X=-dmass_Y
+        dnumber_X=0.0
+        dnumber_Z=0.0
+        dmass_Z=0.0
+      end if
 
+      this_proc%source(params_Y%i_1m)=dmass_Y
+      if (params_Y%l_2m) then
+        this_proc%source(params_Y%i_2m)=dnumber_Y
+      end if
 
-  this_proc%source(params_Y%i_1m) = dmass_Y
-  IF (params_Y%l_2m) THEN
-    this_proc%source(params_Y%i_2m) = dnumber_Y
-  END IF
+      this_proc%source(params_X%i_1m)=dmass_X
+      if (params_X%l_2m) then
+        this_proc%source(params_X%i_2m)=dnumber_X
+      end if
 
-  this_proc%source(params_X%i_1m) = dmass_X
-  IF (params_X%l_2m) THEN
-    this_proc%source(params_X%i_2m) = dnumber_X
-  END IF
-
-  IF (l_alternate_Z) THEN
-    this_proc%source(params_Z%i_1m) = dmass_Z
-    IF (params_Z%l_2m) THEN
-      this_proc%source(params_Z%i_2m) = dnumber_Z
-    END IF
-  END IF
+      if (l_alternate_Z) then
+        this_proc%source(params_Z%i_1m)=dmass_Z
+        if (params_Z%l_2m) then
+          this_proc%source(params_Z%i_2m)=dnumber_Z
+        end if
+      end if
 
       !----------------------
       ! Aerosol processing...
       !----------------------
 
-  IF (l_process .AND. l_aero) THEN
+      if (l_process .and. l_aero) then
         ! We note that all processes result in a source of frozen water
         ! i.e. params_Z is either ice, snow or graupel
+        aero_proc=>aerosol_procs(k, iaproc%id)
 
-    aero_proc => aerosol_procs(k, iaproc%id)
+        if (params_Y%id == cloud_params%id) then
+          dmac=abs(dnumber_Y)*aeroact(k)%mact1_mean*aeroact(k)%nratio1
+          dmad=abs(dnumber_Y)*dustliq(k)%mact1_mean*dustliq(k)%nratio1
+        else if (params_Y%id == rain_params%id) then
+          dmac=abs(dnumber_Y)*aeroact(k)%mact2_mean*aeroact(k)%nratio2
+          dmad=abs(dnumber_Y)*dustliq(k)%mact2_mean*dustliq(k)%nratio2
+        else if (params_X%id == cloud_params%id) then ! This is never the case !
+          dmac=abs(dnumber_X)*aeroact(k)%mact1_mean*aeroact(k)%nratio1
+          dmad=abs(dnumber_X)*dustliq(k)%mact1_mean*dustliq(k)%nratio1
+        else if (params_X%id == rain_params%id) then
+          dmac=abs(dnumber_X)*aeroact(k)%mact2_mean*aeroact(k)%nratio2
+          dmad=abs(dnumber_X)*dustliq(k)%mact2_mean*dustliq(k)%nratio2
+        end if
 
-    IF (params_Y%id == cloud_params%id) THEN
-      dmac = ABS(dnumber_Y)*aeroact(k)%mact1_mean*aeroact(k)%nratio1
-      dmad = ABS(dnumber_Y)*dustliq(k)%mact1_mean*dustliq(k)%nratio1
-    ELSE IF (params_Y%id == rain_params%id) THEN
-      dmac = ABS(dnumber_Y)*aeroact(k)%mact2_mean*aeroact(k)%nratio2
-      dmad = ABS(dnumber_Y)*dustliq(k)%mact2_mean*dustliq(k)%nratio2
-    ELSE IF (params_X%id == cloud_params%id) THEN ! This is never the case !
-      dmac = ABS(dnumber_X)*aeroact(k)%mact1_mean*aeroact(k)%nratio1
-      dmad = ABS(dnumber_X)*dustliq(k)%mact1_mean*dustliq(k)%nratio1
-    ELSE IF (params_X%id == rain_params%id) THEN
-      dmac = ABS(dnumber_X)*aeroact(k)%mact2_mean*aeroact(k)%nratio2
-      dmad = ABS(dnumber_X)*dustliq(k)%mact2_mean*dustliq(k)%nratio2
-    END IF
-
-    aero_proc%source(i_am8) = dmac
-    aero_proc%source(i_am4) = -dmac
-
-    aero_proc%source(i_am7) = dmad
-    aero_proc%source(i_am9) = -dmad
-
-
-    NULLIFY(aero_proc)
-
-  END IF
-
-
-  NULLIFY(this_proc)
-
-END IF
-
-END SUBROUTINE iacc
-
-END MODULE ice_accretion
+        aero_proc%source(i_am8)=dmac
+        aero_proc%source(i_am4)=-dmac
+        aero_proc%source(i_am7)=dmad
+        aero_proc%source(i_am9)=-dmad
+        nullify(aero_proc)
+      end if
+      nullify(this_proc)
+    end if
+  end subroutine iacc
+end module ice_accretion

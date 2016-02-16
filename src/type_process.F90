@@ -1,27 +1,25 @@
-MODULE type_process
-  ! declares derived types used by processes
+! declares derived types used by processes
+module type_process
+  use variable_precision, only: wp
 
-USE variable_precision, ONLY: wp
+  implicit none
 
-IMPLICIT NONE
-
-!! Allocatable arrays are quicker than pointers, but
-!! not supported by all compilers
+  !! Allocatable arrays are quicker than pointers, but
+  !! not supported by all compilers
 #if ALLOCATABLE_TYPE == 1
-TYPE :: process_rate
-  REAL(wp), ALLOCATABLE :: source(:)
-END TYPE process_rate
+  type :: process_rate
+     real(wp), allocatable :: source(:)
+  end type process_rate
 #else
-TYPE :: process_rate
-  REAL(wp), POINTER :: source(:) ! tendency to apply to target q variable (/s)
-END TYPE process_rate
+  type :: process_rate
+     real(wp), pointer :: source(:) ! tendency to apply to target q variable (/s)
+  end type process_rate
 #endif
 
-TYPE :: process_name
-  INTEGER :: id          ! Id for array indexing
-  INTEGER :: unique_id   ! Unique id for diagnostic identification
-  CHARACTER(20) :: name  ! Process name
-  LOGICAL :: on          ! is the process going to be used, i.e. on=.true.
-END TYPE process_name
-
-END MODULE type_process
+  type :: process_name
+     integer :: id          ! Id for array indexing
+     integer :: unique_id   ! Unique id for diagnostic identification
+     character(20) :: name  ! Process name
+     logical :: on          ! is the process going to be used, i.e. on=.true.
+  end type process_name
+end module type_process

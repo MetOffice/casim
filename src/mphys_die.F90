@@ -1,53 +1,44 @@
-MODULE mphys_die
-  !
-  ! Routine to exit the microphysics following an error there
-  !
+! Routine to exit the microphysics following an error there
+module mphys_die
 #if DEF_MODEL==MODEL_UM
-USE ereport_mod, ONLY : ereport
+  use ereport_mod, only : ereport
 #elif DEF_MODEL==MODEL_KiD
-USE runtime, ONLY: time
+  use runtime, only: time
 #endif
 
-IMPLICIT NONE
+  implicit none
+  private
 
-CONTAINS
+  public throw_mphys_error
+contains
 
-SUBROUTINE throw_mphys_error(itype, routine, info)
+  subroutine throw_mphys_error(itype, routine, info)
+    integer, optional, intent(in) :: itype  ! type of error 1 = incorrect specification of options, 0 = unknown
+    character(*), intent(in) :: routine
+    character(*), optional, intent(in) :: info ! error information
 
-INTEGER, OPTIONAL :: itype  ! type of error
-    !  1 = incorrect specification of options
-    !  0 = unknown
-CHARACTER(*) :: routine
-CHARACTER(*), OPTIONAL :: info ! error information
+    integer, parameter :: nstandard_types=3
+    character(100) :: stdinfo(nstandard_types) =     &
+         (/ 'incorrect specification of options      ' &
+         ,  'Bad values found                        ' &
+         ,  'unknown error                           ' &
+         /)
+    character(1000) :: str
+    real :: minus_one=-1.
 
-INTEGER, PARAMETER :: nstandard_types=3
-CHARACTER(100) :: stdinfo(nstandard_types) =     &
-       (/ 'incorrect specification of options      ' &
-       ,  'Bad values found                        ' &
-       ,  'unknown error                           ' &
-       /)
-
-CHARACTER(1000) :: str
-
-REAL :: minus_one=-1.
-
-str='Error in microphysics: '
-
-IF (itype <= nstandard_types) str=TRIM(str)//TRIM(stdinfo(itype))
-
-IF (PRESENT(info)) str=TRIM(str)//' Additional information: '//TRIM(info)
+    str='Error in microphysics: '
+    if (itype <= nstandard_types) str=trim(str)//trim(stdinfo(itype))
+    if (present(info)) str=trim(str)//' Additional information: '//trim(info)
 #if DEF_MODEL==MODEL_KiD
-PRINT*, 'Runtime is:' , time
+    print*, 'Runtime is:' , time
 #endif
 
 #if DEF_MODEL==MODEL_UM
-CALL Ereport(routine, itype, str)
+    call Ereport(routine, itype, str)
 #else
-PRINT*, routine,':', TRIM(str)
-PRINT*, (minus_one)**0.5
-STOP
+    print*, routine,':', trim(str)
+    print*, (minus_one)**0.5
+    stop
 #endif
-
-END SUBROUTINE throw_mphys_error
-
-END MODULE mphys_die
+  end subroutine throw_mphys_error
+end module mphys_die

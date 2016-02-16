@@ -1,84 +1,77 @@
-MODULE gauss_casim_micro
+module gauss_casim_micro
 
   !< Calculate the integral needed in the aggregation calculations
   !<
   !< OPTIMISATION POTENTIAL - LOOKUP
 
-USE variable_precision, ONLY: wp
-USE lookup, ONLY: max_mu
-IMPLICIT NONE
+  use variable_precision, only: wp
+  use lookup, only: max_mu
+  implicit none
+  private
 
-INTEGER, PARAMETER :: maxq = 5
-REAL(wp) :: gaussfunc_save(maxq) ! max 5 values - I.e. this is only used with 2m schemes
-                                ! should be extended
-INTEGER, PARAMETER, PRIVATE :: nbins_a = 50
-REAL(wp) :: gaussfunc_save_2D(nbins_a,maxq)
-LOGICAL :: l_save_2D(nbins_a,maxq) = .FALSE.
+  integer, parameter :: maxq = 5
+  real(wp) :: gaussfunc_save(maxq) ! max 5 values - I.e. this is only used with 2m schemes
+  ! should be extended
+  integer, parameter, private :: nbins_a = 50
+  real(wp) :: gaussfunc_save_2D(nbins_a,maxq)
+  logical :: l_save_2D(nbins_a,maxq) = .false.
 
-CONTAINS
+  public gauss_casim_func, gaussfunclookup, gaussfunclookup_2d
+contains
 
-SUBROUTINE gaussfunclookup(iq, VALUE, a, b, init)
+  subroutine gaussfunclookup(iq, value, a, b, init)
+    integer, intent(in) :: iq !< parameter index relating to variable we're considering
+    real(wp), intent(out) :: value !< returned value
+    real(wp), intent(in), optional :: a, b  !< Value of a and b to use. Only required if initializing
+    logical, intent(in), optional :: init !< if present and true then initialize values otherwise use precalculated values
 
-INTEGER, INTENT(IN) :: iq !< parameter index relating to variable we're considering
-REAL(wp), INTENT(OUT) :: VALUE !< returned value
-REAL(wp), INTENT(IN), OPTIONAL :: a, b  !< Value of a and b to use. Only required if initializing
-LOGICAL, INTENT(IN), OPTIONAL :: init !< if present and true then initialize values
-                                          !< otherwise use precalculated values
+    logical :: vinit
 
-LOGICAL :: vinit
+    vinit=.false.
+    if (present(init) .and. present(a) .and. present(b)) vinit=init
+    if (vinit) then
+      value=gauss_casim_func(a,b)
+      gaussfunc_save(iq)=gauss_casim_func(a,b)
+    else
+      value=gaussfunc_save(iq)
+    end if
+  end subroutine gaussfunclookup
 
-vinit=.FALSE.
-IF (PRESENT(init) .AND. PRESENT(a) .AND. PRESENT(b))vinit=init
-IF (vinit) THEN
-  VALUE = gauss_casim_func(a,b)
-  gaussfunc_save(iq) = gauss_casim_func(a,b)
-ELSE
-  VALUE = gaussfunc_save(iq)
-END IF
+  subroutine gaussfunclookup_2d(iq, value, a, b)
+    integer, intent(in) :: iq !< parameter index relating to variable we're considering
+    real(wp), intent(out) :: value !< returned value
+    real(wp), intent(in) :: a, b  !< Value of a and b to use.  (a is mu, b is b_x)
 
-END SUBROUTINE gaussfunclookup
+    integer :: ibin ! mu(a) bin in which we sit
 
-SUBROUTINE gaussfunclookup_2d(iq, VALUE, a, b)
+    ibin=int((a/max_mu)*(nbins_a-1))+1
+    if (.not. l_save_2D(ibin,iq)) then
+      value=gauss_casim_func(a,b)
+      gaussfunc_save_2d(ibin,iq)=gauss_casim_func(a,b)
+      l_save_2D(ibin,iq)=.true.
+    else
+      value=gaussfunc_save_2d(ibin,iq)
+    end if
+  end subroutine gaussfunclookup_2d
 
-INTEGER, INTENT(IN) :: iq !< parameter index relating to variable we're considering
-REAL(wp), INTENT(OUT) :: VALUE !< returned value
-REAL(wp), INTENT(IN) :: a, b  !< Value of a and b to use.  (a is mu, b is b_x)
+  function gauss_casim_func(a, b)
+    real(wp), intent(in) :: a, b !< function arguments
 
-INTEGER :: ibin ! mu(a) bin in which we sit
+    real(wp), parameter ::   tmax = 18.0    !< Limit of integration
+    real(wp), parameter ::   dt   = 0.08   !< step size
+    real(wp) :: sum, t1, t2
+    real(wp) :: Gauss_casim_Func
 
-ibin = INT((a/max_mu)*(nbins_a-1)) + 1
-IF (.NOT. l_save_2D(ibin,iq)) THEN
-  VALUE = gauss_casim_func(a,b)
-  gaussfunc_save_2d(ibin,iq) = gauss_casim_func(a,b)
-  l_save_2D(ibin,iq)=.TRUE.
-ELSE
-  VALUE = gaussfunc_save_2d(ibin,iq)
-END IF
-
-END SUBROUTINE gaussfunclookup_2d
-
-FUNCTION gauss_casim_func(a, b)
-
-REAL(wp), INTENT(IN) :: a, b !< function arguments
-REAL(wp), PARAMETER ::   tmax = 18.0    !< Limit of integration
-REAL(wp), PARAMETER ::   dt   = 0.08   !< step size
-REAL(wp) :: sum, t1, t2
-REAL(wp) :: Gauss_casim_Func
-
-sum = 0.0
-t1  = 0.5*dt
-Gaus_t1: DO WHILE (t1  <=  tmax)
-  t2 = 0.5*dt
-Gaus_t2: DO WHILE (t2  <=  tmax)
-    sum = sum + (t1 + t2)**2*ABS( (t1**b) - (t2**b))          &
-           *(t1**a)*(t2**a)*EXP(-(t1 + t2))
-    t2  = t2 + dt
-  END DO Gaus_t2
-  t1 = t1 + dt
-END DO Gaus_t1
-
-Gauss_casim_Func = sum*dt*dt
-END FUNCTION Gauss_casim_Func
-
-END MODULE gauss_casim_micro
-
+    sum=0.0
+    t1=0.5*dt
+    Gaus_t1: do while (t1 <= tmax)
+      t2=0.5*dt
+      Gaus_t2: do while (t2 <= tmax)
+        sum=sum+(t1+t2)**2*abs((t1**b)-(t2**b))*(t1**a)*(t2**a)*exp(-(t1+t2))
+        t2=t2+dt
+      end do Gaus_t2
+      t1=t1+dt
+    end do Gaus_t1
+    Gauss_casim_Func=sum*dt*dt
+  end function Gauss_casim_Func
+end module gauss_casim_micro

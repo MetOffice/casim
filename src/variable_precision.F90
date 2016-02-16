@@ -1,32 +1,19 @@
-MODULE VARIABLE_PRECISION
+module variable_precision
+  implicit none
 
-IMPLICIT NONE
+  real :: dummy
 
-REAL :: dummy
+  integer, parameter :: defp = kind(dummy) ! default precision
 
-INTEGER, PARAMETER ::    &
-     defp = KIND(dummy) ! default precision
+  integer, parameter :: OneByteInt = selected_int_kind(2), TwoByteInt = selected_int_kind(4), &
+       FourByteInt = selected_int_kind(9), EightByteInt = selected_int_kind(18)
 
-INTEGER, PARAMETER ::                       &
-       OneByteInt = SELECTED_INT_KIND(2)    &
-       ,TwoByteInt = SELECTED_INT_KIND(4)   &
-       ,FourByteInt = SELECTED_INT_KIND(9)  &
-       ,EightByteInt = SELECTED_INT_KIND(18)
+  integer, parameter :: FourByteReal = selected_real_kind(P =  6, R =  37),EightByteReal = selected_real_kind(P = 13, R =  307)
 
-INTEGER, PARAMETER ::                                       &
-       FourByteReal = SELECTED_REAL_KIND(P =  6, R =  37)   &
-       ,EightByteReal = SELECTED_REAL_KIND(P = 13, R =  307)
-
-INTEGER, PARAMETER ::                   &
-!       wp=FourByteReal                  & ! real working precision
-       wp=EightByteReal                  & ! real working precision
+  integer, parameter :: wp=EightByteReal                  & ! real working precision
        ,iwp=EightByteInt                & ! integer working precision
        ,ncdfp=FourByteReal              & ! netcdf real precision
        ,incdfp=FourByteInt                ! netcdf integer precision
 
-INTEGER, PARAMETER ::                   &
-       sp=FourByteReal                  &
-       ,dp=EightByteReal
-
-
-END MODULE VARIABLE_PRECISION
+  integer, parameter :: sp=FourByteReal, dp=EightByteReal
+end module variable_precision
