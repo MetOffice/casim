@@ -109,7 +109,7 @@ module micro_main
 contains
 
   subroutine initialise_casim(il, iu, jl, ju, kl, ku,                 &       
-       is_in, ie_in, js_in, je_in, ks_in, ke_in, rhcrit_in)
+       is_in, ie_in, js_in, je_in, ks_in, ke_in, l_tendency, rhcrit_in)
 
     integer, intent(in) :: il, iu ! upper and lower i levels
     integer, intent(in) :: jl, ju ! upper and lower j levels
@@ -119,6 +119,10 @@ contains
     integer, intent(in), optional :: js_in, je_in ! upper and lower j levels
     integer, intent(in), optional :: ks_in, ke_in ! upper and lower k levels
 
+    ! New optional l_tendency logical added...
+    ! if true then a tendency is returned (i.e. units/s)
+    ! if false then an increment is returned (i.e. units/timestep)
+    logical, intent(in), optional :: l_tendency
     real(wp), intent(in), optional :: rhcrit_in(kl:ku)
 
     ! Local variables
@@ -166,6 +170,8 @@ contains
 
     allocate(rhcrit(kl:ku))
 
+    l_tendency_loc=.true.
+    if (present(l_tendency)) l_tendency_loc=l_tendency
     if (present(rhcrit_in)) then
       rhcrit(:)=rhcrit_in(:)
     else
@@ -375,9 +381,6 @@ contains
     character(100) :: units, name
     integer :: im
     character(1) :: char   
-
-    l_tendency_loc=.true.
-    if (present(l_tendency)) l_tendency_loc=l_tendency
 
     ! Save parent model timestep for later use (e.g. in diagnostics)
     parent_dt=dt

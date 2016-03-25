@@ -8,7 +8,7 @@ module initialize
        rain_params, ice_params, snow_params, graupel_params, iopt_act, l_g, l_sg, l_override_checks, i_am10, i_an10, &
        isol, iinsol, active_rain, active_cloud, aero_index, active_number, process_level, iopt_act, l_process
   use gauss_casim_micro, only: gaussfunclookup
-  use micro_main, only: initialise_casim
+
 #if DEF_MODEL==MODEL_UM
   use mphys_casim_diagnostics, only: ProcessRates, nProcessDiags, ProcessKeys, ProcessQs, &
        PhaseChanges
@@ -273,8 +273,6 @@ contains
       dtpud=dt
     end if
 #endif
-    call initialise_casim(its, ite, jts, jte, kts, kte, ils, ile, jls, jle, kls, kle)
-
   end subroutine mphys_init
 
   ! Check that the options that have been selected are consitent
