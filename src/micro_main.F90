@@ -2,7 +2,7 @@ module micro_main
   use mphys_die, only: throw_mphys_error
   use variable_precision, only: wp
   use mphys_parameters, only: nz, nq, naero, nprocs, naeroprocs, rain_params, cloud_params, ice_params, &
-       snow_params, graupel_params, nspecies, parent_dt
+       snow_params, graupel_params, nspecies, parent_dt, ZERO_REAL_WP
   use process_routines, only: process_rate, zero_procs, allocate_procs, deallocate_procs, i_cond, i_praut, &
        i_pracw, i_pracr, i_prevp, i_psedr, i_psedl, i_aact, i_aaut, i_aacw, i_aevp, i_asedr, i_asedl, i_arevp, &
        i_tidy, i_tidy2, i_atidy, i_atidy2, i_inuc, i_idep, i_dnuc, i_dsub, i_saut, i_iacw, i_sacw, i_pseds, &
@@ -187,8 +187,8 @@ contains
     precondition=.true. ! Assume all points need to be considered
     allocate(qfields(nz, nq))
     allocate(dqfields(nz, nq))
-    qfields=0.0
-    dqfields=0.0
+    qfields=ZERO_REAL_WP
+    dqfields=ZERO_REAL_WP
     allocate(procs(nz, nprocs))
     allocate(tend(nz, nq))
 
@@ -198,8 +198,8 @@ contains
       naeroprocs=aero_complexity%nprocesses
       allocate(aerofields(nz, naero))
       allocate(daerofields(nz, naero))
-      aerofields=0.0
-      daerofields=0.0
+      aerofields=ZERO_REAL_WP
+      daerofields=ZERO_REAL_WP
       allocate(aerosol_procs(nz, naeroprocs))
       allocate(aerosol_tend(nz, naero))
     else
@@ -395,9 +395,9 @@ contains
         j_here=j
 #endif
 
-        tend=0.0
+        tend=ZERO_REAL_WP
         call zero_procs(procs)
-        aerosol_tend=0.0
+        aerosol_tend=ZERO_REAL_WP
         if (l_process) then
           call zero_procs(aerosol_procs)
         end if

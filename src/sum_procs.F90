@@ -29,13 +29,6 @@ module sum_process
   implicit none
   private
 
-#if DEF_MODEL==MODEL_UM
-  integer :: idg_proc
-
-  ! Temporary for debugging
-  integer :: max_prints(10)=0
-#endif
-
   public sum_aprocs, sum_procs
 contains
 

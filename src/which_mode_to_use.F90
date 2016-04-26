@@ -80,7 +80,7 @@ contains
           gamma=(rm*rm*rm-r1_3)/(r2_3-r1_3)
           dn2=dn*(gamma)
           dn1=dn - dn2
-          dm2=RFTPI*density*r2_3*dn2
+          dm2=FTPI*density*r2_3*dn2
           dm1=dm-dm2
         end if
       end select

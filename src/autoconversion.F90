@@ -36,7 +36,6 @@ contains
     real(wp) :: rain_number
     real(wp) :: rain_m3
     type(process_rate), pointer :: this_proc
-    type(process_rate), pointer :: aero_proc
     real(wp) :: p1, p2, p3
     real(wp) :: k1, k2, k3
     real(wp) :: mu_qc ! < cloud shape parameter (currently only used diagnostically here)
@@ -88,16 +87,13 @@ contains
         this_proc%source(i_m3r)=dm3
       end if
 
-      if (l_aaut .and. l_process) then
-        aero_proc=>aerosol_procs(k, i_aaut%id)
-
-        ! Standard Single soluble mode, 2 activated species
-        if (l_separate_rain) then
+      if (l_separate_rain) then
+        if (l_aaut .and. l_process) then
+          ! Standard Single soluble mode, 2 activated species
           damass=dmass/cloud_mass*aerofields(k,i_am4)
-          aero_proc%source(i_am4)=-damass
-          aero_proc%source(i_am5)=damass
+          aerosol_procs(k, i_aaut%id)%source(i_am4)=-damass
+          aerosol_procs(k, i_aaut%id)%source(i_am5)=damass
         end if
-        nullify(aero_proc)
       end if
       nullify(this_proc)
     end if
