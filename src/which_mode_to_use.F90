@@ -46,15 +46,17 @@ contains
     real(wp) :: FTPI ! 4/3*pi
     real(wp) :: RFTPI ! 1./(4/3*pi)
 
+
+    dm1=0.0
+    dm2=0.0
+    dn1=0.0
+    dn2=0.0
+
     if (l_ukca) imethod=iukca_method
-    if (dm/=0.0_wp .and. dm*dn > 0.0) then
+    if (dm*dn > 0.0) then 
+      ! dm and dn should be positive and of the same sign
       r1=min(max_accumulation_mean_radius, r1)
       r2=max(min_coarse_mean_radius, r2)
-
-      dm1=0.0
-      dm2=0.0
-      dn1=0.0
-      dn2=0.0
 
       ftpi=3.14159*4./3.
       rftpi=1./ftpi

@@ -35,8 +35,8 @@ contains
     type(aerosol_phys), intent(in) :: aerophys(:)
     type(aerosol_chem), intent(in) :: aerochem(:)
     type(aerosol_active), intent(in) :: aeroact(:), dustliq(:)
-    type(process_rate), intent(inout), target :: procs(:,:)
-    type(process_rate), intent(inout), target :: aerosol_procs(:,:)
+    type(process_rate), intent(inout) :: procs(:,:)
+    type(process_rate), intent(inout) :: aerosol_procs(:,:)
     logical, intent(out) :: l_sigevap ! Determines if there is significant evaporation
 
     real(wp) :: dmass, dnumber, dnumber_a, dnumber_d
@@ -49,8 +49,6 @@ contains
     real(wp) :: rain_number
     real(wp) :: rain_m3
     real(wp) :: qv
-    type(process_rate), pointer :: this_proc
-    type(process_rate), pointer :: aero_proc
 
     logical :: l_rain_test ! conditional test on rain
 
@@ -64,7 +62,6 @@ contains
     if (l_3mr)rain_m3=qfields(k, i_m3r)
 
     if (qv/qws(k) < 1.0-ss_small .and. qfields(k, i_ql) == 0.0 .and. rain_mass > qr_tidy) then
-      this_proc=>procs(k, i_prevp%id)
 
       m1=rain_mass/c_r
       if (l_2mr) m2=rain_number
@@ -100,70 +97,66 @@ contains
         end if
       end if
 
-      this_proc%source(i_qr)=-dmass
-      this_proc%source(i_qv)=dmass
+      procs(k, i_prevp%id)%source(i_qr)=-dmass
+      procs(k, i_prevp%id)%source(i_qv)=dmass
 
       if (dmass*dt/rain_mass > .8) l_sigevap=.true.
 
       if (l_2mr) then
-        this_proc%source(i_nr)=-dnumber
+        procs(k, i_prevp%id)%source(i_nr)=-dnumber
       end if
       if (l_3mr) then
-        this_proc%source(i_m3r)=-dm3
+        procs(k, i_prevp%id)%source(i_m3r)=-dm3
       end if
-      nullify(this_proc)
 
       !============================
       ! aerosol processing
       !============================
       if (l_process .and. abs(dnumber) >0) then
-        aero_proc=>aerosol_procs(k, i_arevp%id)
 
         dmac=dnumber*aeroact(k)%nratio2*aeroact(k)%mact2_mean
         if (l_separate_rain) then
-          aero_proc%source(i_am5)=-dmac
+          aerosol_procs(k, i_arevp%id)%source(i_am5)=-dmac
         else
-          aero_proc%source(i_am4)=-dmac
+          aerosol_procs(k, i_arevp%id)%source(i_am4)=-dmac
         end if
-
         ! Return aerosol
         if (aero_index%i_accum >0 .and. aero_index%i_coarse >0) then
           ! Coarse and accumulation mode being used. Which one to return to?
           call which_mode(dmac, dnumber*aeroact(k)%nratio2, aerophys(k)%rd(aero_index%i_accum), &
                aerophys(k)%rd(aero_index%i_coarse), aerochem(k)%density(aero_index%i_accum),     &
                dmac1, dmac2, dnac1, dnac2)
-          aero_proc%source(i_am2)=dmac1
-          aero_proc%source(i_an2)=dnac1
-          aero_proc%source(i_am3)=dmac2
-          aero_proc%source(i_an3)=dnac2
+          aerosol_procs(k, i_arevp%id)%source(i_am2)=dmac1
+          aerosol_procs(k, i_arevp%id)%source(i_an2)=dnac1
+          aerosol_procs(k, i_arevp%id)%source(i_am3)=dmac2
+          aerosol_procs(k, i_arevp%id)%source(i_an3)=dnac2
         else
           if (aero_index%i_accum >0) then
-            aero_proc%source(i_am2)=dmac
-            aero_proc%source(i_an2)=dnumber
+            aerosol_procs(k, i_arevp%id)%source(i_am2)=dmac
+            aerosol_procs(k, i_arevp%id)%source(i_an2)=dnumber
           end if
           if (aero_index%i_coarse >0) then
-            aero_proc%source(i_am3)=dmac
-            aero_proc%source(i_an3)=dnumber
+            aerosol_procs(k, i_arevp%id)%source(i_am3)=dmac
+            aerosol_procs(k, i_arevp%id)%source(i_an3)=dnumber
           end if
         end if
 
         dmacd=dnumber*dustliq(k)%nratio2*dustliq(k)%mact2_mean
         if (.not. l_warm .and. dmacd /=0.0) then
-          aero_proc%source(i_am9)=-dmacd
-          aero_proc%source(i_am6)=dmacd
-          aero_proc%source(i_an6)=dnumber*dustliq(k)%nratio2
+          aerosol_procs(k, i_arevp%id)%source(i_am9)=-dmacd
+          aerosol_procs(k, i_arevp%id)%source(i_am6)=dmacd
+          aerosol_procs(k, i_arevp%id)%source(i_an6)=dnumber*dustliq(k)%nratio2
         end if
 
         if (l_passivenumbers) then
           dnumber_a=-dnumber*aeroact(k)%nratio2
-          aero_proc%source(i_an11)=dnumber_a
+          aerosol_procs(k, i_arevp%id)%source(i_an11)=dnumber_a
         end if
 
         if (l_passivenumbers_ice) then
           dnumber_d=-dnumber*dustliq(k)%nratio2
-          aero_proc%source(i_an12)=dnumber_d
+          aerosol_procs(k, i_arevp%id)%source(i_an12)=dnumber_d
         end if
-        nullify(aero_proc)
       end if
     end if
   end subroutine revp
