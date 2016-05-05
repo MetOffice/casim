@@ -69,8 +69,7 @@ module micro_main
 #elif DEF_MODEL==MODEL_UM
   use diaghelp_um, only: i_here, j_here, k_here, l_debug_um, debug_i, debug_j, debug_k, debug_pe, debug_i2, debug_j2, debug_k2, &
        n_sub, n_subsed
-  use timestep_mod, only: timestep_number
-  use mphys_casim_diagnostics, only: SurfacePrecip, ProcessRates
+  USE mphys_casim_diagnostics, ONLY: SurfaceRainR, SurfaceSnowR
 #elif  DEF_MODEL==MODEL_MONC
   use diaghelp_monc, only: i_here, j_here, k_here, n_sub, n_subsed, mype
 #endif
@@ -247,7 +246,7 @@ contains
     if (l_process) call allocate_procs(aerosol_procs, nz, naeroprocs, ntotala)
 
     ! allocate diagnostics
-    allocate(precip(il:iu,jl:ju))   
+    allocate(precip(il:iu,jl:ju))
 
     call initialise_passive_fields(ks, ke)
   end subroutine initialise_casim
@@ -380,7 +379,11 @@ contains
     real(wp) :: field, res
     character(100) :: units, name
     integer :: im
-    character(1) :: char   
+    character(1) :: char
+
+    REAL(wp) :: precip_r
+    REAL(wp) :: precip_s
+
 
     ! Save parent model timestep for later use (e.g. in diagnostics)
     parent_dt=dt
@@ -394,6 +397,9 @@ contains
 #if DEF_MODEL!=MODEL_MONC
         j_here=j
 #endif
+
+        precip_r = 0.0
+        precip_s = 0.0
 
         tend=ZERO_REAL_WP
         call zero_procs(procs)
@@ -487,6 +493,7 @@ contains
         ! Do the business...
         !--------------------------------------------------
         call microphysics_common(dt, ks, ke, qfields, dqfields, tend, procs, precip(i,j) &
+             , precip_r, precip_s                                                  &
              , aerophys, aerochem, aeroact                                         &
              , dustphys, dustchem, dustact                                         &
              , aeroice, dustliq                                                    &
@@ -556,6 +563,11 @@ contains
           da17(ks:ke,i,j)=0.0
         end if
 
+#if DEF_MODEL==MODEL_UM
+        SurfaceRainR(i,j) = precip_r
+        SurfaceSnowR(i,j) = precip_s
+#endif
+
 #if DEF_MODEL==MODEL_LEM_DIAG
         PUDDLE(J_here,1,I_here) = PUDDLE(J_here,1,I_here) +precip(i,j)*DTPUD
         precip_lem(j_here,i_here) = precip_lem(j_here,i_here) + precip(i,j)*3600.0
@@ -567,9 +579,13 @@ contains
     call save_dg(sum(precip(:, :))/nxny, 'precip', i_dgtime)
     call save_dg(sum(precip(:, :))/nxny*3600.0, 'surface_precip_mmhr', i_dgtime)
 #endif
+
+
+
   end subroutine shipway_microphysics
 
   subroutine microphysics_common(dt, kl, ku, qfields, dqfields, tend, procs, precip &
+       , precip_r, precip_s                                                   &
        , aerophys, aerochem, aeroact                                          &
        , dustphys, dustchem, dustact                                          &
        , aeroice, dustliq                                                     &
@@ -582,6 +598,8 @@ contains
     real(wp), intent(inout) :: qfields(:,:), dqfields(:,:), tend(:,:)
     type(process_rate), intent(inout) :: procs(:,:)
     real(wp), intent(out) :: precip
+    real(wp), INTENT(INOUT) :: precip_r
+    real(wp), INTENT(INOUT) :: precip_s
 
     ! Aerosol fields
     type(aerosol_phys), intent(inout)   :: aerophys(:)
@@ -610,6 +628,13 @@ contains
     logical :: l_Tcold   ! temperature below freezing, i.e. .not. l_Twarm
 
     logical :: l_sigevap ! Is there significant evaporation of rain
+
+    ! Local working precipitation rates
+    real(wp) :: precip_l_w ! Liquid cloud precip
+    real(wp) :: precip_r_w ! Rain precip
+    real(wp) :: precip_i_w ! Ice precip
+    real(wp) :: precip_g_w ! Graupel precip
+    real(wp) :: precip_s_w ! Snow precip
 
     allocate(qfields_in(nz, nq))
     allocate(qfields_mod(nz, nq))
@@ -1018,6 +1043,12 @@ contains
       ! Do the sedimentation
       !-------------------------------
 
+      precip_l_w = 0.0
+      precip_r_w = 0.0
+      precip_i_w = 0.0
+      precip_g_w = 0.0
+      precip_s_w = 0.0
+
       if (l_sed) then
         do nsed=1,nsubseds
           n_subsed=nsed
@@ -1051,6 +1082,8 @@ contains
           if (pswitch%l_psedl) then
             call sedr(sed_length, qfields, aerofields, aeroact, dustliq, tend, cloud_params, &
                  procs, aerosol_procs, precip, l_process)
+            
+            precip_l_w = precip_l_w + precip 
 
             call sum_procs(sed_length, procs, tend, (/i_psedl/), hydro_names, qfields=qfields)
           end if
@@ -1058,6 +1091,8 @@ contains
           if (pswitch%l_psedr) then
             call sedr(sed_length, qfields, aerofields, aeroact, dustliq, tend, rain_params, &
                  procs, aerosol_procs, precip, l_process)
+
+            precip_r_w = precip_r_w + precip
 
             call sum_procs(sed_length, procs, tend, (/i_psedr/), hydro_names, qfields=qfields)
           end if
@@ -1067,14 +1102,21 @@ contains
             if (pswitch%l_psedi) then
               call sedr(sed_length, qfields, aerofields, aeroice, dustact, tend, ice_params, &
                    procs, aerosol_procs, precip, l_process)
+               
+              precip_i_w = precip_i_w + precip
+
             end if
             if (pswitch%l_pseds) then
               call sedr(sed_length, qfields, aerofields, aeroice, dustact, tend, snow_params, &
                    procs, aerosol_procs, precip, l_process)
+
+              precip_s_w = precip_s_w + precip
             end if
             if (pswitch%l_psedg) then
               call sedr(sed_length, qfields, aerofields, aeroice, dustact, tend, graupel_params, &
                    procs, aerosol_procs, precip, l_process)
+              
+              precip_g_w = precip_g_w + precip 
             end if
 
             call sum_procs(sed_length, procs, tend, (/i_psedi, i_pseds, i_psedg/), hydro_names, qfields=qfields)
@@ -1100,6 +1142,15 @@ contains
 
       end if
 
+      ! For diagnostic purposes, set precip_r, precip_s and precip to pass out
+      ! For the UM, rainfall rate is assumed as sum of all liquid components
+      ! (so includes sedimentation of rain and liquid cloud) 
+      precip_r = precip_r + precip_l_w + precip_r_w
+
+      ! For the UM, snowfall rate is assumed to be a sum of all solid components
+      ! (so includes ice, snow and graupel) 
+      precip_s = precip_s + precip_s_w + precip_i_w + precip_g_w
+
       if (nsubsteps>1)then
         !-------------------------------
         ! Reset process rates if they
@@ -1119,6 +1170,10 @@ contains
         end if
       end if
     end do
+
+    ! Precip is a sum of everything, so just add rain and snow together which
+    ! has all components added.
+    precip   = precip_r   + precip_s
 
     !--------------------------------------------------
     ! Tidy up any small/negative numbers
