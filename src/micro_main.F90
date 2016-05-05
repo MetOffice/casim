@@ -48,24 +48,11 @@ module micro_main
   use mphys_tidy, only: qtidy, ensure_positive, ensure_saturated, tidy_qin, tidy_ain, ensure_positive_aerosol
   use preconditioning, only: precondition, preconditioner
 
-#if DEF_MODEL==MODEL_LEM
-  use diaghelp_lem, only: i_here, j_here, k_here, koff, n_sub, n_subsed
-#endif
-
 #if DEF_MODEL==MODEL_KiD
   ! Kid modules
   use diagnostics, only: save_dg, i_dgtime, i_here, j_here, k_here, n_sub, n_subsed
   use runtime, only: time
   use parameters, only: nx
-#elif DEF_MODEL==MODEL_LEM_DIAG
-  use initialize, only: DTPUD
-
-  use diags_lem, only: lem_procdgs
-  use com_prametr, only: ilatentdgp, nprc_prametr => nprc, iforscalp
-  use com_dgstore, only: procrate, fallq
-  use com_dgchars, only: procchar
-  use com_rain, only: puddle
-  use com_classy, only: precip_lem => precip
 #elif DEF_MODEL==MODEL_UM
   use diaghelp_um, only: i_here, j_here, k_here, l_debug_um, debug_i, debug_j, debug_k, debug_pe, debug_i2, debug_j2, debug_k2, &
        n_sub, n_subsed
@@ -568,10 +555,6 @@ contains
         SurfaceSnowR(i,j) = precip_s
 #endif
 
-#if DEF_MODEL==MODEL_LEM_DIAG
-        PUDDLE(J_here,1,I_here) = PUDDLE(J_here,1,I_here) +precip(i,j)*DTPUD
-        precip_lem(j_here,i_here) = precip_lem(j_here,i_here) + precip(i,j)*3600.0
-#endif
       end do
     end do
 
@@ -990,9 +973,6 @@ contains
 #if DEF_MODEL==MODEL_KiD
           k_here=k
 #endif
-#if DEF_MODEL==MODEL_LEM_DIAG
-          k_here=k
-#endif
           call condevp(step_length, k, qfields, aerofields,     &
                procs, aerophys, aerochem, aeroact, dustphys, dustchem, dustliq, &
                aerosol_procs, rhcrit(k))
@@ -1034,11 +1014,6 @@ contains
              , dustphys, dustchem, dustact, aeroice, dustliq, icall=3)
       end if
 
-#if DEF_MODEL==MODEL_LEM_DIAG
-      ! Need to recode these with new process rates
-      ! Save the process rates
-      !call lem_procdgs(n, kl, ku, procs)
-#endif
       !-------------------------------
       ! Do the sedimentation
       !-------------------------------

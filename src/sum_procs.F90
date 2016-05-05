@@ -13,10 +13,6 @@ module sum_process
   use parameters, only: diaglevel, nx
   use diagnostics, only: save_dg, i_dgtime, i_here, j_here, n_sub, n_subsed
   use runtime, only: time
-#elif DEF_MODEL==MODEL_LEM_DIAG
-  use diaghelp_lem, only: dgfields, i_here, j_here, koff , diaglevel, dgindex, dgindex2, n_sub, n_subsed
-  use com_params, only: time
-  use extra_dgs
 #elif DEF_MODEL==MODEL_UM
   use mphys_casim_diagnostics, only: ProcessRates, nProcessDiags, ProcessKeys, ProcessQs, PhaseChanges
   use diaghelp_um, only: i_here, j_here, l_debug_um, debug_i, debug_j, debug_pe, n_sub, n_subsed
@@ -70,18 +66,7 @@ contains
             do iq=1, ntotala
               tend_temp(k, iq)=tend_temp(k, iq) + procs(k,iproc)%source(iq)*dst
 
-#if DEF_MODEL==MODEL_LEM_DIAG
-              if (diaglevel > 4 .and. procs(k,iproc)%source(iq) /= ZERO_REAL_WP) then ! Slows model significantly so
-                ! Only really used for development
-                ! This only works without substepping.
-                name=trim(iprocs(i)%name)//'_'//trim(adjustl(names(iq)))
-
-                idg=req_dgproc(trim(name))
-                if (idg > 0 .and. j_here<=jenddg .and. j_here>=jstartdg) then
-                  dgprocs(j_here-jstartdg+1, k, i_here, idg)=procs(k,iproc)%source(iq)
-                end if
-              end if
-#elif DEF_MODEL==MODEL_KiD
+#if DEF_MODEL==MODEL_KiD
               if (diaglevel > 4 .and. procs(k,iproc)%source(iq) /= ZERO_REAL_WP) then ! Slows model significantly so
                 name=trim(iprocs(i)%name)//'_'//trim(adjustl(names(iq)))
                 if (nx==1) then
@@ -160,16 +145,7 @@ contains
         do k=1, nz
           do iq=1, ntotalq
             tend_temp(k, iq)=tend_temp(k, iq)+procs(k,iproc)%source(iq)*dst
-#if DEF_MODEL==MODEL_LEM_DIAG
-            if (diaglevel > 4 .and. procs(k,iproc)%source(iq) /= ZERO_REAL_WP) then 
-              ! Slows model significantly so only really used for development. This only works without substepping.
-              name=trim(iprocs(i)%name)//'_'//trim(adjustl(names(iq)))
-              idg=req_dgproc(trim(name))
-              if (idg > 0 .and. j_here <= jenddg .and. j_here >= jstartdg) then
-                dgprocs(j_here-jstartdg+1, k, i_here, idg)=procs(k,iproc)%source(iq)
-              end if
-            end if
-#elif DEF_MODEL==MODEL_KiD
+#if DEF_MODEL==MODEL_KiD
             if (diaglevel > 4 .and. procs(k,iproc)%source(iq) /= ZERO_REAL_WP) then
               ! Slows model significantly so only really used for development. This only works without substepping.
               name=trim(iprocs(i)%name)//'_'//trim(adjustl(names(iq)))

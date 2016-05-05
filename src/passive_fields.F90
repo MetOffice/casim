@@ -9,8 +9,6 @@ module passive_fields
   use diagnostics, only: i_here, j_here
 #elif  DEF_MODEL==MODEL_UM
   use diaghelp_um, only: i_here, j_here
-#elif  DEF_MODEL==MODEL_LEM
-  use diaghelp_lem, only: i_here, j_here
 #elif  DEF_MODEL==MODEL_MONC
   use diaghelp_monc, only: i_here, j_here
 #endif

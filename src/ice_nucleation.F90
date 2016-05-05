@@ -15,8 +15,6 @@ module ice_nucleation
 #if DEF_MODEL==MODEL_KiD
   use diagnostics, only: save_dg, i_dgtime, i_here, k_here
   use runtime, only: time
-#elif DEF_MODEL==MODEL_LEM
-  use diaghelp_lem, only: i_here, j_here
 #elif DEF_MODEL==MODEL_UM
   use diaghelp_um, only: i_here, j_here
   use UM_ParCore, only: mype

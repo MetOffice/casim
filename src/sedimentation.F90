@@ -22,11 +22,6 @@ module sedimentation
 #if DEF_MODEL==MODEL_KiD
   use diagnostics, only: save_dg, i_dgtime, k_here, i_here, nx
   use runtime, only: l_dgstep, time
-#elif DEF_MODEL==MODEL_LEM_DIAG
-  use diaghelp_lem, only: i_here, j_here, k_here
-  use com_params, only: time
-  use extra_dgs
-  use com_dgstore, only: l_dodgs
 #elif DEF_MODEL==MODEL_UM
   use diaghelp_um, only: i_here, j_here, l_debug_um, debug_i, debug_j, debug_pe
   use UM_ParCore, only: mype
@@ -187,9 +182,6 @@ contains
 #if DEF_MODEL==MODEL_KiD
       k_here=k
 #endif
-#if DEF_MODEL==MODEL_LEM_DIAG
-      k_here=k
-#endif
       ! initialize to zero
       dm1=0.0
       dm2=0.0
@@ -289,46 +281,6 @@ contains
           call save_dg(k, i_here, u1r, 'u1r_'//qchar, i_dgtime)
           if (params%l_2m)call save_dg(k, i_here, u2r, 'u2r_'//qchar, i_dgtime)
           if (params%l_3m)call save_dg(k, i_here, u3r, 'u3r_'//qchar, i_dgtime)
-        end if
-#elif DEF_MODEL==MODEL_LEM_DIAG
-        if (l_dodgs .and. j_here>=jstartdg .and.     &
-             j_here<=jenddg) then
-          if (params%id == rain_params%id) then
-            idgproc = req_dgproc('VR')
-          else if (params%id == ice_params%id) then
-            idgproc = req_dgproc('VI')
-          else if (params%id == snow_params%id) then
-            idgproc = req_dgproc('VS')
-          else if (params%id == graupel_params%id) then
-            idgproc = req_dgproc('VG')
-          end if
-          if (idgproc > 0) then
-            dgprocs(j_here-jstartdg+1,k,i_here,idgproc) = u1r
-          end if
-          if (params%id == rain_params%id) then
-            idgproc = req_dgproc('VRN')
-          else if (params%id == ice_params%id) then
-            idgproc = req_dgproc('VIN')
-          else if (params%id == snow_params%id) then
-            idgproc = req_dgproc('VSN')
-          else if (params%id == graupel_params%id) then
-            idgproc = req_dgproc('VGN')
-          end if
-          if (idgproc > 0) then
-            dgprocs(j_here-jstartdg+1,k,i_here,idgproc) = u2r
-          end if
-          if (params%id == rain_params%id) then
-            idgproc = req_dgproc('LAMR')
-          else if (params%id == ice_params%id) then
-            idgproc = req_dgproc('LAMI')
-          else if (params%id == snow_params%id) then
-            idgproc = req_dgproc('LAMS')
-          else if (params%id == graupel_params%id) then
-            idgproc = req_dgproc('LAMG')
-          end if
-          if (idgproc > 0) then
-            dgprocs(j_here-jstartdg+1,k,i_here,idgproc) = lam
-          end if
         end if
 #endif
 
