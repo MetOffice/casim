@@ -695,7 +695,7 @@ contains
       if (aerosol_option > 0)  call examine_aerosol(aerofields, qfields, aerophys, aerochem, &
            aeroact, dustphys, dustchem, dustact, aeroice, dustliq, icall=1)
 
-      do k=nz,1,-1
+      do k=1,nz
         k_here=k
 
         if (precondition(k)) then
@@ -969,7 +969,7 @@ contains
       ! drops
       !-------------------------------
       if (pswitch%l_pcond)then
-        do k=nz,1,-1
+        do k=1,nz
 #if DEF_MODEL==MODEL_KiD
           k_here=k
 #endif
@@ -1155,7 +1155,7 @@ contains
     ! we may have generated.
     !--------------------------------------------------
     if (pswitch%l_tidy2) then
-      do k=nz,1,-1
+      do k=1,nz
 
         k_here=k
 
