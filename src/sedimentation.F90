@@ -292,31 +292,6 @@ contains
         if (params%l_3m)     &
              flux_n3(k)=n3*u3r
 
-#if DEF_MODEL==MODEL_UM
-        !===========================================================
-        ! Cludge to slow down the rain if CFL condition is broken
-        ! Should be replaced with a semi-lagrangian scheme
-        !===========================================================
-        if (k>1) then
-          if (c_x*flux_n1(k)*rdz_on_rho(k)*step_length > 0.99*hydro_mass .or.      &
-               flux_n2(k)*rdz_on_rho(k)*step_length > 0.99*m2) then
-
-            ratio=min(0.95*hydro_mass/c_x/flux_n1(k)/rdz_on_rho(k)/step_length, 0.95*m2/flux_n2(k)/rdz_on_rho(k)/step_length)
-
-            print*, 'WARNING: slowing down precip - your timestep is too long'
-            print*, 'INFO:', timestep_number, i_here, j_here, k, step_length,      &
-                 ratio, qfields(k, params%i_1m), c_x*flux_n1(k)*rdz_on_rho(k)&
-                 , qfields(k, params%i_2m), flux_n2(k)*rdz_on_rho(k), u1r, u2r
-
-            flux_n1(k)=flux_n1(k)*ratio
-
-            if (params%l_2m) flux_n2(k)=flux_n2(k)*ratio
-
-            if (params%l_3m) flux_n3(k)=flux_n3(k)*ratio
-          end if
-        end if
-#endif
-
         ! diagnostic for precip
         if (k==1) then
           udp=a_x*Grho(k)*(lam**d_x*(lam+f_x)**(-(d_x+b_x)))*(Gammafunc(1.0+mu+d_x+b_x)/Gammafunc(1.0+mu+d_x))
