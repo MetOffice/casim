@@ -55,8 +55,8 @@ contains
     if (l_ukca) imethod=iukca_method
     if (dm*dn > 0.0) then 
       ! dm and dn should be positive and of the same sign
-      r1=min(max_accumulation_mean_radius, r1)
-      r2=max(min_coarse_mean_radius, r2)
+      r1=min(max_accumulation_mean_radius, r1_in)
+      r2=max(min_coarse_mean_radius, r2_in)
 
       ftpi=3.14159*4./3.
       rftpi=1./ftpi
