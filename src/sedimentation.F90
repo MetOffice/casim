@@ -8,7 +8,7 @@ module sedimentation
   use mphys_switches, only: hydro_complexity, l_abelshipway, l_sed_3mdiff, l_cons, &
        i_an2, i_am2, i_am4, l_ased, i_am5, i_am7, i_am8, i_am9, i_ql, l_process, l_passivenumbers, l_passivenumbers_ice,   &
        active_cloud, active_rain, isol, iinsol, active_ice, active_number, i_an11, i_an12, &
-       l_separate_rain, l_warm, i_aerosed_method
+       l_separate_rain, l_warm, i_aerosed_method, l_sed_icecloud_as_1m
   use mphys_constants, only: rhow, rho0, cp
   use process_routines, only: process_rate, i_psedr, i_asedr, i_asedl, i_psedl, &
        i_pseds, i_psedi, i_psedg, i_dsedi, i_dseds, i_dsedg
@@ -261,7 +261,11 @@ contains
         ! For clouds and ice, we only use a 1M representation of sedimentation
         ! so that spurious size sorting doesn't lead to overactive autoconversion
         if (params%id==cloud_params%id .or. ice_params%id==cloud_params%id) then
-          if (params%l_2m)u2r=u1r
+          if (l_sed_icecloud_as_1m)then
+            if (params%l_2m)u2r=u1r
+          else
+            if (params%l_2m)u2r=min(u2r,params%maxv)
+          end if
         else
           if (params%l_2m)u2r=min(u2r,params%maxv)
           if (params%l_3m)u3r=min(u3r,params%maxv)

@@ -16,7 +16,7 @@ module micro_main
   use mphys_switches, only: hydro_complexity, aero_complexity, i_qv, i_ql, i_nl, i_qr, i_nr, i_m3r, i_th, i_qi, &
        i_qs, i_qg, i_ni, i_ns, i_ng, i_m3s, i_m3g, i_am1, i_an1, i_am2, i_an2, i_am3, i_an3, i_am4, i_am5, i_am6, &
        i_an6, i_am7, i_am8 , i_am9, i_am10, i_an10, i_an11, i_an12, hydro_names, aero_names,  aerosol_option, l_warm, &
-       l_inuc, l_sed, l_condensation, l_iaut, l_imelt, l_iacw, l_idep, aero_index, l_sedl, nq_l, nq_r, nq_i, nq_s, nq_g, &
+       l_inuc, l_sed, l_condensation, l_iaut, l_imelt, l_iacw, l_idep, aero_index, nq_l, nq_r, nq_i, nq_s, nq_g, &
        l_sg, l_g, l_process, l_halletmossop, max_sed_length, max_step_length, l_harrington, l_passive, ntotala, ntotalq, &
        active_number, isol, iinsol, l_raci_g, l_onlycollect, l_pracr, pswitch, l_isub, l_pos1, l_pos2, l_pos3, l_pos4, &
        l_pos5, l_pos6, i_hstart, nsubsteps, nsubseds, l_tidy_negonly

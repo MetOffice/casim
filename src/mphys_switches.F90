@@ -171,6 +171,7 @@ module mphys_switches
 
   logical :: l_abelshipway=.false.
   logical :: l_sed_3mdiff=.false.
+  logical :: l_sed_icecloud_as_1m=.false.
   logical :: l_cons=.false.
   logical :: l_inuc=.true.
 
@@ -184,7 +185,6 @@ module mphys_switches
   logical :: l_evaporation    = .true.  ! evaporate rain
   logical :: l_rain           = .true.  ! rain sources
   logical :: l_sed            = .true.  ! sedimentation
-  logical :: l_sedl           = .true.  ! sedimentation
   logical :: l_boussinesq     = .false. ! set rho=1 everywhere
   integer :: diag_mu_option   = -999    ! select diagnostic mu           &
 
