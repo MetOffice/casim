@@ -177,7 +177,7 @@ contains
 
     diff=9999.0
     work_old=.2
-    work=work+1.0
+    work=1.0
     do while(abs(diff) > 1e-3)
       erfx=erf(work)-x
       erfx_old=erf(work_old)-x

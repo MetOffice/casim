@@ -8,6 +8,8 @@ module initialize
        rain_params, ice_params, snow_params, graupel_params, iopt_act, l_g, l_sg, l_override_checks, i_am10, i_an10, &
        isol, iinsol, active_rain, active_cloud, aero_index, active_number, process_level, iopt_act, l_process
   use gauss_casim_micro, only: gaussfunclookup
+  use micro_main, only : DTPUD, initialise_micromain, finalise_micromain
+  use sedimentation, only : initialise_sedr, finalise_sedr
 
   implicit none
   private
@@ -23,18 +25,78 @@ module initialize
        n_sagg_ns, n_gagg_ng, n_sbrk_ns, n_gshd_qg, n_gshd_ng, n_gshd_qr, n_gshd_nr, n_gshd_qs, n_gshd_ns, n_hal_qs,  &
        n_hal_ns, n_hal_qg, n_hal_ng, n_smlt_ns, n_smlt_qs, n_gmlt_ng, n_gmlt_qg, n_homr_nr, n_homr_qr
 
-  real :: DTPUD ! Time step for puddle diagnostic
+  public mphys_init, mphys_finalise
+contains 
 
-  public mphys_init
-contains
+  subroutine mphys_init(il, iu, jl, ju, kl, ku,                 &       
+       is_in, ie_in, js_in, je_in, ks_in, ke_in, l_tendency, rhcrit_in)
 
-  subroutine mphys_init()
+    integer, intent(in) :: il, iu ! upper and lower i levels
+    integer, intent(in) :: jl, ju ! upper and lower j levels
+    integer, intent(in) :: kl, ku ! upper and lower k levels
+
+    integer, intent(in), optional :: is_in, ie_in ! upper and lower i levels which are to be used
+    integer, intent(in), optional :: js_in, je_in ! upper and lower j levels
+    integer, intent(in), optional :: ks_in, ke_in ! upper and lower k levels
+
+    ! New optional l_tendency logical added...
+    ! if true then a tendency is returned (i.e. units/s)
+    ! if false then an increment is returned (i.e. units/timestep)
+    logical, intent(in), optional :: l_tendency
+    real(wp), intent(in), optional :: rhcrit_in(kl:ku)
+
     integer :: iproc
     real(wp) :: tmp
+
+    integer :: is, ie ! upper and lower i levels which are to be used
+    integer :: js, je ! upper and lower j levels
+    integer :: ks, ke ! upper and lower k levels    
+    logical :: l_tendency_loc
 
     call check_options()
     call set_constants()
 
+
+    ! Set grid extents to operate on
+    if (present(is_in)) is=is_in
+    if (present(ie_in)) ie=ie_in
+    if (present(js_in)) js=js_in
+    if (present(je_in)) je=je_in
+    if (present(ks_in)) ks=ks_in
+    if (present(ke_in)) ke=ke_in
+
+    ! if not passed in, then default to full grid
+    if (.not. present(is_in)) is=il
+    if (.not. present(ie_in)) ie=iu
+    if (.not. present(js_in)) js=jl
+    if (.not. present(je_in)) je=ju
+    if (.not. present(ks_in)) ks=kl
+    if (.not. present(ke_in)) ke=ku
+    
+    if (present(l_tendency)) then
+      l_tendency_loc=l_tendency
+    else
+      l_tendency_loc=.true.
+    end if
+
+    if (present(rhcrit_in)) then
+      call initialise_micromain(il, iu, jl, ju, kl, ku, is, ie, js, je, ks, ke, l_tendency_loc, rhcrit_in)
+    else 
+      call initialise_micromain(il, iu, jl, ju, kl, ku, is, ie, js, je, ks, ke, l_tendency_loc)
+    end if
+    call initialise_sedr()
+    
+    call initialise_lookup_tables()
+    !Gaussfunc
+    call gaussfunclookup(snow_params%id, tmp, a=snow_params%fix_mu, b=snow_params%d_x, init=.true.)
+  end subroutine mphys_init
+
+  subroutine mphys_finalise()
+    call finalise_sedr()
+    call finalise_micromain()
+  end subroutine mphys_finalise
+
+  subroutine initialise_lookup_tables()
     !------------------------------------------------------
     ! Look up tables... (These need to be extended)
     !------------------------------------------------------
@@ -45,11 +107,7 @@ contains
     allocate(mu_i_sed(nmu))
     allocate(mu_g_sed(nmu))
     call set_mu_lookup(sp1, sp2, sp3, mu_i_sed, mu_g_sed)
-
-    !Gaussfunc
-    call gaussfunclookup(snow_params%id, tmp, a=snow_params%fix_mu, b=snow_params%d_x, init=.true.)
-
-  end subroutine mphys_init
+  end subroutine initialise_lookup_tables
 
   ! Check that the options that have been selected are consitent
   subroutine check_options()

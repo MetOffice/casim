@@ -133,7 +133,7 @@ contains
     do_update=.true.
     if (present(l_passive)) do_update= .not. l_passive
 
-    allocate(tend_temp(lbound(tend,1):ubound(tend,1), lbound(tend,2):ubound(tend,2)))
+    allocate(tend_temp(lbound(tend,2):ubound(tend,2), lbound(tend,1):ubound(tend,1)))
     tend_temp=ZERO_REAL_WP
 
     nproc=size(iprocs)
@@ -144,7 +144,7 @@ contains
         iproc=iprocs(i)%id
         do k=1, nz
           do iq=1, ntotalq
-            tend_temp(k, iq)=tend_temp(k, iq)+procs(k,iproc)%source(iq)*dst
+            tend_temp(iq, k)=tend_temp(iq, k)+procs(k,iproc)%source(iq)*dst
 #if DEF_MODEL==MODEL_KiD
             if (diaglevel > 4 .and. procs(k,iproc)%source(iq) /= ZERO_REAL_WP) then
               ! Slows model significantly so only really used for development. This only works without substepping.
@@ -167,8 +167,8 @@ contains
               m1=qfields(k, params%i_1m)*rho(k)/params%c_x
               m2=qfields(k, params%i_2m)
               m3=qfields(k, params%i_3m)
-              dm1=tend_temp(k, params%i_1m)*rho(k)/params%c_x
-              dm2=tend_temp(k, params%i_2m)
+              dm1=tend_temp(params%i_1m, k)*rho(k)/params%c_x
+              dm2=tend_temp(params%i_2m, k)
               if (dm1 < -.99*m1 .or. dm2 < -.99*m2) then
                 dm1=-m1
                 dm2=-m2
@@ -181,7 +181,7 @@ contains
                   case default
                     call throw_mphys_error(1, 'sum_procs', 'i_thirdmoment incorrectly set')
                   end select
-                  tend_temp(k, params%i_3m)=dm3
+                  tend_temp(params%i_3m, k)=dm3
                 end if
               end if
             end if
@@ -191,8 +191,8 @@ contains
               m1=qfields(k, params%i_1m)*rho(k)/params%c_x
               m2=qfields(k, params%i_2m)
               m3=qfields(k, params%i_3m)
-              dm1=tend_temp(k, params%i_1m)*rho(k)/params%c_x
-              dm2=tend_temp(k, params%i_2m)
+              dm1=tend_temp(params%i_1m, k)*rho(k)/params%c_x
+              dm2=tend_temp(params%i_2m, k)
               if (dm1 < -.99*m1 .or. dm2 < -.99*m2) then
                 dm1=-m1
                 dm2=-m2
@@ -205,7 +205,7 @@ contains
                   case default
                     call throw_mphys_error(1, 'sum_procs', 'i_thirdmoment incorrectly set')
                   end select
-                  tend_temp(k, params%i_3m)=dm3
+                  tend_temp(params%i_3m, k)=dm3
                 end if
               end if
             end if
@@ -215,8 +215,8 @@ contains
               m1=qfields(k, params%i_1m)*rho(k)/params%c_x
               m2=qfields(k, params%i_2m)
               m3=qfields(k, params%i_3m)
-              dm1=tend_temp(k, params%i_1m)*rho(k)/params%c_x
-              dm2=tend_temp(k, params%i_2m)
+              dm1=tend_temp(params%i_1m, k)*rho(k)/params%c_x
+              dm2=tend_temp(params%i_2m, k)
               if (dm1 < -.99*m1 .or. dm2 < -.99*m2) then
                 dm1=-m1
                 dm2=-m2
@@ -229,7 +229,7 @@ contains
                   case default
                     call throw_mphys_error(1, 'sum_procs', 'i_thirdmoment incorrectly set')
                   end select
-                  tend_temp(k, params%i_3m)=dm3
+                  tend_temp(params%i_3m, k)=dm3
                 end if
               end if
             end if
@@ -239,9 +239,9 @@ contains
               write(name, '(i1.1)')
               name =  trim(name)//'_'//trim(adjustl(names(params%i_3m)))
               if (nx == 1) then
-                call save_dg(k, tend_temp(k, params%i_3m), 'd3m_type2'//name, i_dgtime)
+                call save_dg(k, tend_temp(params%i_3m, k), 'd3m_type2'//name, i_dgtime)
               else
-                call save_dg(k, i_here, tend_temp(k, params%i_3m), 'd3m_type2'//name, i_dgtime)
+                call save_dg(k, i_here, tend_temp(params%i_3m, k), 'd3m_type2'//name, i_dgtime)
               end if
             end if
             params=snow_params
@@ -249,9 +249,9 @@ contains
               write(name, '(i1.1)')
               name =  trim(name)//'_'//trim(adjustl(names(params%i_3m)))
               if (nx == 1) then
-                call save_dg(k, tend_temp(k, params%i_3m), 'd3m_type2'//name, i_dgtime)
+                call save_dg(k, tend_temp(params%i_3m, k), 'd3m_type2'//name, i_dgtime)
               else
-                call save_dg(k, i_here, tend_temp(k, params%i_3m), 'd3m_type2'//name, i_dgtime)
+                call save_dg(k, i_here, tend_temp(params%i_3m, k), 'd3m_type2'//name, i_dgtime)
               end if
             end if
             params=graupel_params
@@ -259,9 +259,9 @@ contains
               write(name, '(i1.1)')
               name =  trim(name)//'_'//trim(adjustl(names(params%i_3m)))
               if (nx == 1) then
-                call save_dg(k, tend_temp(k, params%i_3m), 'd3m_type2'//name, i_dgtime)
+                call save_dg(k, tend_temp(params%i_3m, k), 'd3m_type2'//name, i_dgtime)
               else
-                call save_dg(k, i_here, tend_temp(k, params%i_3m), 'd3m_type2'//name, i_dgtime)
+                call save_dg(k, i_here, tend_temp(params%i_3m, k), 'd3m_type2'//name, i_dgtime)
               end if
             end if
 #endif
@@ -308,15 +308,19 @@ contains
     ! (this overwrites anything that was already stored in the theta tendency)
     if (do_thermal) then
       do k=1, nz
-        tend_temp(k,i_th)=(tend_temp(k,i_ql)+tend_temp(k,i_qr))*Lv/cp * rexner(k)
+        tend_temp(i_th, k)=(tend_temp(i_ql, k)+tend_temp(i_qr, k))*Lv/cp * rexner(k)
         if (.not. l_warm) then
-          tend_temp(k,i_th)=tend_temp(k,i_th)+(tend_temp(k,i_qi)+tend_temp(k,i_qs)+tend_temp(k,i_qg))*Ls/cp *rexner(k)
+          tend_temp(i_th, k)=tend_temp(i_th, k)+(tend_temp(i_qi, k)+tend_temp(i_qs, k)+tend_temp(i_qg, k))*Ls/cp *rexner(k)
         end if
       end do
     end if
 
     ! Add on tendencies to those already passed in.
-    if (do_update) tend=tend+tend_temp
+    if (do_update) then
+      do k=lbound(tend, 2), ubound(tend, 2)
+        tend(:,k)=tend(:,k)+tend_temp(k,:)
+      end do
+    end if    
     deallocate(tend_temp)
   end subroutine sum_procs
 end module sum_process

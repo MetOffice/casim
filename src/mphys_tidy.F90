@@ -42,8 +42,65 @@ module mphys_tidy
   logical :: l_rescale_on_number
   logical :: l_tidym3 = .false.  ! Don't tidy based on m3 values
 
-  public qtidy, ensure_positive, ensure_saturated, tidy_qin, tidy_ain, ensure_positive_aerosol
+  real(wp), allocatable :: thresh(:), athresh(:), qin_thresh(:)
+  logical,  allocatable :: l_qpos(:), l_qpresent(:), l_qsmall(:), l_qsneg(:), l_qsig(:)
+  !    l_qpos: q variable is positive
+  !    l_qpresent: q variable is not zero
+  !    l_qsmall:   q variable is positive, but below tidy threshold
+  !    l_qsneg:    q variable is small or negative
+  logical,  allocatable :: l_apos(:), l_apresent(:), l_asmall(:), l_asneg(:), l_asig(:)
+  logical :: l_qice, l_qliquid, current_l_negonly, current_qin_l_negonly
+
+  public initialise_mphystidy, finalise_mphystidy, qtidy, ensure_positive, ensure_saturated, tidy_qin, &
+       tidy_ain, ensure_positive_aerosol
 contains
+
+  subroutine initialise_mphystidy()
+    allocate(thresh(lbound(thresh_tidy,1):ubound(thresh_tidy,1)), qin_thresh(lbound(thresh_tidy,1):ubound(thresh_tidy,1)), &
+         l_qsig(0:ntotalq), l_qpos(0:ntotalq), l_qsmall(0:ntotalq), l_qsneg(0:ntotalq), l_qpresent(0:ntotalq))
+
+    if (l_process) then
+      allocate(athresh(lbound(thresh_atidy,1):ubound(thresh_atidy,1)), l_asig(ntotala), l_apos(ntotala), &
+           l_asmall(ntotala), l_asneg(ntotala), l_apresent(ntotala))
+    end if
+
+    current_l_negonly=.true.
+    call recompute_constants(.true.)
+    current_qin_l_negonly=.true.
+    call recompute_qin_constants(.true.)
+
+    l_qsig(0)=.false.
+    l_qpos(0)=.false.
+    l_qsmall(0)=.false.
+    l_qsneg(0)=.false.
+    l_qpresent(0)=.false.
+  end subroutine initialise_mphystidy
+
+  subroutine recompute_qin_constants(l_negonly)
+    logical, intent(in) :: l_negonly
+
+    qin_thresh=thresh_tidy
+    if (l_negonly) then
+      qin_thresh=0.0*qin_thresh
+    end if   
+  end subroutine recompute_qin_constants  
+
+  subroutine recompute_constants(l_negonly)
+    logical, intent(in) :: l_negonly
+   
+    if (l_negonly) then
+      thresh=0.0
+    else
+      thresh=thresh_tidy
+    end if   
+  end subroutine recompute_constants
+
+  subroutine finalise_mphystidy()
+    if (l_process) then
+      deallocate(l_asig, l_apresent, l_asneg, l_apos, l_asmall, athresh)
+    end if
+    deallocate(l_qsig, l_qpresent, l_qsneg, l_qpos, l_qsmall, thresh, qin_thresh)
+  end subroutine finalise_mphystidy  
 
   subroutine qtidy(dt, k, qfields, procs, aerofields, aeroact, dustact, aeroice, dustliq, &
        aeroprocs, i_proc, i_aproc, l_negonly)
@@ -62,15 +119,8 @@ contains
     logical :: am4_reset, am5_reset, am7_reset, am8_reset, am9_reset
     logical :: an11_reset, an12_reset
 
-    real(wp) :: dmass, dnumber
-    real(wp), allocatable :: thresh(:), athresh(:)
-    logical,  allocatable :: l_qpos(:), l_qpresent(:), l_qsmall(:), l_qsneg(:), l_qsig(:)
-    !    l_qpos: q variable is positive
-    !    l_qpresent: q variable is not zero
-    !    l_qsmall:   q variable is positive, but below tidy threshold
-    !    l_qsneg:    q variable is small or negative
-    logical,  allocatable :: l_apos(:), l_apresent(:), l_asmall(:), l_asneg(:), l_asig(:)
-    logical :: l_qice, l_qliquid
+    real(wp) :: dmass, dnumber    
+
     integer :: iq
 
     ql_reset=.false.
@@ -96,70 +146,58 @@ contains
     an11_reset=.false. !? What to do with these???
     an12_reset=.false. !? What to do with these???
 
-    allocate(thresh(lbound(thresh_tidy,1):ubound(thresh_tidy,1)))
-    thresh=thresh_tidy
     if (present(l_negonly)) then
-      if (l_negonly) thresh=0.0
+      if (l_negonly .neqv. current_l_negonly) then
+        current_l_negonly=l_negonly
+        call recompute_constants(l_negonly)
+      end if
+    else if (current_l_negonly) then
+      current_l_negonly=.false.
+      call recompute_constants(.false.)  
     end if
-
-    allocate(l_qsig(0:ntotalq))
-    l_qsig(0)=.false.
+    
     do iq=1, ntotalq
       l_qsig(iq)=qfields(k, iq) > thresh(iq)
     end do
-
-    allocate(l_qpos(0:ntotalq))
-    l_qpos(0)=.false.
+    
     do iq=1, ntotalq
       l_qpos(iq)=qfields(k, iq) > 0.0
     end do
-
-    allocate(l_qsmall(0:ntotalq))
-    l_qsmall(0)=.false.
+    
     do iq=1,ntotalq
       l_qsmall(iq) = (.not. l_qsig(iq)) .and. l_qpos(iq)
     end do
-
-    allocate(l_qsneg(0:ntotalq))
-    l_qsneg(0)=.false.
+    
     do iq=1, ntotalq
       l_qsneg(iq)=qfields(k, iq) < 0.0 .or. l_qsmall(iq)
     end do
-
-    allocate(l_qpresent(0:ntotalq))
-    l_qpresent(0)=.false.
+    
     do iq=1, ntotalq
       l_qpresent(iq)=l_qpos(iq) .or. l_qsneg(iq)
     end do
 
-    if (l_process) then
-      allocate(athresh(lbound(thresh_atidy,1):ubound(thresh_atidy,1)))
+    if (l_process) then      
       athresh=thresh_atidy
       if (present(l_negonly)) then
         if (l_negonly) athresh=0.0
       end if
 
-      allocate(l_asig(ntotala))
       do iq=1, ntotala
         l_asig(iq)=aerofields(k, iq) > athresh(iq)
       end do
 
-      allocate(l_apos(ntotala))
       do iq=1, ntotala
         l_apos(iq)=aerofields(k, iq) > 0.0
       end do
 
-      allocate(l_asmall(ntotala))
       do iq=1, ntotala
         l_asmall(iq)=(.not. l_asig(iq)) .and. l_apos(iq)
       end do
 
-      allocate(l_asneg(ntotala))
       do iq=1, ntotala
         l_asneg(iq)=aerofields(k, iq) < 0.0 .or. l_asmall(iq)
       end do
 
-      allocate(l_apresent(ntotala))
       do iq=1, ntotala
         l_apresent(iq)=l_apos(iq) .or. l_asneg(iq)
       end do
@@ -167,7 +205,7 @@ contains
 
     l_qliquid=l_qsig(i_ql) .or. l_qsig(i_qr)
     l_qice=l_qsig(i_qi) .or. l_qsig(i_qs) .or. l_qsig(i_qg)
-
+          
     ! Tidying of small and negative numbers and/or incompatible numbers (e.g.nl>0 and ql=0)
     ! - Mass and energy conserving...
     !==============================
@@ -485,21 +523,6 @@ contains
         end if
       end if
     end if
-
-    if (l_process) then
-      deallocate(l_asig)
-      deallocate(l_apresent)
-      deallocate(l_asneg)
-      deallocate(l_apos)
-      deallocate(l_asmall)
-      deallocate(athresh)
-    end if
-    deallocate(l_qsig)
-    deallocate(l_qpresent)
-    deallocate(l_qsneg)
-    deallocate(l_qpos)
-    deallocate(l_qsmall)
-    deallocate(thresh)
   end subroutine qtidy
 
   subroutine tidy_qin(qfields, l_negonly)
@@ -510,12 +533,16 @@ contains
     logical :: ql_reset, nl_reset, qr_reset, nr_reset, m3r_reset
     logical :: qi_reset, ni_reset, qs_reset, ns_reset, m3s_reset
     logical :: qg_reset, ng_reset, m3g_reset
-    integer :: k
+    integer :: k    
 
-    allocate(thresh(lbound(thresh_tidy,1):ubound(thresh_tidy,1)))
-    thresh=thresh_tidy
     if (present(l_negonly)) then
-      if (l_negonly)thresh=0.0*thresh
+      if (l_negonly .neqv. current_qin_l_negonly) then
+        current_qin_l_negonly=l_negonly
+        call recompute_qin_constants(l_negonly)
+      end if
+    else if (current_qin_l_negonly) then
+      current_qin_l_negonly=.false.
+      call recompute_qin_constants(.false.)
     end if
 
     do k=1, ubound(qfields,1)
@@ -533,56 +560,56 @@ contains
       ng_reset=.false.
       m3g_reset=.false.
 
-      ql_reset=qfields(k, i_ql) < 0.0 .or. (qfields(k, i_ql) < thresh(i_ql) .and. qfields(k, i_ql) >0)
+      ql_reset=qfields(k, i_ql) < 0.0 .or. (qfields(k, i_ql) < qin_thresh(i_ql) .and. qfields(k, i_ql) >0)
       if (l_2mc) then
-        nl_reset=qfields(k, i_nl) < 0.0 .or. (qfields(k, i_nl) < thresh(i_nl) .and. qfields(k, i_nl) >0) .or. &
+        nl_reset=qfields(k, i_nl) < 0.0 .or. (qfields(k, i_nl) < qin_thresh(i_nl) .and. qfields(k, i_nl) >0) .or. &
              (qfields(k, i_nl) > 0.0 .and. qfields(k, i_ql) <= 0.0)
         ql_reset=ql_reset .or. (qfields(k, i_ql) > 0.0 .and. qfields(k, i_nl) <= 0.0)
       end if
-      qr_reset=qfields(k, i_qr) < 0.0 .or. (qfields(k, i_qr) < thresh(i_qr) .and. qfields(k, i_qr) > 0.0)
+      qr_reset=qfields(k, i_qr) < 0.0 .or. (qfields(k, i_qr) < qin_thresh(i_qr) .and. qfields(k, i_qr) > 0.0)
 
       if (l_2mr) then
-        nr_reset=qfields(k, i_nr) < 0.0 .or. (qfields(k, i_nr) < thresh(i_nr) .and. qfields(k, i_nr) > 0.0) .or. &
+        nr_reset=qfields(k, i_nr) < 0.0 .or. (qfields(k, i_nr) < qin_thresh(i_nr) .and. qfields(k, i_nr) > 0.0) .or. &
              (qfields(k, i_nr) > 0.0 .and. qfields(k, i_qr) <= 0.0)
         qr_reset=qr_reset .or. (qfields(k, i_qr) > 0.0 .and. qfields(k, i_nr) <= 0.0)
       end if
 
       if (l_3mr .and. l_tidym3) then
-        m3r_reset=qfields(k, i_m3r) < 0.0 .or. (qfields(k, i_m3r) < thresh(i_m3r) .and. qfields(k, i_m3r) >0) .or. &
+        m3r_reset=qfields(k, i_m3r) < 0.0 .or. (qfields(k, i_m3r) < qin_thresh(i_m3r) .and. qfields(k, i_m3r) >0) .or. &
              (qfields(k, i_m3r) > 0.0 .and. (qfields(k, i_qr) <=0.0 .or. qfields(k, i_nr) <=0.0))
         qr_reset=qr_reset .or. (qfields(k, i_qr) > 0.0 .and. qfields(k, i_m3r) <= 0.0)
         nr_reset=nr_reset .or. (qfields(k, i_nr) > 0.0 .and. qfields(k, i_m3r) <= 0.0)
       end if
 
       if (.not. l_warm) then
-        qi_reset=qfields(k, i_qi) < 0.0 .or. (qfields(k, i_qi) < thresh(i_qi) .and. qfields(k, i_qi) > 0.0)
+        qi_reset=qfields(k, i_qi) < 0.0 .or. (qfields(k, i_qi) < qin_thresh(i_qi) .and. qfields(k, i_qi) > 0.0)
         if (l_2mi) then
-          ni_reset=qfields(k, i_ni) < 0.0 .or. (qfields(k, i_ni) < thresh(i_ni) .and. qfields(k, i_ni) > 0.0) .or. &
+          ni_reset=qfields(k, i_ni) < 0.0 .or. (qfields(k, i_ni) < qin_thresh(i_ni) .and. qfields(k, i_ni) > 0.0) .or. &
                (qfields(k, i_ni) > 0.0 .and. qfields(k, i_qi) <= 0.0)
           qi_reset=qi_reset .or. (qfields(k, i_qi) > 0.0 .and. qfields(k, i_ni) <= 0.0)
         end if
 
-        qs_reset=qfields(k, i_qs) < 0.0 .or. (qfields(k, i_qs) < thresh(i_qs) .and. qfields(k, i_qs) > 0.0)
+        qs_reset=qfields(k, i_qs) < 0.0 .or. (qfields(k, i_qs) < qin_thresh(i_qs) .and. qfields(k, i_qs) > 0.0)
         if (l_2ms) then
-          ns_reset=qfields(k, i_ns) < 0.0 .or. (qfields(k, i_ns) < thresh(i_ns) .and. qfields(k, i_ns) > 0.0) .or. &
+          ns_reset=qfields(k, i_ns) < 0.0 .or. (qfields(k, i_ns) < qin_thresh(i_ns) .and. qfields(k, i_ns) > 0.0) .or. &
                (qfields(k, i_ns) > 0.0 .and. qfields(k, i_qs) <= 0.0)
           qs_reset=qs_reset .or. (qfields(k, i_qs) > 0.0 .and. qfields(k, i_ns) <= 0.0)
         end if
         if (l_3ms .and. l_tidym3) then
-          m3s_reset=qfields(k, i_m3s) < 0.0 .or. (qfields(k, i_m3s) < thresh(i_m3s) .and. qfields(k, i_m3s) >0) .or.&
+          m3s_reset=qfields(k, i_m3s) < 0.0 .or. (qfields(k, i_m3s) < qin_thresh(i_m3s) .and. qfields(k, i_m3s) >0) .or.&
                (qfields(k, i_m3s) > 0.0 .and. (qfields(k, i_qs) <=0.0 .or. qfields(k, i_ns) <=0.0))
           qs_reset=qs_reset .or. (qfields(k, i_qs) > 0.0 .and. qfields(k, i_m3s) <= 0.0)
           ns_reset=ns_reset .or. (qfields(k, i_ns) > 0.0 .and. qfields(k, i_m3s) <= 0.0)
         end if
 
-        qg_reset=qfields(k, i_qg) < 0.0 .or. (qfields(k, i_qg) < thresh(i_qg) .and. qfields(k, i_qg) > 0.0)
+        qg_reset=qfields(k, i_qg) < 0.0 .or. (qfields(k, i_qg) < qin_thresh(i_qg) .and. qfields(k, i_qg) > 0.0)
         if (l_2mg) then
-          ng_reset=qfields(k, i_ng) < 0.0 .or. (qfields(k, i_ng) < thresh(i_ng) .and. qfields(k, i_ng) > 0.0) .or. &
+          ng_reset=qfields(k, i_ng) < 0.0 .or. (qfields(k, i_ng) < qin_thresh(i_ng) .and. qfields(k, i_ng) > 0.0) .or. &
                (qfields(k, i_ng) > 0.0 .and. qfields(k, i_qg) <= 0.0)
           qg_reset=qg_reset .or. (qfields(k, i_qg) > 0.0 .and. qfields(k, i_ng) <= 0.0)
         end if
         if (l_3mg .and. l_tidym3) then
-          m3g_reset=qfields(k, i_m3g) < 0.0 .or. (qfields(k, i_m3g) < thresh(i_m3g) .and. qfields(k, i_m3g) >0) .or.&
+          m3g_reset=qfields(k, i_m3g) < 0.0 .or. (qfields(k, i_m3g) < qin_thresh(i_m3g) .and. qfields(k, i_m3g) >0) .or.&
                (qfields(k, i_m3g) > 0.0 .and. (qfields(k, i_qg) <=0.0 .or. qfields(k, i_ng) <=0.0))
           qg_reset=qg_reset .or. (qfields(k, i_qg) > 0.0 .and. qfields(k, i_m3g) <= 0.0)
           ng_reset=ng_reset .or. (qfields(k, i_ng) > 0.0 .and. qfields(k, i_m3g) <= 0.0)
@@ -658,7 +685,6 @@ contains
       if (m3g_reset) call save_dg(k,1.0_wp, 'qin_reset_m3g', i_dgtime)
 #endif
     end do
-    deallocate(thresh)
   end subroutine tidy_qin
 
   subroutine tidy_ain(qfields, aerofields)

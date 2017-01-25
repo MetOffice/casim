@@ -122,13 +122,7 @@ contains
 
     do iproc=lbound(procs,2), ubound(procs,2)
       do k=lbound(procs,1), ubound(procs,1)
-        !! Allocatable arrays are quicker/safer than pointers, but
-        !! not supported by all compilers
-#if ALLOCATABLE_TYPE == 1
-        if (allocated(procs(k,iproc)%source))deallocate(procs(k,iproc)%source)
-#else
-        if (associated(procs(k,iproc)%source))deallocate(procs(k,iproc)%source)
-#endif
+        if (allocated(procs(k,iproc)%source)) deallocate(procs(k,iproc)%source)
       end do
     end do
   end subroutine deallocate_procs

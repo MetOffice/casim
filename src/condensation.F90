@@ -31,8 +31,20 @@ module condensation
 
   logical :: l_notransfer=.true.  ! don't transfer aerosol from one mode to another.
 
-  public condevp
+      real(wp), allocatable :: dnccn_all(:),dmac_all(:)
+
+  public condevp_initialise, condevp_finalise, condevp
 contains
+
+  subroutine condevp_initialise()
+    allocate(dnccn_all(aero_index%nccn))
+    allocate(dmac_all(aero_index%nccn))
+  end subroutine condevp_initialise  
+
+  subroutine condevp_finalise()
+    deallocate(dnccn_all)
+    deallocate(dmac_all)
+  end subroutine condevp_finalise  
 
   subroutine condevp(dt, k, qfields, aerofields, procs, aerophys, aerochem,   &
        aeroact, dustphys, dustchem, dustliq, aerosol_procs, rhcrit_lev)
@@ -56,7 +68,6 @@ contains
 
     real(wp) :: dmass, dnumber, dmac, dmad, dnumber_a, dnumber_d
     real(wp) :: dmac1, dmac2, dnac1, dnac2
-    real(wp), allocatable :: dnccn_all(:),dmac_all(:)
 
     real(wp) :: th
     real(wp) :: qv
@@ -85,9 +96,7 @@ contains
     dnumber=0.0
     dnumber_a=0.0
     dnumber_d=0.0
-
-    allocate(dnccn_all(aero_index%nccn))
-    allocate(dmac_all(aero_index%nccn))
+    
     dnccn_all=0.0
     dmac_all=0.0
 
@@ -277,9 +286,6 @@ contains
           nullify(aero_proc)
         end if
       end if
-    end if
-
-    deallocate(dnccn_all)
-    deallocate(dmac_all)
+    end if    
   end subroutine condevp
 end module condensation

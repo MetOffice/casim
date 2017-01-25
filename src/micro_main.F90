@@ -21,11 +21,11 @@ module micro_main
        active_number, isol, iinsol, l_raci_g, l_onlycollect, l_pracr, pswitch, l_isub, l_pos1, l_pos2, l_pos3, l_pos4, &
        l_pos5, l_pos6, i_hstart, nsubsteps, nsubseds, l_tidy_negonly
 
-  use distributions, only: query_distributions, dist_lambda, dist_mu, dist_n0
+  use distributions, only: query_distributions, initialise_distributions, dist_lambda, dist_mu, dist_n0
   use passive_fields, only: initialise_passive_fields, set_passive_fields, TdegK
   use autoconversion, only: raut
   use evaporation, only: revp
-  use condensation, only: condevp
+  use condensation, only: condevp_initialise, condevp_finalise, condevp
   use accretion, only: racw
   use aggregation, only: racr, ice_aggregation
   use sedimentation, only: sedr
@@ -45,7 +45,8 @@ module micro_main
   use mphys_constants, only:  fixed_aerosol_number, fixed_aerosol_rm, &
        fixed_aerosol_sigma, fixed_aerosol_density
 
-  use mphys_tidy, only: qtidy, ensure_positive, ensure_saturated, tidy_qin, tidy_ain, ensure_positive_aerosol
+  use mphys_tidy, only: initialise_mphystidy, finalise_mphystidy, qtidy, ensure_positive, &
+       ensure_saturated, tidy_qin, tidy_ain, ensure_positive_aerosol
   use preconditioning, only: precondition, preconditioner
 
 #if DEF_MODEL==MODEL_KiD
@@ -91,24 +92,31 @@ module micro_main
   type(aerosol_active), allocatable :: aeroice(:)  ! Soluble aerosol in ice
   type(aerosol_active), allocatable :: dustliq(:)! Insoluble aerosol in liquid
 
-  public initialise_casim, finalise_casim, shipway_microphysics
+  real(wp), allocatable :: qfields_in(:,:)
+  real(wp), allocatable :: qfields_mod(:,:)
+  real(wp), allocatable :: aerofields_in(:,:)
+  real(wp), allocatable :: aerofields_mod(:,:)
+
+  real :: DTPUD ! Time step for puddle diagnostic
+
+  public initialise_micromain, finalise_micromain, shipway_microphysics, DTPUD
 contains
 
-  subroutine initialise_casim(il, iu, jl, ju, kl, ku,                 &       
+  subroutine initialise_micromain(il, iu, jl, ju, kl, ku,                 &       
        is_in, ie_in, js_in, je_in, ks_in, ke_in, l_tendency, rhcrit_in)
 
     integer, intent(in) :: il, iu ! upper and lower i levels
     integer, intent(in) :: jl, ju ! upper and lower j levels
     integer, intent(in) :: kl, ku ! upper and lower k levels
 
-    integer, intent(in), optional :: is_in, ie_in ! upper and lower i levels which are to be used
-    integer, intent(in), optional :: js_in, je_in ! upper and lower j levels
-    integer, intent(in), optional :: ks_in, ke_in ! upper and lower k levels
+    integer, intent(in) :: is_in, ie_in ! upper and lower i levels which are to be used
+    integer, intent(in) :: js_in, je_in ! upper and lower j levels
+    integer, intent(in) :: ks_in, ke_in ! upper and lower k levels
 
     ! New optional l_tendency logical added...
     ! if true then a tendency is returned (i.e. units/s)
     ! if false then an increment is returned (i.e. units/timestep)
-    logical, intent(in), optional :: l_tendency
+    logical, intent(in) :: l_tendency
     real(wp), intent(in), optional :: rhcrit_in(kl:ku)
 
     ! Local variables
@@ -138,26 +146,16 @@ contains
     l_warm_loc=l_warm ! Original setting
     !    end if
 
-    ! Set grid extents to operate on
-    if (present(is_in)) is=is_in
-    if (present(ie_in)) ie=ie_in
-    if (present(js_in)) js=js_in
-    if (present(je_in)) je=je_in
-    if (present(ks_in)) ks=ks_in
-    if (present(ke_in)) ke=ke_in
-
-    ! if not passed in, then default to full grid
-    if (.not. present(is_in)) is=il
-    if (.not. present(ie_in)) ie=iu
-    if (.not. present(js_in)) js=jl
-    if (.not. present(je_in)) je=ju
-    if (.not. present(ks_in)) ks=kl
-    if (.not. present(ke_in)) ke=ku
+    is=is_in
+    ie=ie_in
+    js=js_in
+    je=je_in
+    ks=ks_in
+    ke=ke_in
 
     allocate(rhcrit(kl:ku))
 
-    l_tendency_loc=.true.
-    if (present(l_tendency)) l_tendency_loc=l_tendency
+    l_tendency_loc=l_tendency    
     if (present(rhcrit_in)) then
       rhcrit(:)=rhcrit_in(:)
     else
@@ -236,9 +234,19 @@ contains
     allocate(precip(il:iu,jl:ju))
 
     call initialise_passive_fields(ks, ke)
-  end subroutine initialise_casim
 
-  subroutine finalise_casim()
+    allocate(qfields_in(nz, nq))
+    allocate(qfields_mod(nz, nq))
+    if (aerosol_option > 0) then
+      allocate(aerofields_in(nz, naero))
+      allocate(aerofields_mod(nz, naero))
+    end if
+    call initialise_distributions(nz, nspecies)
+    call initialise_mphystidy()
+    call condevp_initialise()
+  end subroutine initialise_micromain
+
+  subroutine finalise_micromain()
     ! deallocate diagnostics
     deallocate(precip)
 
@@ -269,7 +277,16 @@ contains
     deallocate(aerofields)
     deallocate(daerofields)
     deallocate(rhcrit)
-  end subroutine finalise_casim  
+    deallocate(qfields_in)
+    deallocate(qfields_mod)
+    if (allocated(aerofields_in)) deallocate(aerofields_in)
+    if (allocated (aerofields_mod)) deallocate(aerofields_mod)
+    deallocate(dist_lambda)
+    deallocate(dist_mu)
+    deallocate(dist_n0)
+    call finalise_mphystidy()
+    call condevp_finalise()
+  end subroutine finalise_micromain  
 
   subroutine shipway_microphysics(il, iu, jl, ju, kl, ku, dt,               &
        qv, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12, q13,          &
@@ -562,9 +579,6 @@ contains
     call save_dg(sum(precip(:, :))/nxny, 'precip', i_dgtime)
     call save_dg(sum(precip(:, :))/nxny*3600.0, 'surface_precip_mmhr', i_dgtime)
 #endif
-
-
-
   end subroutine shipway_microphysics
 
   subroutine microphysics_common(dt, kl, ku, qfields, dqfields, tend, procs, precip &
@@ -598,11 +612,6 @@ contains
     real(wp), intent(inout) :: aerofields(:,:), daerofields(:,:), aerosol_tend(:,:)
     type(process_rate), intent(inout), optional :: aerosol_procs(:,:)
 
-
-    real(wp), allocatable :: qfields_in(:,:)
-    real(wp), allocatable :: qfields_mod(:,:)
-    real(wp), allocatable :: aerofields_in(:,:)
-    real(wp), allocatable :: aerofields_mod(:,:)
     real(wp) :: step_length
     real(wp) :: sed_length
     integer :: n, k, nsed, iq
@@ -619,14 +628,8 @@ contains
     real(wp) :: precip_g_w ! Graupel precip
     real(wp) :: precip_s_w ! Snow precip
 
-    allocate(qfields_in(nz, nq))
-    allocate(qfields_mod(nz, nq))
     qfields_in=qfields ! Initial values of q
     qfields_mod=qfields ! Modified initial values of q (may be modified if bad values sent in)
-
-    allocate(dist_lambda(nz,nspecies))
-    allocate(dist_mu(nz,nspecies))
-    allocate(dist_n0(nz,nspecies))
 
     nsubsteps=max(1, ceiling(dt/max_step_length))
     step_length=dt/nsubsteps
@@ -650,19 +653,17 @@ contains
     !---------------------------------------------------------------
     ! Determine (and possibly limit) size distribution
     !---------------------------------------------------------------
-    call query_distributions(cloud_params, qfields_mod, dist_lambda, dist_mu, dist_n0, icall=1)
-    call query_distributions(rain_params, qfields_mod, dist_lambda, dist_mu, dist_n0, icall=1)
+    call query_distributions(cloud_params, qfields_mod, icall=1)
+    call query_distributions(rain_params, qfields_mod, icall=1)
     if (.not. l_warm_loc) then
-      call query_distributions(ice_params, qfields_mod, dist_lambda, dist_mu, dist_n0, icall=1)
-      call query_distributions(snow_params, qfields_mod, dist_lambda, dist_mu, dist_n0, icall=1)
-      call query_distributions(graupel_params, qfields_mod, dist_lambda, dist_mu, dist_n0, icall=1)
+      call query_distributions(ice_params, qfields_mod, icall=1)
+      call query_distributions(snow_params, qfields_mod, icall=1)
+      call query_distributions(graupel_params, qfields_mod, icall=1)
     end if
 
     qfields=qfields_mod
 
-    if (aerosol_option > 0) then
-      allocate(aerofields_in(nz, naero))
-      allocate(aerofields_mod(nz, naero))
+    if (aerosol_option > 0) then      
       aerofields_in=aerofields ! Initial values of aerosol
       aerofields_mod=aerofields ! Modified initial values  (may be modified if bad values sent in)
 
@@ -992,12 +993,12 @@ contains
       !---------------------------------------------------------------
       ! Re-Determine (and possibly limit) size distribution
       !---------------------------------------------------------------
-      call query_distributions(cloud_params, qfields, dist_lambda, dist_mu, dist_n0, icall=2)
-      call query_distributions(rain_params, qfields, dist_lambda, dist_mu, dist_n0, icall=2)
+      call query_distributions(cloud_params, qfields, icall=2)
+      call query_distributions(rain_params, qfields, icall=2)
       if (.not. l_warm_loc) then
-        call query_distributions(ice_params, qfields, dist_lambda, dist_mu, dist_n0, icall=2)
-        call query_distributions(snow_params, qfields, dist_lambda, dist_mu, dist_n0, icall=2)
-        call query_distributions(graupel_params, qfields, dist_lambda, dist_mu, dist_n0, icall=2)
+        call query_distributions(ice_params, qfields, icall=2)
+        call query_distributions(snow_params, qfields, icall=2)
+        call query_distributions(graupel_params, qfields, icall=2)
       end if
 
       if (l_process) then
@@ -1038,12 +1039,12 @@ contains
             !---------------------------------------------------------------
             ! Re-Determine (and possibly limit) size distribution
             !---------------------------------------------------------------
-            call query_distributions(cloud_params, qfields, dist_lambda, dist_mu, dist_n0, icall=nsed+2)
-            call query_distributions(rain_params, qfields, dist_lambda, dist_mu, dist_n0, icall=nsed+2)
+            call query_distributions(cloud_params, qfields, icall=nsed+2)
+            call query_distributions(rain_params, qfields, icall=nsed+2)
             if (.not. l_warm_loc) then
-              call query_distributions(ice_params, qfields, dist_lambda, dist_mu, dist_n0, icall=nsed+2)
-              call query_distributions(snow_params, qfields, dist_lambda, dist_mu, dist_n0, icall=nsed+2)
-              call query_distributions(graupel_params, qfields, dist_lambda, dist_mu, dist_n0, icall=nsed+2)
+              call query_distributions(ice_params, qfields, icall=nsed+2)
+              call query_distributions(snow_params, qfields, icall=nsed+2)
+              call query_distributions(graupel_params, qfields, icall=nsed+2)
             end if
 
             !-------------------------------
@@ -1136,12 +1137,12 @@ contains
         !---------------------------------------------------------------
         ! Re-Determine (and possibly limit) size distribution
         !---------------------------------------------------------------
-        call query_distributions(cloud_params, qfields, dist_lambda, dist_mu, dist_n0, icall=nsubseds+3)
-        call query_distributions(rain_params, qfields, dist_lambda, dist_mu, dist_n0, icall=nsubseds+3)
+        call query_distributions(cloud_params, qfields, icall=nsubseds+3)
+        call query_distributions(rain_params, qfields, icall=nsubseds+3)
         if (.not. l_warm_loc) then
-          call query_distributions(ice_params, qfields, dist_lambda, dist_mu, dist_n0, icall=nsubseds+3)
-          call query_distributions(snow_params, qfields, dist_lambda, dist_mu, dist_n0, icall=nsubseds+3)
-          call query_distributions(graupel_params, qfields, dist_lambda, dist_mu, dist_n0, icall=nsubseds+3)
+          call query_distributions(ice_params, qfields, icall=nsubseds+3)
+          call query_distributions(snow_params, qfields, icall=nsubseds+3)
+          call query_distributions(graupel_params, qfields, icall=nsubseds+3)
         end if
       end if
     end do
@@ -1208,16 +1209,8 @@ contains
             end do
           end do
         end if
-      end if
-      deallocate(aerofields_in)
-      deallocate(aerofields_mod)
+      end if      
     end if
-
-    deallocate(qfields_in)
-    deallocate(qfields_mod)
-    deallocate(dist_lambda)
-    deallocate(dist_mu)
-    deallocate(dist_n0)
   end subroutine microphysics_common
 
   subroutine update_q(qfields_in, qfields, tend, l_aerosol, l_fixneg)

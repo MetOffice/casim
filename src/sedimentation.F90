@@ -33,9 +33,21 @@ module sedimentation
   private
 
   character*(2) :: qchar
+  real(wp), allocatable :: flux_n1(:)
+  real(wp), allocatable :: flux_n2(:)
+  real(wp), allocatable :: flux_n3(:)
+  real(wp), allocatable :: Grho(:)
 
-  public sedr
+  public sedr, initialise_sedr, finalise_sedr
 contains
+
+  subroutine initialise_sedr()
+    allocate(flux_n1(nz), flux_n2(nz), flux_n3(nz), Grho(nz))
+  end subroutine initialise_sedr
+
+  subroutine finalise_sedr()
+    deallocate(flux_n1, flux_n2, flux_n3, Grho)
+  end subroutine finalise_sedr  
 
   subroutine sedr(step_length, qfields, aerofields, aeroact, dustact,   &
        tend, params, procs, aerosol_procs, precip, l_doaerosol)
@@ -72,12 +84,6 @@ contains
     real(wp) :: m1, m2, m3
     real(wp) :: n1, n2, n3
     real(wp) :: hydro_mass
-    type(process_rate), pointer :: this_proc
-    type(process_rate), pointer :: aero_proc
-    real(wp), allocatable :: flux_n1(:)
-    real(wp), allocatable :: flux_n2(:)
-    real(wp), allocatable :: flux_n3(:)
-    real(wp), allocatable :: Grho(:)
     real(wp) :: n0, lam, mu, u1r, u2r, u3r, u1r2, u2r2, u3r2
     real(wp) :: udp ! bulk fallspeed for mass (for precip diag)
     integer :: k
@@ -111,8 +117,7 @@ contains
     m1=0.0
     m2=0.0
     m3=0.0
-
-    allocate(flux_n1(nz))
+    
     flux_n1=0.0
     i_1m=params%i_1m
     i_2m=params%i_2m
@@ -131,6 +136,8 @@ contains
       sp3=params%p3
     end if
 
+    Grho=(rho0/rho)**params%g_x
+
     ! we don't want flexible approach in this version....
     if (p1/=sp1 .or. p2/=sp2 .or. p3/=sp3) then
       print*, 'Cannot have flexible sedimentation options with CASIM aerosol'
@@ -147,17 +154,8 @@ contains
     b2_x=params%b2_x
     f2_x=params%f2_x
 
-    if (params%l_2m) then
-      allocate(flux_n2(nz))
-      flux_n2=0.0
-    end if
-    if (params%l_3m) then
-      allocate(flux_n3(nz))
-      flux_n3=0.0
-    end if
-
-    allocate(Grho(nz)) ! may want to move this somewhere else
-    Grho=(rho0/rho)**g_x
+    if (params%l_2m) flux_n2=0.0     
+    if (params%l_3m) flux_n3=0.0      
 
     dmint=0.0
     select case (params%id)
@@ -195,9 +193,6 @@ contains
       m1=0.0
       m2=0.0
       m3=0.0
-
-      this_proc=>procs(k, iproc%id)
-      if (l_da_local) aero_proc=>aerosol_procs(k, iaproc%id)
 
       hydro_mass=qfields(k, params%i_1m)
       if (params%l_2m) m2=qfields(k, params%i_2m)
@@ -290,11 +285,9 @@ contains
 
         flux_n1(k)=n1*u1r
 
-        if (params%l_2m)     &
-             flux_n2(k)=n2*u2r
+        if (params%l_2m) flux_n2(k)=n2*u2r
 
-        if (params%l_3m)     &
-             flux_n3(k)=n3*u3r
+        if (params%l_3m) flux_n3(k)=n3*u3r
 
         ! diagnostic for precip
         if (k==1) then
@@ -310,9 +303,7 @@ contains
 
       if (l_fluxout) then !flux out (flux(k+1) will be zero if no flux in)
         dn1=(flux_n1(k+1)-flux_n1(k))*rdz_on_rho(k)
-
         if (params%l_2m) dn2=(flux_n2(k+1)-flux_n2(k))*rdz_on_rho(k)
-
         if (params%l_3m) dn3=(flux_n3(k+1)-flux_n3(k))*rdz_on_rho(k)
 
         !============================
@@ -462,27 +453,27 @@ contains
         if (params%id == cloud_params%id .or. params%id == rain_params%id) then
           !liquid phase
           if (l_separate_rain .and. params%id == rain_params%id) then
-            aero_proc%source(i_am5)=dmac
+            aerosol_procs(k, iaproc%id)%source(i_am5)=dmac
           else
-            aero_proc%source(i_am4)=dmac
+            aerosol_procs(k, iaproc%id)%source(i_am4)=dmac
           end if
-          if (.not. l_warm) aero_proc%source(i_am9) =dmad
+          if (.not. l_warm) aerosol_procs(k, iaproc%id)%source(i_am9) =dmad
           if (l_passivenumbers) then
-            aero_proc%source(i_an11)=dnumber_a
+            aerosol_procs(k, iaproc%id)%source(i_an11)=dnumber_a
           end if
           if (l_passivenumbers_ice) then
-            aero_proc%source(i_an12)=dnumber_d
+            aerosol_procs(k, iaproc%id)%source(i_an12)=dnumber_d
           end if
 
         else
           !ice phase
-          aero_proc%source(i_am7)=dmad
-          aero_proc%source(i_am8)=dmac
+          aerosol_procs(k, iaproc%id)%source(i_am7)=dmad
+          aerosol_procs(k, iaproc%id)%source(i_am8)=dmac
           if (l_passivenumbers) then
-            aero_proc%source(i_an11)=dnumber_a
+            aerosol_procs(k, iaproc%id)%source(i_an11)=dnumber_a
           end if
           if (l_passivenumbers_ice) then
-            aero_proc%source(i_an12)=dnumber_d
+            aerosol_procs(k, iaproc%id)%source(i_an12)=dnumber_d
           end if
         end if
       end if
@@ -502,18 +493,10 @@ contains
       dm2=dn2
       dm3=dn3
 
-      this_proc%source(params%i_1m)=c_x*dm1
+      procs(k, iproc%id)%source(params%i_1m)=c_x*dm1
 
-      if (params%l_2m) this_proc%source(params%i_2m)=dm2
-      if (params%l_3m) this_proc%source(params%i_3m) = dm3
-
-      nullify(this_proc)
-      if (l_da_local) nullify(aero_proc)
+      if (params%l_2m) procs(k, iproc%id)%source(params%i_2m)=dm2
+      if (params%l_3m) procs(k, iproc%id)%source(params%i_3m)=dm3
     end do
-
-    deallocate(Grho)
-    deallocate(flux_n1)
-    if (params%l_2m)deallocate(flux_n2)
-    if (params%l_3m)deallocate(flux_n3)
   end subroutine sedr_aero
 end module sedimentation

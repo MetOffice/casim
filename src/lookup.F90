@@ -36,7 +36,7 @@ module lookup
      module procedure get_lam_n0_3M, get_lam_n0_2M, get_lam_n0_1M
   end interface get_lam_n0
 
-  public Gfunc, get_slope_generic, moment, max_mu, get_n0, get_mu, get_lam_n0, set_mu_lookup, mu_i, mu_g, mu_i_sed, mu_g_sed, nmu
+  public Gfunc, get_slope_generic, moment, get_n0, get_mu, get_lam_n0, set_mu_lookup, mu_i, mu_g, mu_i_sed, mu_g_sed, nmu
 contains
 
   function Gfunc(mu, p1, p2, p3)

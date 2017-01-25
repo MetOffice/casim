@@ -5,7 +5,7 @@ module gauss_casim_micro
   !< OPTIMISATION POTENTIAL - LOOKUP
 
   use variable_precision, only: wp
-  use lookup, only: max_mu
+  use mphys_switches, only: max_mu
   implicit none
   private
 
