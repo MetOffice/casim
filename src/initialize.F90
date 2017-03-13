@@ -29,7 +29,7 @@ module initialize
 contains 
 
   subroutine mphys_init(il, iu, jl, ju, kl, ku,                 &       
-       is_in, ie_in, js_in, je_in, ks_in, ke_in, l_tendency, rhcrit_in)
+       is_in, ie_in, js_in, je_in, ks_in, ke_in, l_tendency)
 
     integer, intent(in) :: il, iu ! upper and lower i levels
     integer, intent(in) :: jl, ju ! upper and lower j levels
@@ -43,7 +43,6 @@ contains
     ! if true then a tendency is returned (i.e. units/s)
     ! if false then an increment is returned (i.e. units/timestep)
     logical, intent(in), optional :: l_tendency
-    real(wp), intent(in), optional :: rhcrit_in(kl:ku)
 
     integer :: iproc
     real(wp) :: tmp
@@ -79,11 +78,16 @@ contains
       l_tendency_loc=.true.
     end if
 
-    if (present(rhcrit_in)) then
-      call initialise_micromain(il, iu, jl, ju, kl, ku, is, ie, js, je, ks, ke, l_tendency_loc, rhcrit_in)
-    else 
-      call initialise_micromain(il, iu, jl, ju, kl, ku, is, ie, js, je, ks, ke, l_tendency_loc)
-    end if
+    ! N.B. RHCrit was originally an optional argument to initialise_micromain 
+    ! but it was discovered that this caused issues with an out-of-bounds error
+    ! leading to a random segmentation fault. This has been removed for now, but
+    ! a copy of the call left below for reference.  
+    !       
+    ! call initialise_micromain( il, iu, jl, ju, kl, ku, is, ie, js, je, ks, ke, &
+    !                            l_tendency_loc, rhcrit_in ) 
+
+    call initialise_micromain(il, iu, jl, ju, kl, ku, is, ie, js, je, ks, ke, l_tendency_loc)
+
     call initialise_sedr()
     
     call initialise_lookup_tables()
