@@ -19,7 +19,7 @@ module micro_main
        l_inuc, l_sed, l_condensation, l_iaut, l_imelt, l_iacw, l_idep, aero_index, nq_l, nq_r, nq_i, nq_s, nq_g, &
        l_sg, l_g, l_process, l_halletmossop, max_sed_length, max_step_length, l_harrington, l_passive, ntotala, ntotalq, &
        active_number, isol, iinsol, l_raci_g, l_onlycollect, l_pracr, pswitch, l_isub, l_pos1, l_pos2, l_pos3, l_pos4, &
-       l_pos5, l_pos6, i_hstart, nsubsteps, nsubseds, l_tidy_negonly
+       l_pos5, l_pos6, i_hstart, nsubsteps, nsubseds, l_tidy_negonly, inv_nsubsteps, inv_nsubseds, inv_allsubs
 
   use distributions, only: query_distributions, initialise_distributions, dist_lambda, dist_mu, dist_n0
   use passive_fields, only: initialise_passive_fields, set_passive_fields, TdegK
@@ -385,8 +385,9 @@ contains
     integer :: im
     character(1) :: char
 
-    REAL(wp) :: precip_r
-    REAL(wp) :: precip_s
+    real(wp) :: precip_r
+    real(wp) :: precip_s
+    real(wp) :: precip_g
 
 
     ! Save parent model timestep for later use (e.g. in diagnostics)
@@ -404,6 +405,7 @@ contains
 
         precip_r = 0.0
         precip_s = 0.0
+        precip_g = 0.0
 
         tend=ZERO_REAL_WP
         call zero_procs(procs)
@@ -497,7 +499,7 @@ contains
         ! Do the business...
         !--------------------------------------------------
         call microphysics_common(dt, ks, ke, qfields, dqfields, tend, procs, precip(i,j) &
-             , precip_r, precip_s                                                  &
+             , precip_r, precip_s, precip_g                                        &
              , aerophys, aerochem, aeroact                                         &
              , dustphys, dustchem, dustact                                         &
              , aeroice, dustliq                                                    &
@@ -582,7 +584,7 @@ contains
   end subroutine shipway_microphysics
 
   subroutine microphysics_common(dt, kl, ku, qfields, dqfields, tend, procs, precip &
-       , precip_r, precip_s                                                   &
+       , precip_r, precip_s, precip_g                                         &
        , aerophys, aerochem, aeroact                                          &
        , dustphys, dustchem, dustact                                          &
        , aeroice, dustliq                                                     &
@@ -597,6 +599,7 @@ contains
     real(wp), intent(out) :: precip
     real(wp), INTENT(INOUT) :: precip_r
     real(wp), INTENT(INOUT) :: precip_s
+    real(wp), intent(inout) :: precip_g
 
     ! Aerosol fields
     type(aerosol_phys), intent(inout)   :: aerophys(:)
@@ -633,9 +636,13 @@ contains
 
     nsubsteps=max(1, ceiling(dt/max_step_length))
     step_length=dt/nsubsteps
+    inv_nsubsteps = 1.0 / real(nsubsteps)
 
     nsubseds=max(1, ceiling(step_length/max_sed_length))
     sed_length=step_length/nsubseds
+    inv_nsubseds = 1.0 / real(nsubseds)
+
+    inv_allsubs = 1.0 / real( nsubseds * nsubsteps) 
 
     n_sub=1
     n_subsed=1
@@ -1127,6 +1134,9 @@ contains
       ! (so includes ice, snow and graupel) 
       precip_s = precip_s + precip_s_w + precip_i_w + precip_g_w
 
+      ! For the UM, graupel rate is just itself
+      precip_g = precip_g_w
+
       if (nsubsteps>1)then
         !-------------------------------
         ! Reset process rates if they
@@ -1147,8 +1157,15 @@ contains
       end if
     end do
 
+    ! We want the mean precipitation over the parent timestep - so divide
+    ! by the total number of substeps - multiply by inv_allsubs is quicker
+    precip_r = precip_r * inv_allsubs
+    precip_s = precip_s * inv_allsubs
+    precip_g = precip_g * inv_allsubs
+
     ! Precip is a sum of everything, so just add rain and snow together which
     ! has all components added.
+    ! Do not add precip_g, otherwise graupel contributions will be double-counted
     precip   = precip_r   + precip_s
 
     !--------------------------------------------------

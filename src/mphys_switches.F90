@@ -165,6 +165,8 @@ module mphys_switches
 
   integer :: nsubsteps, nsubseds
 
+  real :: inv_nsubsteps, inv_nsubseds, inv_allsubs
+
   ! process switches
   ! Some of these switches are obsolete or inactive - review these
   ! and then remove this message
@@ -711,7 +713,7 @@ contains
         thresh_atidy(i_am7)=aeromass_small
         thresh_atidy(i_am8)=aeromass_small
         thresh_atidy(i_am9)=aeromass_small
-        thresh_atidy(i_am10)=aeronumber_small
+        thresh_atidy(i_am10)=aeromass_small
         thresh_atidy(i_an10)=aeronumber_small
         thresh_atidy(i_an11)=aeronumber_small
         thresh_atidy(i_an12)=aeronumber_small
