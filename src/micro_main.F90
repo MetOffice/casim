@@ -49,15 +49,15 @@ module micro_main
        ensure_saturated, tidy_qin, tidy_ain, ensure_positive_aerosol
   use preconditioning, only: precondition, preconditioner
 
+  use generic_diagnostic_variables, only: casdiags
+
 #if DEF_MODEL==MODEL_KiD
   ! Kid modules
   use diagnostics, only: save_dg, i_dgtime, i_here, j_here, k_here, n_sub, n_subsed
   use runtime, only: time
   use parameters, only: nx
 #elif DEF_MODEL==MODEL_UM
-  use diaghelp_um, only: i_here, j_here, k_here, l_debug_um, debug_i, debug_j, debug_k, debug_pe, debug_i2, debug_j2, debug_k2, &
-       n_sub, n_subsed
-  USE mphys_casim_diagnostics, ONLY: SurfaceRainR, SurfaceSnowR
+  use diaghelp_um, only: i_here, j_here, k_here, n_sub, n_subsed
 #elif  DEF_MODEL==MODEL_MONC
   use diaghelp_monc, only: i_here, j_here, k_here, n_sub, n_subsed, mype
 #endif
@@ -569,10 +569,10 @@ contains
           da17(ks:ke,i,j)=0.0
         end if
 
-#if DEF_MODEL==MODEL_UM
-        SurfaceRainR(i,j) = precip_r
-        SurfaceSnowR(i,j) = precip_s
-#endif
+
+        if ( casdiags % l_surface_rain ) casdiags % SurfaceRainR(i,j) = precip_r
+        if ( casdiags % l_surface_snow ) casdiags % SurfaceSnowR(i,j) = precip_s
+        if ( casdiags % l_surface_graup) casdiags % SurfaceGraupR(i,j) = precip_g
 
       end do
     end do
