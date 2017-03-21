@@ -18,8 +18,6 @@ module evaporation
 
 #if DEF_MODEL==MODEL_KiD
   use diagnostics, only: save_dg, i_dgtime
-#elif DEF_MODEL==MODEL_UM
-  use diaghelp_um, only: i_here, j_here
 #endif
 
   implicit none

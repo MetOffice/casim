@@ -1,8 +1,10 @@
-#if DEF_MODEL==MODEL_UM
 MODULE ship_tracksCasim
 
-USE missing_data_mod, ONLY: RMDI
 IMPLICIT NONE
+
+REAL, PARAMETER    :: RMDI     = -32768.0*32768.0 
+! Borrowed from UM mod for now - consider whether we should 
+! include this routine or not for the future.
 
   ! Some variables used for ship tracks
 LOGICAL :: l_shiptrack=.FALSE.  ! Logical to switch on the shiptrack
@@ -27,4 +29,3 @@ REAL :: default_mean_mass = 3.0e-18 ! default mean aerosol mass
 INTEGER :: iship ! ship counter
 
 END MODULE ship_tracksCasim
-#endif

@@ -1,0 +1,20 @@
+! Dummy module for cloud fraction scheme to ensure that MONC and KiD build
+
+MODULE cloud_frac_scheme
+
+IMPLICIT NONE
+
+CONTAINS
+
+SUBROUTINE cloud_frac_casim_mphys(k, pressure, abs_liquid_t, rhcrit_lev, &
+                                  qs, qv, cloud_mass, qfields, cloud_mass_new)
+
+IMPLICIT NONE
+INTEGER,  INTENT(IN)  :: k
+REAL(wp), INTENT(IN)  :: pressure, abs_liquid_t, rhcrit_lev, qs, qv cloud_mass, qfields
+INTEGER,  INTENT(IN)  :: k
+REAL(wp), INTENT(OUT) :: cloud_mass_new
+
+END SUBROUTINE cloud_frac_casim_mphys
+
+END MODULE cloud_frac_scheme

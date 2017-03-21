@@ -2,13 +2,10 @@
 ! re-evaporated (or potentially any other) aerosol
 module which_mode_to_use
   use variable_precision, only: wp
-#if DEF_MODEL==MODEL_UM
-  use ukca_option_mod, only: l_ukca
+  use mphys_switches, only: l_ukca_casim
+
   implicit none
-#else
-  implicit none
-  logical :: l_ukca = .false.
-#endif
+
   private
 
   integer :: imethod = 1 ! method to use
@@ -52,7 +49,7 @@ contains
     dn1=0.0
     dn2=0.0
 
-    if (l_ukca) imethod=iukca_method
+    if (l_ukca_casim) imethod=iukca_method
     if (dm*dn > 0.0) then 
       ! dm and dn should be positive and of the same sign
       r1=min(max_accumulation_mean_radius, r1_in)

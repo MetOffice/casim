@@ -1,8 +1,9 @@
 ! Routine to exit the microphysics following an error there
 module mphys_die
-#if DEF_MODEL==MODEL_UM
-  use ereport_mod, only : ereport
-#elif DEF_MODEL==MODEL_KiD
+
+  ! Module for the KiD and MONC models - UM has its own version
+
+#if DEF_MODEL==MODEL_KiD
   use runtime, only: time
 #endif
 
@@ -13,6 +14,10 @@ module mphys_die
 contains
 
   subroutine throw_mphys_error(itype, routine, info)
+
+    ! If modifying the subroutine or argument list, ensure that the 
+    ! UM version of mphys_die is also modified to give the same answers
+
     integer, optional, intent(in) :: itype  ! type of error 1 = incorrect specification of options, 0 = unknown
     character(*), intent(in) :: routine
     character(*), optional, intent(in) :: info ! error information
@@ -32,13 +37,9 @@ contains
 #if DEF_MODEL==MODEL_KiD
     print*, 'Runtime is:' , time
 #endif
-
-#if DEF_MODEL==MODEL_UM
-    call Ereport(routine, itype, str)
-#else
     print*, routine,':', trim(str)
     print*, (minus_one)**0.5
     stop
-#endif
+
   end subroutine throw_mphys_error
 end module mphys_die

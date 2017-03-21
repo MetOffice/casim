@@ -23,9 +23,6 @@ module ice_accretion
   use runtime, only: time
 #elif  DEF_MODEL==MODEL_MONC
   use diaghelp_monc, only: i_here, j_here
-#else
-  use diaghelp_um, only: i_here,j_here
-  use UM_ParCore, only: mype
 #endif
   use special, only: pi, Gammafunc
 

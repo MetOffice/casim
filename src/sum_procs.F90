@@ -13,11 +13,6 @@ module sum_process
   use parameters, only: diaglevel, nx
   use diagnostics, only: save_dg, i_dgtime, i_here, j_here, n_sub, n_subsed
   use runtime, only: time
-#elif DEF_MODEL==MODEL_UM
-  use mphys_casim_diagnostics, only: ProcessRates, nProcessDiags, ProcessKeys, ProcessQs, PhaseChanges
-  use diaghelp_um, only: i_here, j_here, l_debug_um, debug_i, debug_j, debug_pe, n_sub, n_subsed
-  use UM_ParCore, only: mype
-  use timestep_mod, only: timestep_number
 #elif  DEF_MODEL==MODEL_MONC
   use diaghelp_monc, only: i_here, j_here
 #endif
@@ -41,16 +36,8 @@ contains
     integer :: k, iq, iproc, i, nz, idgproc
     integer :: nproc, index, idg
 
-#if DEF_MODEL==MODEL_UM
-    integer :: diaglevel
-#endif
-
     character(2) :: char
     character(100) :: name
-
-#if DEF_MODEL==MODEL_UM
-    diaglevel=0
-#endif
 
     allocate(tend_temp(lbound(tend,1):ubound(tend,1), lbound(tend,2):ubound(tend,2)))
     tend_temp=ZERO_REAL_WP
@@ -104,10 +91,6 @@ contains
     integer :: k, iq, iproc, isource, nsource, i, nz, idgproc
     integer :: nproc, index, idg
 
-#if DEF_MODEL==MODEL_UM
-    integer :: diaglevel
-#endif
-
     character(2) :: char
     character(100) :: name
 
@@ -116,10 +99,6 @@ contains
     logical :: do_update ! update the tendency
     integer :: third_type
     real :: qh ! total hydrometeor
-
-#if DEF_MODEL==MODEL_UM
-    diaglevel = 0
-#endif
 
     do_thermal=.false.
     if (present(l_thermalexchange)) do_thermal=l_thermalexchange

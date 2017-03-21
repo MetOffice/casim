@@ -17,10 +17,6 @@ module aerosol_routines
 #if DEF_MODEL==MODEL_KiD
   use diagnostics, only: save_dg, i_dgtime, k_here, i_here, j_here, nx
   use runtime, only: time
-#elif  DEF_MODEL==MODEL_UM
-  use timestep_mod, only: timestep_number
-  use diaghelp_um, only: k_here, i_here, j_here
-  use UM_ParCore, only: mype
 #elif  DEF_MODEL==MODEL_MONC
   use diaghelp_monc, only: i_here, j_here
 #endif

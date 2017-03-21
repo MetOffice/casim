@@ -7,8 +7,6 @@ module passive_fields
 
 #if DEF_MODEL==MODEL_KiD
   use diagnostics, only: i_here, j_here
-#elif  DEF_MODEL==MODEL_UM
-  use diaghelp_um, only: i_here, j_here
 #elif  DEF_MODEL==MODEL_MONC
   use diaghelp_monc, only: i_here, j_here
 #endif
@@ -85,10 +83,7 @@ contains
     qws(nz)=1.0e-8
 
     if (any(qws==0.0)) then
-      do k=1, nz
-        print *, 'DEBUG qws', i_here, j_here, k, theta(k), TdegK(k), qws(k),rdz_on_rho(k)
-      end do
-      call throw_mphys_error(2, 'passive_fields', 'Error in saturation calculation')
+      call throw_mphys_error(2, 'passive_fields', 'Error in saturation calculation - qws is zero')
     end if
     nullify(theta)
   end subroutine set_passive_fields

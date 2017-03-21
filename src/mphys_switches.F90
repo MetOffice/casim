@@ -44,6 +44,12 @@ module mphys_switches
   logical :: active_number(2) = (/.false., .false./)
   logical :: l_warm = .false.  ! Only use warm rain microphysics
 
+  logical :: l_cfrac_casim_diag_scheme = .false. ! Use diagnostic cloud scheme
+
+  logical :: l_ukca_casim = .false. ! CASIM is coupled to UKCA. 
+  ! This is set to false, but needs setting to .true. if l_ukca
+  ! is true in the UM.
+
   character(10), allocatable :: hydro_names(:)
   character(20), allocatable :: aero_names(:)
 

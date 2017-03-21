@@ -5,7 +5,7 @@ module condensation
   use mphys_switches, only: i_qv, i_ql, i_nl, i_th, i_qr, i_qi, i_qs, i_qg, hydro_complexity, l_warm, &
        i_am4, i_am1, i_an1, i_am2, i_an2, i_am3, i_an3, i_am6, i_an6, i_am9, i_an11, i_an12,  &
        cloud_params, l_process, l_passivenumbers,l_passivenumbers_ice, aero_index, &
-       active_cloud, active_number, l_preventsmall
+       active_cloud, active_number, l_preventsmall, l_cfrac_casim_diag_scheme
   use process_routines, only: process_rate, i_cond, i_aact
   use mphys_constants, only: Lv, cp
   use qsat_funs, only: qsaturation, dqwsatdt
@@ -14,14 +14,12 @@ module condensation
   use aerosol_routines, only: aerosol_phys, aerosol_chem, aerosol_active
   use special, only: pi
   use which_mode_to_use, only : which_mode
+  use casim_parent_mod, only: casim_parent, parent_um
+  use cloud_frac_scheme, only: cloud_frac_casim_mphys
+
 #if DEF_MODEL==MODEL_KiD
   use diagnostics, only: save_dg, i_dgtime, i_here, k_here
   use runtime, only: time
-#elif  DEF_MODEL==MODEL_UM
-  use casim_switches, only: l_cfrac_casim_diag_scheme
-  use UM_ParCore, only: mype
-  use diaghelp_um, only: i_here, j_here
-  use cloud_frac_scheme, only: cloud_frac_casim_mphys
 #elif  DEF_MODEL==MODEL_MONC
   use diaghelp_monc, only: i_here, j_here
 #endif
@@ -105,32 +103,36 @@ contains
     if (cloud_params%l_2m) cloud_number=qfields(k, i_nl)
 
     th=qfields(k, i_th)
-#if  DEF_MODEL==MODEL_UM
-    if (l_cfrac_casim_diag_scheme) then
-      qv=qfields(k, i_qv)+cloud_mass
-    else
+
+    if (casim_parent == parent_um ) then
+
+      if (l_cfrac_casim_diag_scheme ) then
+        qv=qfields(k, i_qv)+cloud_mass
+      else
+        qv=qfields(k, i_qv)
+      end if
+
+      if (l_cfrac_casim_diag_scheme) then
+        ! work out saturation vapour pressure/mixing ratio based on
+        ! liquid water temperature
+        abs_liquid_T=(th*exner(k))-((lv * cloud_mass )/cp)
+        qs=qsaturation(abs_liquid_T, pressure(k)/100.0)
+      else
+        qs=qsaturation(th*exner(k), pressure(k)/100.0)
+      end if
+    
+    else ! casim_parent /= parent_um
       qv=qfields(k, i_qv)
-    end if
-    if (l_cfrac_casim_diag_scheme) then
-      ! work out saturation vapour pressure/mixing ratio based on
-      ! liquid water temperature
-      abs_liquid_T=(th*exner(k))-((lv * cloud_mass )/cp)
-      qs=qsaturation(abs_liquid_T, pressure(k)/100.0)
-    else
       qs=qsaturation(th*exner(k), pressure(k)/100.0)
-    end if
-#else
-    qv=qfields(k, i_qv)
-    qs=qsaturation(th*exner(k), pressure(k)/100.0)
-#endif
+
+    end if ! casim_parent == parent_um
 
     l_docloud=.true.
     if (qs==0.0) l_docloud=.false.
 
     if ((qv/qs > 1.0 - ss_small .or. cloud_mass > 0.0) .and. l_docloud) then
 
-#if  DEF_MODEL==MODEL_UM
-      if (l_cfrac_casim_diag_scheme) then
+      if (l_cfrac_casim_diag_scheme .AND. casim_parent == parent_um ) then
 
         !Call Smith scheme before setting up microphysics vars, to work out
         ! cloud fraction, which is used to derive in-cloud mass and number
@@ -144,12 +146,8 @@ contains
         dqsdt=dqwsatdt(qs, th*exner(k))
         qsatfac=1.0/(1.0 + Lv/Cp*dqsdt)
         dmass=max(-cloud_mass, (qv-qs)*qsatfac )/dt
-      end if
-#else
-      dqsdt=dqwsatdt(qs, th*exner(k))
-      qsatfac=1.0/(1.0 + Lv/Cp*dqsdt)
-      dmass=max(-cloud_mass, (qv-qs)*qsatfac )/dt
-#endif
+      end if ! l_cfrac_casim_diag_scheme
+
 
 #if DEF_MODEL==MODEL_KiD
       call save_dg(k_here, i_here, qv, 'qv_in_cond', i_dgtime)

@@ -16,8 +16,6 @@ module distributions
   use diagnostics, only: save_dg, i_dgtime, i_here, j_here, k_here
   use runtime, only: time
   use parameters, only: nx
-#elif DEF_MODEL==MODEL_UM
-  use timestep_mod, only: time => timestep_number
 #elif  DEF_MODEL==MODEL_MONC
   use diaghelp_monc, only: i_here, j_here, time
 #endif

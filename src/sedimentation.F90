@@ -22,10 +22,6 @@ module sedimentation
 #if DEF_MODEL==MODEL_KiD
   use diagnostics, only: save_dg, i_dgtime, k_here, i_here, nx
   use runtime, only: l_dgstep, time
-#elif DEF_MODEL==MODEL_UM
-  use diaghelp_um, only: i_here, j_here, l_debug_um, debug_i, debug_j, debug_pe
-  use UM_ParCore, only: mype
-  use timestep_mod, only: timestep_number
 #elif  DEF_MODEL==MODEL_MONC
   use diaghelp_monc, only: i_here, j_here
 #endif

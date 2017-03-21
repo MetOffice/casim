@@ -15,10 +15,6 @@ module ice_nucleation
 #if DEF_MODEL==MODEL_KiD
   use diagnostics, only: save_dg, i_dgtime, i_here, k_here
   use runtime, only: time
-#elif DEF_MODEL==MODEL_UM
-  use diaghelp_um, only: i_here, j_here
-  use UM_ParCore, only: mype
-  use timestep_mod,          only : timestep_number
 #elif  DEF_MODEL==MODEL_MONC
   use diaghelp_monc, only: i_here, j_here
 #endif
@@ -79,14 +75,7 @@ contains
     end if
 
     if (qs==0.0 .or. qis==0.0) then
-#if DEF_MODEL==MODEL_UM
-      do kk=1,k
-        print*, 'DEBUG nuc', mype, i_here, j_here, kk, pressure(kk), w(kk), qfields(kk, i_th), &
-             qsaturation(qfields(kk, i_th)*exner(kk), pressure(kk)/100.0),qisaturation(qfields(kk, i_th)*exner(kk), &
-             pressure(kk)/100.0)
-      end do
-#endif
-      call throw_mphys_error(2, 'ice_nucleation', 'Error in saturation calculation')
+      call throw_mphys_error(2, 'ice_nucleation', 'Error in saturation calculation - qs or qis is zero')
     end if
 
     Sw=qv/qs - 1.0

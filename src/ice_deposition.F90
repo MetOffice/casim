@@ -27,11 +27,8 @@ module ice_deposition
 #if DEF_MODEL==MODEL_KiD
   use diagnostics, only: save_dg, i_dgtime, i_here, k_here
   use runtime, only: time
-#elif DEF_MODEL==MODEL_UM
-  use timestep_mod, only: timestep_number
-  use diaghelp_um, only: k_here, i_here, j_here
-  use UM_ParCore, only: mype
 #endif
+
   implicit none
   private
 
