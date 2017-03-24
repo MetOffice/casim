@@ -3,7 +3,7 @@ module sum_process
   use mphys_die, only: throw_mphys_error
   use type_process, only: process_name, process_rate
   use mphys_switches, only: i_th, i_qv, i_ql, i_qr, i_qs, i_qi, i_qg, l_warm, i_m3r, ntotalq, ntotala, &
-       i_an11, i_am4, i_nl, i_am9, aero_index, i_nr, i_ng, i_ns, i_am7, i_am8, nsubsteps
+       i_an11, i_am4, i_nl, i_am9, aero_index, i_nr, i_ng, i_ns, i_am7, i_am8
   use passive_fields, only: rexner, rho
   use mphys_constants, only: cp, Lv, Ls
   use mphys_parameters, only: hydro_params, snow_params, rain_params, graupel_params, parent_dt, ZERO_REAL_WP

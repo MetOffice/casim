@@ -37,7 +37,8 @@ module mphys_constants
   real(wp) :: Ru = 8.314472   ! Universal gas constant
   real(wp) :: Rd = 287.05     ! gas constant for dry air
   real(wp) :: Rv = 461.5      ! gas constant for water vapour
-  real(wp) :: eps = 1.6077    ! (Rv/Rd)
+  ! Do not use 'eps' below - this is a Fortran intrinsic!
+  real(wp) :: mp_eps = 1.6077    ! (Rv/Rd)
   real(wp) :: Dv = 0.226e-4   ! diffusivity of water vapour in air
   real(wp), parameter :: Lv = 0.2501e7   ! Latent heat of vapourization
   real(wp), parameter :: Ls = 0.2834e7   ! Latent heat of sublimation

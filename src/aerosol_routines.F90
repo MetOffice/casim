@@ -2,7 +2,7 @@ module aerosol_routines
   use mphys_die, only: throw_mphys_error
   use type_aerosol, only: aerosol_type, aerosol_phys, aerosol_chem, aerosol_active
   use variable_precision, only: wp
-  use mphys_constants, only: Mw, zetasa, Ru, rhow, g, Lv, eps, cp, Rd, Rv, ka, Dv, pi
+  use mphys_constants, only: Mw, zetasa, Ru, rhow, g, Lv, mp_eps, cp, Rd, Rv, ka, Dv, pi
   use special, only: erfc, erfinv
   use mphys_switches, only: i_am2, i_an2, i_am4, i_nl, i_nr, i_am1, i_an1, i_am3, i_an3, &
        i_am5, i_am6, i_an6, i_am7, i_am8, i_am9, i_an11, i_an12, i_ni, i_ns, i_ng, i_ql, &
@@ -641,11 +641,11 @@ contains
     !zetasa = (76.1-(0.155*Tc)) * 1e-3
     Ak=2.0*Mw*zetasa/(Ru*T*rhow)
 
-    alpha=g*(Lv/(eps*cp*T)-1)/(T*Rd)
+    alpha=g*(Lv/(mp_eps*cp*T)-1)/(T*Rd)
 
     es=(100.0*6.1121)*exp((18.678-Tc/(234.5))*Tc/(257.14+Tc))
 
-    gamma=eps*p/es+Lv**2/(Rv*T**2*cp)
+    gamma=mp_eps*p/es+Lv**2/(Rv*T**2*cp)
 
     !Dv = (0.211*((T/273.15)**(1.94))*((100000.)/(p))) / 1.e4
 
@@ -706,9 +706,9 @@ contains
     !zetasa = (76.1-(0.155*TC)) * 1e-3
 
     Ak=2.0*Mw*zetasa/(Ru*T*rhow)
-    alpha=g*(Lv/(eps*cp*T)-1)/(T*Rd)
+    alpha=g*(Lv/(mp_eps*cp*T)-1)/(T*Rd)
     es=(100.0*6.1121)*exp((18.678-Tc/(234.5))*Tc/(257.14+Tc))
-    gamma=eps*p/es+Lv**2/(Rv*T**2*cp)
+    gamma=mp_eps*p/es+Lv**2/(Rv*T**2*cp)
     !Dv = (0.211*((T/273.15)**(1.94))*((100000.)/(p))) / 1.e4
     bigG=1.0/(rhow*(Rv*T/(es*Dv)+Lv*(Lv/(Rv*T)-1)/(ka*T)))
     zeta=(2.0/3.0)*Ak*(w*alpha/BigG)**0.5
