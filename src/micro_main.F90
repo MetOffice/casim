@@ -22,7 +22,7 @@ module micro_main
        l_pos5, l_pos6, i_hstart, nsubsteps, nsubseds, l_tidy_negonly, inv_nsubsteps, inv_nsubseds, inv_allsubs
 
   use distributions, only: query_distributions, initialise_distributions, dist_lambda, dist_mu, dist_n0
-  use passive_fields, only: initialise_passive_fields, set_passive_fields, TdegK
+  use passive_fields, only: initialise_passive_fields, set_passive_fields, TdegK, rhcrit_1d
   use autoconversion, only: raut
   use evaporation, only: revp
   use condensation, only: condevp_initialise, condevp_finalise, condevp
@@ -71,7 +71,6 @@ module micro_main
   integer :: js, je ! upper and lower j levels
   integer :: ks, ke ! upper and lower k levels    
 
-  real(wp), allocatable :: rhcrit(:)
   real(wp), allocatable, save :: precip(:,:) ! diagnostic for surface precip rate
   real(wp), allocatable :: dqfields(:,:), qfields(:,:), tend(:,:)
   real(wp), allocatable :: daerofields(:,:), aerofields(:,:), aerosol_tend(:,:)
@@ -101,7 +100,7 @@ module micro_main
 contains
 
   subroutine initialise_micromain(il, iu, jl, ju, kl, ku,                 &       
-       is_in, ie_in, js_in, je_in, ks_in, ke_in, l_tendency, rhcrit_in)
+       is_in, ie_in, js_in, je_in, ks_in, ke_in, l_tendency)
 
     integer, intent(in) :: il, iu ! upper and lower i levels
     integer, intent(in) :: jl, ju ! upper and lower j levels
@@ -115,7 +114,6 @@ contains
     ! if true then a tendency is returned (i.e. units/s)
     ! if false then an increment is returned (i.e. units/timestep)
     logical, intent(in) :: l_tendency
-    real(wp), intent(in), optional :: rhcrit_in(kl:ku)
 
     ! Local variables
     real(wp) :: p1, p2, p3
@@ -151,14 +149,12 @@ contains
     ks=ks_in
     ke=ke_in
 
-    allocate(rhcrit(kl:ku))
-
-    l_tendency_loc=l_tendency    
-    if (present(rhcrit_in)) then
-      rhcrit(:)=rhcrit_in(:)
-    else
-      rhcrit(:)=1.0
-    end if
+    allocate(rhcrit_1d(kl:ku))
+    ! Set RHCrit to 1.0 as default; parent model can then overwrite 
+    ! this if needed
+    rhcrit_1d(:) = 1.0
+    
+    l_tendency_loc = l_tendency     
 
     nq=sum(hydro_complexity%nmoments)+2 ! also includes vapour and theta
     nz=ke-ks+1
@@ -274,7 +270,7 @@ contains
     deallocate(aerosol_tend)
     deallocate(aerofields)
     deallocate(daerofields)
-    deallocate(rhcrit)
+    deallocate(rhcrit_1d)
     deallocate(qfields_in)
     deallocate(qfields_mod)
     if (allocated(aerofields_in)) deallocate(aerofields_in)
@@ -502,7 +498,7 @@ contains
              , dustphys, dustchem, dustact                                         &
              , aeroice, dustliq                                                    &
              , aerofields, daerofields, aerosol_tend, aerosol_procs                &
-             , rhcrit)
+             , rhcrit_1d)
 
         !--------------------------------------------------
         ! Relate back tendencies
@@ -587,11 +583,11 @@ contains
        , dustphys, dustchem, dustact                                          &
        , aeroice, dustliq                                                     &
        , aerofields, daerofields, aerosol_tend, aerosol_procs                 &
-       , rhcrit)
+       , rhcrit_1d)
 
     real(wp), intent(in) :: dt  ! timestep from parent model
     integer, intent(in) :: kl, ku
-    real(wp), intent(in) :: rhcrit(:)
+    real(wp), intent(in) :: rhcrit_1d(:)
     real(wp), intent(inout) :: qfields(:,:), dqfields(:,:), tend(:,:)
     type(process_rate), intent(inout) :: procs(:,:)
     real(wp), intent(out) :: precip
@@ -987,7 +983,7 @@ contains
 #endif
           call condevp(step_length, k, qfields, aerofields,     &
                procs, aerophys, aerochem, aeroact, dustphys, dustchem, dustliq, &
-               aerosol_procs, rhcrit(k))
+               aerosol_procs, rhcrit_1d(k))
         end do
 
         !-------------------------------

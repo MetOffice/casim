@@ -18,12 +18,14 @@ module passive_fields
   real(wp), allocatable :: z_half(:), z_centre(:), dz(:)
   real(wp), allocatable :: qws(:), qws0(:), TdegC(:), TdegK(:), w(:), tke(:)
 
+  real(wp), allocatable :: rhcrit_1d(:)
+
   real(wp), allocatable :: rdz_on_rho(:)
   real(wp) :: dt
   integer :: kl, ku, nz
 
   public set_passive_fields, rho, pressure, initialise_passive_fields, z, qws, exner, rexner, z_half, z_centre, dz, qws0, &
-       TdegC, TdegK, w, tke, rdz_on_rho
+       TdegC, TdegK, w, tke, rhcrit_1d, rdz_on_rho
 contains
 
   subroutine initialise_passive_fields(kl_arg, ku_arg)

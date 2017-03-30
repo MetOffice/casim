@@ -78,14 +78,6 @@ contains
       l_tendency_loc=.true.
     end if
 
-    ! N.B. RHCrit was originally an optional argument to initialise_micromain 
-    ! but it was discovered that this caused issues with an out-of-bounds error
-    ! leading to a random segmentation fault. This has been removed for now, but
-    ! a copy of the call left below for reference.  
-    !       
-    ! call initialise_micromain( il, iu, jl, ju, kl, ku, is, ie, js, je, ks, ke, &
-    !                            l_tendency_loc, rhcrit_in ) 
-
     call initialise_micromain(il, iu, jl, ju, kl, ku, is, ie, js, je, ks, ke, l_tendency_loc)
 
     call initialise_sedr()
