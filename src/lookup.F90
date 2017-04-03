@@ -95,12 +95,7 @@ contains
     p1=params%p1
     p2=params%p2
     p3=params%p3
-    if (number <= 0) then
-      !  PRINT*, 'ERROR in lookup', time, k, i_here, j_here,     &
-      !         params%id, params%i_2m, m1, number, m3
-      !  CALL throw_mphys_error(2, 'get_slope_generic', 'ERROR in lookup')
-      return
-    end if
+    
     if (params%l_3m) then
       if (l_passive3m) then
         m2=number

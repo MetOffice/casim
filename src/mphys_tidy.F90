@@ -769,6 +769,9 @@ contains
     integer :: i_1m, i_2m, i_3m
     logical :: l_rescaled
 
+    character(len=200) :: err_msg
+    integer, parameter :: bad_values = 2
+
     i_1m=params%i_1m
     if (params%l_2m) i_2m=params%i_2m
     if (params%l_3m) i_3m=params%i_3m
@@ -823,7 +826,11 @@ contains
               id=iprocs_nonscalable(iproc)%id              
             end if
           end do
-          stop
+          
+          write(err_msg, '(A, F7.4)') 'Problem with ratio > 1.0: ratio = ', ratio
+          ! Tell mphys_error that this is due to bad values
+          call throw_mphys_error(bad_values, 'ensure_positive', err_msg)
+
         end if
         ! Now rescale the scalable processes
         do iproc=1, size(iprocs_scalable)
