@@ -213,6 +213,19 @@ contains
                   dnccn_all(aero_index%i_accum)=dnac1
                   dmac_all(aero_index%i_coarse)=dmac2  ! put it back into coarse mode
                   dnccn_all(aero_index%i_coarse)=dnac2
+
+                else
+
+                  if (aero_index % i_accum > 0) then
+                    dmac_all  ( aero_index % i_accum) = dmac
+                    dnccn_all ( aero_index % i_accum) = dnumber_a
+                  end if
+
+                  if (aero_index % i_coarse > 0) then
+                    dmac_all  (aero_index % i_coarse) = dmac
+                    dnccn_all (aero_index % i_coarse) = dnumber_a
+                  end if
+
                 end if
               end if
             end if

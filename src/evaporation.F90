@@ -130,12 +130,14 @@ contains
           aerosol_procs(k, i_arevp%id)%source(i_an3)=dnac2
         else
           if (aero_index%i_accum >0) then
-            aerosol_procs(k, i_arevp%id)%source(i_am2)=dmac
-            aerosol_procs(k, i_arevp%id)%source(i_an2)=dnumber
+            aerosol_procs(k, i_arevp%id)%source(i_am2) = dmac
+            aerosol_procs(k, i_arevp%id)%source(i_an2) = dnumber *             &
+                                                         aeroact(k)%nratio2
           end if
           if (aero_index%i_coarse >0) then
-            aerosol_procs(k, i_arevp%id)%source(i_am3)=dmac
-            aerosol_procs(k, i_arevp%id)%source(i_an3)=dnumber
+            aerosol_procs(k, i_arevp%id)%source(i_am3) = dmac
+            aerosol_procs(k, i_arevp%id)%source(i_an3) = dnumber *             &
+                                                         aeroact(k)%nratio2
           end if
         end if
 
