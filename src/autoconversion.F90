@@ -10,10 +10,6 @@ module autoconversion
   use special, only: pi
   use m3_incs, only: m3_inc_type2, m3_inc_type3
 
-#if DEF_MODEL==MODEL_KiD
-  use diagnostics, only: save_dg, i_dgtime, i_here
-#endif
-
   implicit none
   private
 

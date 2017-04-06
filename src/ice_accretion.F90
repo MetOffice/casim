@@ -18,12 +18,6 @@ module ice_accretion
   use distributions, only: dist_lambda, dist_mu, dist_n0
   use sweepout_rate, only: sweepout, binary_collection
 
-#if DEF_MODEL==MODEL_KiD
-  use diagnostics, only: save_dg, i_dgtime, i_here, k_here
-  use runtime, only: time
-#elif  DEF_MODEL==MODEL_MONC
-  use diaghelp_monc, only: i_here, j_here
-#endif
   use special, only: pi, Gammafunc
 
   implicit none

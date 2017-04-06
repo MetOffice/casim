@@ -13,8 +13,6 @@ module sum_process
   use parameters, only: diaglevel, nx
   use diagnostics, only: save_dg, i_dgtime, i_here, j_here, n_sub, n_subsed
   use runtime, only: time
-#elif  DEF_MODEL==MODEL_MONC
-  use diaghelp_monc, only: i_here, j_here
 #endif
 
   implicit none

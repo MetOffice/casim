@@ -5,12 +5,6 @@ module passive_fields
   use qsat_funs, only: qsaturation
   use mphys_switches, only: i_th
 
-#if DEF_MODEL==MODEL_KiD
-  use diagnostics, only: i_here, j_here
-#elif  DEF_MODEL==MODEL_MONC
-  use diaghelp_monc, only: i_here, j_here
-#endif
-
   implicit none
   private
 

@@ -10,10 +10,6 @@ module accretion
   use sweepout_rate, only: sweepout
   use distributions, only: dist_lambda, dist_mu, dist_n0
 
-#if DEF_MODEL==MODEL_KiD
-  use diagnostics, only: save_dg, i_dgtime, k_here, i_here
-#endif
-  
   implicit none
 
   private

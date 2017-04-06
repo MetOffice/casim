@@ -12,10 +12,6 @@ module aggregation
   use special, only: pi
   use gauss_casim_micro, only: gauss_casim_func, gaussfunclookup, gaussfunclookup_2d
 
-#if DEF_MODEL==MODEL_KiD
-  use diagnostics, only: save_dg, i_dgtime
-#endif
-
   implicit none
   private
 

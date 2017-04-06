@@ -16,10 +16,6 @@ module evaporation
   use ventfac, only: ventilation
   use which_mode_to_use, only : which_mode
 
-#if DEF_MODEL==MODEL_KiD
-  use diagnostics, only: save_dg, i_dgtime
-#endif
-
   implicit none
   private
 

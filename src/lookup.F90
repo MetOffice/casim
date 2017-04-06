@@ -6,14 +6,6 @@ module lookup
   use mphys_constants, only: fixed_rain_number, fixed_rain_mu
   use special, only: GammaFunc
 
-#if DEF_MODEL==MODEL_KiD
-  ! Kid modules
-  use diagnostics, only: save_dg, i_dgtime, i_here, j_here, k_here
-  use runtime, only: time
-#elif  DEF_MODEL==MODEL_MONC
-  use diaghelp_monc, only: i_here, j_here, time
-#endif
-
   implicit none
   private
 

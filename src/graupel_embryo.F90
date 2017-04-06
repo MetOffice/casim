@@ -11,11 +11,6 @@ module graupel_embryo
   use ventfac, only: ventilation
   use distributions, only: dist_lambda, dist_mu, dist_n0
 
-#if DEF_MODEL==MODEL_KiD
-  use diagnostics, only: save_dg, i_dgtime, i_here
-  use runtime, only: time
-#endif
-
   implicit none
   private
 

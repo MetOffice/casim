@@ -6,10 +6,6 @@ module breakup
   use m3_incs, only: m3_inc_type2
   use distributions, only: dist_lambda, dist_mu, dist_n0
 
-#if DEF_MODEL==MODEL_KiD
-  use diagnostics, only: save_dg, i_dgtime
-#endif
-
   implicit none
   private
 

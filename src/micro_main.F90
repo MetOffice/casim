@@ -56,8 +56,6 @@ module micro_main
   use diagnostics, only: save_dg, i_dgtime, i_here, j_here, k_here, n_sub, n_subsed
   use runtime, only: time
   use parameters, only: nx
-#elif  DEF_MODEL==MODEL_MONC
-  use diaghelp_monc, only: i_here, j_here, k_here, n_sub, n_subsed, mype
 #endif
 
   implicit none

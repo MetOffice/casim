@@ -8,11 +8,6 @@ module ice_multiplication
   use m3_incs, only: m3_inc_type2
   use distributions, only: dist_lambda, dist_mu, dist_n0
 
-#if DEF_MODEL==MODEL_KiD
-  use diagnostics, only: save_dg, i_dgtime, i_here, k_here
-  use runtime, only: time
-#endif
-
   implicit none
 contains
   !> Subroutine to determine the ice splintering by Hallet-Mossop

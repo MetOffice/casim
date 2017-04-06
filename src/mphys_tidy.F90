@@ -25,12 +25,8 @@ module mphys_tidy
   ! Kid modules
   use diagnostics, only: save_dg, i_dgtime, i_here, j_here, k_here, nx
   use runtime, only: time
-#elif DEF_MODEL==MODEL_LEM
-  use diaghelp_lem, only: i_here, j_here, k_here
-  use com_params, only: time
-#elif  DEF_MODEL==MODEL_MONC
-  use diaghelp_monc, only: i_here, j_here, time
 #endif
+
   implicit none
   private
 

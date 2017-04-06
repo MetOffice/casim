@@ -13,11 +13,9 @@ module ice_nucleation
   use aerosol_routines, only: aerosol_phys, aerosol_chem, aerosol_active
 
 #if DEF_MODEL==MODEL_KiD
-  use diagnostics, only: save_dg, i_dgtime, i_here, k_here
-  use runtime, only: time
-#elif  DEF_MODEL==MODEL_MONC
-  use diaghelp_monc, only: i_here, j_here
+  use diagnostics, only: save_dg, i_dgtime
 #endif
+
   implicit none
 contains
 

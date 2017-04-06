@@ -14,9 +14,6 @@ module homogeneous
   use special, only: GammaFunc, pi
   use m3_incs, only: m3_inc_type2, m3_inc_type4
 
-#if DEF_MODEL==MODEL_KiD
-  use diagnostics, only: save_dg, i_dgtime, i_here, k_here
-#endif
   implicit none
 
 contains
