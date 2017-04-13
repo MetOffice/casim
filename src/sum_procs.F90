@@ -9,12 +9,6 @@ module sum_process
   use mphys_parameters, only: hydro_params, snow_params, rain_params, graupel_params, parent_dt, ZERO_REAL_WP
   use m3_incs, only: m3_inc_type2
 
-#if DEF_MODEL==MODEL_KiD
-  use parameters, only: diaglevel, nx
-  use diagnostics, only: save_dg, i_dgtime, i_here, j_here, n_sub, n_subsed
-  use runtime, only: time
-#endif
-
   implicit none
   private
 
@@ -50,17 +44,6 @@ contains
           if (.not. all(procs(k,iproc)%source(:)==ZERO_REAL_WP)) then
             do iq=1, ntotala
               tend_temp(k, iq)=tend_temp(k, iq) + procs(k,iproc)%source(iq)*dst
-
-#if DEF_MODEL==MODEL_KiD
-              if (diaglevel > 4 .and. procs(k,iproc)%source(iq) /= ZERO_REAL_WP) then ! Slows model significantly so
-                name=trim(iprocs(i)%name)//'_'//trim(adjustl(names(iq)))
-                if (nx==1) then
-                  call save_dg(k, procs(k, iproc)%source(iq), name, i_dgtime)
-                else
-                  call save_dg(k, i_here, procs(k, iproc)%source(iq), name, i_dgtime)
-                end if
-              end if
-#endif
             end do
           end if
         end do
@@ -122,17 +105,6 @@ contains
         do k=1, nz
           do iq=1, ntotalq
             tend_temp(iq, k)=tend_temp(iq, k)+procs(k,iproc)%source(iq)*dst
-#if DEF_MODEL==MODEL_KiD
-            if (diaglevel > 4 .and. procs(k,iproc)%source(iq) /= ZERO_REAL_WP) then
-              ! Slows model significantly so only really used for development. This only works without substepping.
-              name=trim(iprocs(i)%name)//'_'//trim(adjustl(names(iq)))
-              if (nx == 1) then
-                call save_dg(k, procs(k,iproc)%source(iq), name, i_dgtime)
-              else
-                call save_dg(k, i_here, procs(k,iproc)%source(iq), name, i_dgtime)
-              end if
-            end if
-#endif
           end do
 
           if (do_third) then
@@ -210,76 +182,12 @@ contains
                 end if
               end if
             end if
-#if DEF_MODEL==MODEL_KiD
-            params=rain_params
-            if (params%l_3m) then
-              write(name, '(i1.1)')
-              name =  trim(name)//'_'//trim(adjustl(names(params%i_3m)))
-              if (nx == 1) then
-                call save_dg(k, tend_temp(params%i_3m, k), 'd3m_type2'//name, i_dgtime)
-              else
-                call save_dg(k, i_here, tend_temp(params%i_3m, k), 'd3m_type2'//name, i_dgtime)
-              end if
-            end if
-            params=snow_params
-            if (params%l_3m) then
-              write(name, '(i1.1)')
-              name =  trim(name)//'_'//trim(adjustl(names(params%i_3m)))
-              if (nx == 1) then
-                call save_dg(k, tend_temp(params%i_3m, k), 'd3m_type2'//name, i_dgtime)
-              else
-                call save_dg(k, i_here, tend_temp(params%i_3m, k), 'd3m_type2'//name, i_dgtime)
-              end if
-            end if
-            params=graupel_params
-            if (params%l_3m) then
-              write(name, '(i1.1)')
-              name =  trim(name)//'_'//trim(adjustl(names(params%i_3m)))
-              if (nx == 1) then
-                call save_dg(k, tend_temp(params%i_3m, k), 'd3m_type2'//name, i_dgtime)
-              else
-                call save_dg(k, i_here, tend_temp(params%i_3m, k), 'd3m_type2'//name, i_dgtime)
-              end if
-            end if
-#endif
+
           end if
 
         end do
       end if
     end do
-!!$
-!!$IF (PRESENT(qfields)) THEN
-!!$       ! Limit condensate values !!!! PRAGMATIC HACK !!!!
-!!$  DO k=1,nz
-!!$    IF (qfields(k, rain_params%i_1m) > 6.0e-3) THEN
-!!$      IF (tend_temp(k,i_qr) > 0.0) THEN
-!!$        tend_temp(k,i_qr) = 0.0
-!!$        tend_temp(k,i_nr) = 0.0
-!!$      END IF
-!!$    END IF
-!!$    IF (.NOT. l_warm) THEN
-!!$      IF (qfields(k, snow_params%i_1m) > 6.0e-3) THEN
-!!$        IF (tend_temp(k,i_qs) > 0.0) THEN
-!!$          tend_temp(k,i_qs) = 0.0
-!!$          tend_temp(k,i_ns) = 0.0
-!!$        END IF
-!!$      END IF
-!!$      IF (qfields(k, graupel_params%i_1m) > 6.0e-3) THEN
-!!$        IF (tend_temp(k,i_qg) > 0.0) THEN
-!!$          tend_temp(k,i_qg) = 0.0
-!!$          tend_temp(k,i_ng) = 0.0
-!!$        END IF
-!!$      END IF
-!!$    END IF
-!!$!       if (qfields(k, rain_params%i_1m) > 10.e-3 .and. &
-!!$!          qfields(k, cloud_params%i_1m) > 1.5e-3)then
-!!$!          if (tend_temp(k,i_ql) > 0.0)then
-!!$!             tend_temp(k,i_ql) = 0.0
-!!$!             tend_temp(k,i_nl) = 0.0
-!!$!          end if
-!!$!       end if
-!!$  END DO
-!!$END IF
 
     ! Calculate the thermal exchange values
     ! (this overwrites anything that was already stored in the theta tendency)

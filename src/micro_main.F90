@@ -51,13 +51,6 @@ module micro_main
 
   use generic_diagnostic_variables, only: casdiags
 
-#if DEF_MODEL==MODEL_KiD
-  ! Kid modules
-  use diagnostics, only: save_dg, i_dgtime, i_here, j_here, k_here, n_sub, n_subsed
-  use runtime, only: time
-  use parameters, only: nx
-#endif
-
   implicit none
 
   private
@@ -386,14 +379,8 @@ contains
     parent_dt=dt
 
     do i=is,ie
-#if DEF_MODEL==MODEL_KiD
-      i_here=i
-#endif
 
       do j=js,je
-#if DEF_MODEL==MODEL_KiD
-        j_here=j
-#endif
 
         precip_r = 0.0
         precip_s = 0.0
@@ -569,10 +556,6 @@ contains
       end do
     end do
 
-#if DEF_MODEL==MODEL_KiD
-    call save_dg(sum(precip(:, :))/nxny, 'precip', i_dgtime)
-    call save_dg(sum(precip(:, :))/nxny*3600.0, 'surface_precip_mmhr', i_dgtime)
-#endif
   end subroutine shipway_microphysics
 
   subroutine microphysics_common(dt, kl, ku, qfields, dqfields, tend, procs, precip &
@@ -636,11 +619,6 @@ contains
 
     inv_allsubs = 1.0 / real( nsubseds * nsubsteps)
  
-#if DEF_MODEL==MODEL_KiD
-    n_sub=1
-    n_subsed=1
-#endif
-
     if (l_tendency_loc) then! Parent model uses tendencies
       qfields_mod=qfields_in+dt*dqfields
     else! Parent model uses increments
@@ -680,9 +658,6 @@ contains
     end if
 
     do n=1,nsubsteps
-#if DEF_MODEL==MODEL_KiD
-      n_sub=n
-#endif
 
       call preconditioner(qfields)
 
@@ -700,9 +675,6 @@ contains
            aeroact, dustphys, dustchem, dustact, aeroice, dustliq, icall=1)
 
       do k=1,nz
-#if DEF_MODEL==MODEL_KiD
-        k_here=k
-#endif
 
         if (precondition(k)) then
           l_Twarm=TdegK(k) > 273.15
@@ -976,9 +948,7 @@ contains
       !-------------------------------
       if (pswitch%l_pcond)then
         do k=1,nz
-#if DEF_MODEL==MODEL_KiD
-          k_here=k
-#endif
+
           call condevp(step_length, k, qfields, aerofields,     &
                procs, aerophys, aerochem, aeroact, dustphys, dustchem, dustliq, &
                aerosol_procs, rhcrit_1d(k))
@@ -1032,9 +1002,6 @@ contains
 
       if (l_sed) then
         do nsed=1,nsubseds
-#if DEF_MODEL==MODEL_KiD
-          n_subsed=nsed
-#endif
 
           if (nsed > 1) then
             !-------------------------------
@@ -1174,9 +1141,6 @@ contains
     !--------------------------------------------------
     if (pswitch%l_tidy2) then
       do k=1,nz
-#if DEF_MODEL==MODEL_KiD
-        k_here=k
-#endif
 
         if (precondition(k)) then
           call qtidy(step_length, k, qfields, procs, aerofields, aeroact, dustact, &

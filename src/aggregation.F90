@@ -33,9 +33,6 @@ contains
 
     logical :: l_beheng=.true.
 
-    !debug
-    real(wp) :: mu, t1, t2 ,H, n0, lam, k1,k2,k3
-
     if (l_2mr) then
       rain_mass=qfields(k, i_qr)
       rain_number=qfields(k, i_nr)

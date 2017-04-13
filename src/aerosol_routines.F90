@@ -12,13 +12,6 @@ module aerosol_routines
   use mphys_parameters, only: sigma_arc, nz
   use preconditioning, only: precondition
 
-  ! Really want to be allocating this elsewhere
-
-#if DEF_MODEL==MODEL_KiD
-  use diagnostics, only: save_dg, i_dgtime, k_here, i_here, j_here, nx
-  use runtime, only: time
-#endif
-
   implicit none
   private
 
@@ -567,49 +560,6 @@ contains
       end if
     end if
 
-#if DEF_MODEL==MODEL_KiD
-    do k=1, nz
-      if (nx==1) then
-        call save_dg(k, dustact(k)%mact3_mean, 'dustact%mact3_mean'//chcall, i_dgtime )
-        call save_dg(k, dustact(k)%mact_mean, 'dustact%mact_mean'//chcall, i_dgtime )
-        call save_dg(k, dustact(k)%mact, 'dustact%mact'//chcall, i_dgtime)
-        call save_dg(k, dustliq(k)%mact3_mean, 'dustliq%mact3_mean'//chcall, i_dgtime )
-        call save_dg(k, dustliq(k)%mact_mean, 'dustliq%mact_mean'//chcall, i_dgtime )
-        call save_dg(k, dustliq(k)%mact, 'dustliq%mact'//chcall, i_dgtime)
-        do imode=1, aerophys(k)%nmodes
-          write(chmode, '(i2)') imode
-          call save_dg(k, aerophys(k)%N(imode), 'aerophys%N'//chmode//chcall, i_dgtime )
-          call save_dg(k, aerophys(k)%M(imode), 'aerophys%M'//chmode//chcall, i_dgtime )
-          call save_dg(k, aerophys(k)%rd(imode), 'aerophys%rd'//chmode//chcall, i_dgtime )
-        end do
-        call save_dg(k, dustphys(k)%N(1), 'dustphys%N(1)'//chcall, i_dgtime )
-        call save_dg(k, aeroact(k)%nact1, 'aeroact%nact1'//chcall, i_dgtime )
-        call save_dg(k, aeroact(k)%mact1, 'aeroact%mact1'//chcall, i_dgtime )
-        call save_dg(k, aeroact(k)%rcrit1, 'aeroact%rcrit1'//chcall, i_dgtime )
-        call save_dg(k, aeroact(k)%mact1_mean, 'aeroact%mact1_mean'//chcall, i_dgtime )
-        call save_dg(k, aeroact(k)%nact2, 'aeroact%nact2'//chcall, i_dgtime )
-        call save_dg(k, aeroact(k)%rcrit2, 'aeroact%rcrit2'//chcall, i_dgtime )
-        call save_dg(k, aeroact(k)%mact2, 'aeroact%mact2'//chcall, i_dgtime )
-        call save_dg(k, aeroact(k)%mact2_mean, 'aeroact%mact2_mean'//chcall, i_dgtime )
-      else
-        do imode=1, aerophys(k)%nmodes
-          write(chmode, '(i2)') imode
-          call save_dg(k, i_here, aerophys(k)%N(imode), 'aerophys%N'//chmode//chcall, i_dgtime )
-          call save_dg(k, i_here, aerophys(k)%M(imode), 'aerophys%M'//chmode//chcall, i_dgtime )
-          call save_dg(k, i_here, aerophys(k)%rd(imode), 'aerophys%rd'//chmode//chcall, i_dgtime )
-        end do
-        call save_dg(k, i_here, dustphys(k)%N(1), 'dustphys%N(1)'//chcall, i_dgtime )
-        call save_dg(k, i_here, aeroact(k)%nact1, 'aeroact%nact1'//chcall, i_dgtime )
-        call save_dg(k, i_here, aeroact(k)%mact1, 'aeroact%mact1'//chcall, i_dgtime )
-        call save_dg(k, i_here, aeroact(k)%rcrit1, 'aeroact%rcrit1'//chcall, i_dgtime )
-        call save_dg(k, i_here, aeroact(k)%mact1_mean, 'aeroact%mact1_mean'//chcall, i_dgtime )
-        call save_dg(k, i_here, aeroact(k)%nact2, 'aeroact%nact2'//chcall, i_dgtime )
-        call save_dg(k, i_here, aeroact(k)%rcrit2, 'aeroact%rcrit2'//chcall, i_dgtime )
-        call save_dg(k, i_here, aeroact(k)%mact2, 'aeroact%mact2'//chcall, i_dgtime )
-        call save_dg(k, i_here, aeroact(k)%mact2_mean, 'aeroact%mact2_mean'//chcall, i_dgtime )
-      end if
-    end do
-#endif
   end subroutine examine_aerosol
 
   ! Note: despite appearences this is only coded up

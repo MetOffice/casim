@@ -19,11 +19,6 @@ module sedimentation
   use distributions, only: dist_lambda, dist_mu, dist_n0
   use aerosol_routines, only: aerosol_active
 
-#if DEF_MODEL==MODEL_KiD
-  use diagnostics, only: save_dg, i_dgtime, k_here, i_here, nx
-  use runtime, only: l_dgstep, time
-#endif
-
   implicit none
   private
 
@@ -94,7 +89,7 @@ contains
     type(process_name) :: iproc, iaproc  ! processes selected depending on
     ! which species we're depositing on.
 
-    real(wp) :: debug, mint, dmint, scal
+    real(wp) :: mint, dmint, scal
     real(wp) :: dmac, mac_mean_min=1.0e-20
     real(wp) :: dmad
     real(wp) :: dnumber_a, dnumber_d
@@ -172,9 +167,7 @@ contains
     end select
 
     do k=nz-1, 1, -1
-#if DEF_MODEL==MODEL_KiD
-      k_here=k
-#endif
+
       ! initialize to zero
       dm1=0.0
       dm2=0.0
@@ -266,18 +259,6 @@ contains
         if (params%l_2m)u2r=max(u2r,0.0_wp)
         if (params%l_3m)u3r=max(u3r,0.0_wp)
 
-#if DEF_MODEL==MODEL_KiD
-        if (nx==1) then
-          call save_dg(k, u1r, 'u1r_'//qchar, i_dgtime)
-          if (params%l_2m)call save_dg(k, u2r, 'u2r_'//qchar, i_dgtime)
-          if (params%l_3m)call save_dg(k, u3r, 'u3r_'//qchar, i_dgtime)
-        else
-          call save_dg(k, i_here, u1r, 'u1r_'//qchar, i_dgtime)
-          if (params%l_2m)call save_dg(k, i_here, u2r, 'u2r_'//qchar, i_dgtime)
-          if (params%l_3m)call save_dg(k, i_here, u3r, 'u3r_'//qchar, i_dgtime)
-        end if
-#endif
-
         flux_n1(k)=n1*u1r
 
         if (params%l_2m) flux_n2(k)=n2*u2r
@@ -360,13 +341,7 @@ contains
                  flux_n2(k)*aeroact(k)%nratio3*aeroact(k)%mact3_mean)*rdz_on_rho(k)
             dmad=(flux_n2(k+1)*dustact(k+1)%nratio3*dustact(k+1)%mact3_mean-    &
                  flux_n2(k)*dustact(k)%nratio3*dustact(k)%mact3_mean)*rdz_on_rho(k)
-#if DEF_MODEL==MODEL_KiD
-            call save_dg(k, dmad, 'dmac_gs', i_dgtime)
-            call save_dg(k, flux_n2(k+1)*dustact(k+1)%mact3_mean, 'flux_in', i_dgtime)
-            call save_dg(k, flux_n2(k)*dustact(k)%mact3_mean, 'flux_out', i_dgtime)
-            call save_dg(k, n2*dustact(k)%mact3_mean, 'n2Xmean3', i_dgtime)
-            call save_dg(k, dustact(k)%mact3, 'mact', i_dgtime)
-#endif
+
             if (l_passivenumbers) then
               dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio3-flux_n2(k)*aeroact(k)%nratio3)*rdz_on_rho(k)
             end if
@@ -472,17 +447,6 @@ contains
           end if
         end if
       end if
-
-#if DEF_MODEL==MODEL_KiD
-
-      if (nx==1) then
-        call save_dg(k, dmac, 'dmac', i_dgtime)
-        call save_dg(k, (c_x*flux_n1(k+1)*9.8/cp), 'frictional_heating'//qchar, i_dgtime)
-      else
-        call save_dg(k, i_here, dmac, 'dmac', i_dgtime)
-        call save_dg(k, i_here, (c_x*flux_n1(k+1)*9.8/cp), 'frictional_heating'//qchar, i_dgtime)
-      end if
-#endif
 
       dm1=dn1
       dm2=dn2

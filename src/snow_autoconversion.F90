@@ -18,10 +18,6 @@ module snow_autoconversion
   use lookup, only: gfunc
   use distributions, only: dist_lambda, dist_mu, dist_n0
 
-#if DEF_MODEL==MODEL_KiD
-  use diagnostics, only: save_dg, i_dgtime, i_here
-#endif
-
   implicit none
   private
 
@@ -71,18 +67,6 @@ contains
 
       lami_min=(1.0 + ice_mu)/DImax
 
-#if DEF_MODEL==MODEL_KiD
-      !      if (nx==1)then
-      call save_dg(k, (1000.0*(ice_mass/ice_number)/ice_params%c_x)**(1.0/ice_params%d_x), &
-           'Di_mean', i_dgtime)
-      call save_dg(k, ice_mass, 'ice_mass_saut', i_dgtime)
-      call save_dg(k, ice_number, 'ice_number_saut', i_dgtime)
-      !      else
-      !        call save_dg(k,i_here,((ice_mass/ice_number)/ice_params%c_x)**ice_params%d_x, &
-      !           'Di_mean', i_dgtime)
-      !      end if
-
-#endif
     end if
 
     if (l_condition) then
@@ -117,10 +101,6 @@ contains
       else ! LEM version
         dmass=((lami_min/ice_lam)**ice_params%d_x - 1.0)*ice_mass/tau_saut
         if (ice_mass < dmass*dt) then
-#if DEF_MODEL==MODEL_KiD
-          !print*, 'DEBUG', k, i_here, ice_mass, 'saut_m', i_dgtime
-          call save_dg(k, i_here, ice_mass, 'saut_m', i_dgtime)
-#endif
           dmass=.5*ice_mass/dt
         end if
         dmass=min(dmass, .5*ice_mass/dt)
@@ -128,10 +108,6 @@ contains
       end if
 
       if (ice_number < dnumber*dt) then
-#if DEF_MODEL==MODEL_KiD
-        print*, 'DEBUG', k, i_here, ice_number, 'saut_n', i_dgtime
-        call save_dg(k, i_here, ice_number, 'saut_n', i_dgtime)
-#endif
         dnumber=dmass/ice_mass * ice_number
       end if
 

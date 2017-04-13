@@ -21,12 +21,6 @@ module mphys_tidy
   use mphys_parameters, only: hydro_params
   use mphys_die, only: throw_mphys_error
 
-#if DEF_MODEL==MODEL_KiD
-  ! Kid modules
-  use diagnostics, only: save_dg, i_dgtime, i_here, j_here, k_here, nx
-  use runtime, only: time
-#endif
-
   implicit none
   private
 
@@ -664,17 +658,6 @@ contains
         end if
       end if
 
-#if DEF_MODEL==MODEL_KiD
-      if (qr_reset) call save_dg(k,1.0_wp, 'qin_reset_qr', i_dgtime)
-      if (nr_reset) call save_dg(k,1.0_wp, 'qin_reset_nr', i_dgtime)
-      if (m3r_reset) call save_dg(k,1.0_wp, 'qin_reset_m3r', i_dgtime)
-      if (qs_reset) call save_dg(k,1.0_wp, 'qin_reset_qs', i_dgtime)
-      if (ns_reset) call save_dg(k,1.0_wp, 'qin_reset_ns', i_dgtime)
-      if (m3s_reset) call save_dg(k,1.0_wp, 'qin_reset_m3s', i_dgtime)
-      if (qg_reset) call save_dg(k,1.0_wp, 'qin_reset_qg', i_dgtime)
-      if (ng_reset) call save_dg(k,1.0_wp, 'qin_reset_ng', i_dgtime)
-      if (m3g_reset) call save_dg(k,1.0_wp, 'qin_reset_m3g', i_dgtime)
-#endif
     end do
   end subroutine tidy_qin
 
@@ -686,48 +669,29 @@ contains
 
     do k=1, ubound(qfields,1)
       if ((qfields(k, i_ql)+qfields(k,i_qr) <=0.0 .and. aerofields(k,i_am4)>0.0) .or. aerofields(k,i_am4) < 0.0) then
-        !      print*, 'Correcting active liquid aerofields am4...', aerofields(k,i_am4), aerofields(k, i_am9)
-#if DEF_MODEL==MODEL_KiD
-        call save_dg(k, i_here, aerofields(k, i_am4), 'corr_am4', i_dgtime)
-#endif
+
         aerofields(k,i_am4)=0.0
       end if
       if (i_am9 > 0)then
         if ((qfields(k, i_ql)+qfields(k,i_qr) <=0.0 .and. aerofields(k,i_am9)>0.0) .or. aerofields(k,i_am9) < 0.0) then
-          !      print*, 'Correcting active liquid aerofields am9...', aerofields(k,i_am9), aerofields(k, i_am9)
-#if DEF_MODEL==MODEL_KiD
-          call save_dg(k, i_here, aerofields(k, i_am9), 'corr_am9', i_dgtime)
-#endif
           aerofields(k,i_am9)=0.0
         end if
       end if
 
       if (i_am5 > 0) then
         if (((qfields(k,i_qr) <=0.0 .and. aerofields(k,i_am5)>0.0) .or. aerofields(k,i_am5) < 0.0)) then
-          !      print*, 'Correcting active liquid aerofields am5...', aerofields(k,i_am5), aerofields(k, i_am5)
-#if DEF_MODEL==MODEL_KiD
-          call save_dg(k, i_here, aerofields(k, i_am5), 'corr_am5', i_dgtime)
-#endif
           aerofields(k,i_am5)=0.0
         end if
       end if
       if (i_am7 > 0) then
         if (((qfields(k,i_qi) + qfields(k,i_qs) + qfields(k,i_qg) <=0.0 .and. aerofields(k,i_am7)>0.0) &
              .or. aerofields(k,i_am7) < 0.0)) then
-          !      print*, 'Correcting active liquid aerofields am7...', aerofields(k,i_am7), aerofields(k, i_am7)
-#if DEF_MODEL==MODEL_KiD
-          call save_dg(k, i_here, aerofields(k, i_am7), 'corr_am7', i_dgtime)
-#endif
           aerofields(k,i_am7)=0.0
         end if
       end if
       if (i_am8 > 0) then
         if (((qfields(k,i_qi) + qfields(k,i_qs) + qfields(k,i_qg) <=0.0 .and. aerofields(k,i_am8)>0.0) &
              .or. aerofields(k,i_am8) < 0.0)) then
-          !     print*, 'Correcting active liquid aerofields am8...', aerofields(k,i_am8), aerofields(k, i_am8)
-#if DEF_MODEL==MODEL_KiD
-          call save_dg(k, i_here, aerofields(k, i_am8), 'corr_am8', i_dgtime)
-#endif
           aerofields(k,i_am8)=0.0
         end if
       end if
@@ -833,9 +797,6 @@ contains
           if (iprocs_scalable(iproc)%on) then
             id=iprocs_scalable(iproc)%id
             procs(k, id)%source(i_qstart:i_nstart-1)=procs(k, id)%source(i_qstart:i_nstart-1)*ratio
-#if DEF_MODEL==MODEL_KiD
-            call save_dg(k, i_here, ratio, 'rescale_mass_ratio_'//trim(iprocs_scalable(iproc)%name), i_dgtime)
-#endif
           end if
         end do
         ! Set flag to indicate a rescaling was performed
@@ -1004,15 +965,6 @@ contains
       end if
     end if
 
-#if DEF_MODEL==MODEL_KiD
-    if (l_rescaled) then
-      if (nx>1) then
-        call save_dg(k, i_here, 1.0_wp, 'rescaled', i_dgtime)
-      else
-        call save_dg(k, 1.0_wp, 'rescaled', i_dgtime)
-      end if
-    end if
-#endif
   end subroutine ensure_positive
 
   ! Subroutine to ensure parallel aerosol processes don't remove more

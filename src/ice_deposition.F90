@@ -23,12 +23,6 @@ module ice_deposition
   use special, only: pi, Gammafunc
   use m3_incs, only: m3_inc_type2
 
-
-#if DEF_MODEL==MODEL_KiD
-  use diagnostics, only: save_dg, i_dgtime, i_here, k_here
-  use runtime, only: time
-#endif
-
   implicit none
   private
 
@@ -121,12 +115,6 @@ contains
 
     if (mass > thresh_small(params%i_1m)) then ! if no existing ice, we don't grow/deplete it.
 
-#if DEF_MODEL==MODEL_KiD
-      if (iproc%id==i_sdep%id) then
-        call save_dg(k, i_here, mass, 'depthresh', i_dgtime)
-      end if
-#endif
-
       this_proc=>procs(k, iproc%id)
       if (params%l_2m) number=qfields(k, params%i_2m)
       if (params%l_3m) m3=qfields(k, params%i_3m)
@@ -139,13 +127,6 @@ contains
 
       AB=1.0/(Ls*Ls/(Rv*ka*TdegK(k)*TdegK(k))*rho(k)+1.0/(Dv*qis))
       dmass=(qv/qis-1.0)*V_x*AB
-
-
-#if DEF_MODEL==MODEL_KiD
-      if (iproc%id==i_sdep%id) then
-        call save_dg(k, i_here, V_x, 'Vs', i_dgtime)
-      end if
-#endif
 
       ! Include latent heat effects of collection of rain and cloud
       ! as done in Milbrandt & Yau (2005)

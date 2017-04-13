@@ -17,11 +17,6 @@ module condensation
   use casim_parent_mod, only: casim_parent, parent_um
   use cloud_frac_scheme, only: cloud_frac_casim_mphys
 
-#if DEF_MODEL==MODEL_KiD
-  use diagnostics, only: save_dg, i_dgtime, i_here, k_here
-  use runtime, only: time
-#endif
-
   implicit none
   private
 
@@ -146,14 +141,6 @@ contains
         dmass=max(-cloud_mass, (qv-qs)*qsatfac )/dt
       end if ! l_cfrac_casim_diag_scheme
 
-
-#if DEF_MODEL==MODEL_KiD
-      call save_dg(k_here, i_here, qv, 'qv_in_cond', i_dgtime)
-      call save_dg(k_here, i_here, qs, 'qs_in_cond', i_dgtime)
-      call save_dg(k_here, i_here, qv/(qs+1e-20), 'rh_in_cond', i_dgtime)
-      call save_dg(k_here, i_here, dmass, 'dmass_in_cond', i_dgtime)
-#endif
-
       if (dmass > 0.0_wp) then ! condensation
         if (dmass*dt + cloud_mass > ql_small) then ! is it worth bothering with?
           if (cloud_params%l_2m) then
@@ -254,12 +241,6 @@ contains
 
         if (cloud_params%l_2m) then
           this_proc%source(i_nl)=dnumber
-#if DEF_MODEL==MODEL_KiD
-          call save_dg(k_here, dnumber, 'dnumber_in_cond', i_dgtime )
-          if (aero_index%i_aitken > 0) call save_dg(k_here,  dnccn_all(aero_index%i_aitken), 'dnccn_aitken', i_dgtime)
-          if (aero_index%i_accum > 0) call save_dg(k_here,  dnccn_all(aero_index%i_accum), 'dnccn_accum', i_dgtime)
-          if (aero_index%i_coarse > 0) call save_dg(k_here,  dnccn_all(aero_index%i_coarse), 'dnccn_coarse', i_dgtime)
-#endif
         end if
         nullify(this_proc)
 

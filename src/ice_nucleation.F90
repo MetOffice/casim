@@ -12,10 +12,6 @@ module ice_nucleation
   use thresholds, only: ql_small, w_small, ni_tidy, nl_tidy
   use aerosol_routines, only: aerosol_phys, aerosol_chem, aerosol_active
 
-#if DEF_MODEL==MODEL_KiD
-  use diagnostics, only: save_dg, i_dgtime
-#endif
-
   implicit none
 contains
 
@@ -139,10 +135,6 @@ contains
           dN_imm=min(dustliq(k)%nact, dN_imm)
         end if
 
-#if DEF_MODEL==MODEL_KiD
-        call save_dg(k, dN_contact, 'dn_cnt', i_dgtime)
-        call save_dg(k, dN_imm, 'dn_imm', i_dgtime)
-#endif
       case (5)
         dN_imm=0.0
         dN_contact=max(0.0_wp, (dustphys(k)%N(1)-ice_number))
