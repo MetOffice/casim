@@ -10,7 +10,6 @@ module aerosol_routines
        active_ice, isol, iinsol, l_process, l_passivenumbers, l_passivenumbers_ice, l_separate_rain
   use thresholds, only: nr_tidy, nl_tidy, ni_tidy, ccn_tidy, qr_tidy, aeromass_small, aeronumber_small
   use mphys_parameters, only: sigma_arc, nz
-  use preconditioning, only: precondition
 
   implicit none
   private
@@ -149,7 +148,6 @@ contains
     end if
 
     do k=1, nz
-      if (precondition(k)) then
         cloud_number=qfields(k,i_nl)
         rain_number=qfields(k,i_nr)
         cloud_mass=qfields(k,i_ql)
@@ -264,7 +262,6 @@ contains
           if (cloud_number > 0.0) aeroact(k)%nratio1=aeroact(k)%nact1/cloud_number
           if (rain_number > 0.0) aeroact(k)%nratio2=aeroact(k)%nact2/rain_number
         end if
-      end if
     end do
 
     if (.not. l_warm) then

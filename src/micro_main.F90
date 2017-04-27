@@ -676,7 +676,6 @@ contains
 
       do k=1,nz
 
-        if (precondition(k)) then
           l_Twarm=TdegK(k) > 273.15
           l_Tcold=.not. l_Twarm
           !=================================
@@ -890,7 +889,6 @@ contains
 
           end if
 
-        end if
       end do
       !-------------------------------
       ! Collect terms we have so far
@@ -914,12 +912,10 @@ contains
 
       if (l_process) then
         do k=1,nz
-          if (precondition(k)) then
             call ensure_positive_aerosol(k, step_length, aerofields, aerosol_procs,&
                  (/i_aaut, i_aacw, i_aevp, i_arevp, i_dnuc, i_dsub, i_dssub, i_dgsub, &
                  i_dimlt, i_dsmlt, i_dgmlt, i_diacw, i_dsacw, i_dgacw, i_dsacr,    &
                  i_dgacr, i_draci  /) )
-          end if
         end do
 
         call sum_aprocs(step_length, aerosol_procs, aerosol_tend,      &
@@ -1142,10 +1138,8 @@ contains
     if (pswitch%l_tidy2) then
       do k=1,nz
 
-        if (precondition(k)) then
-          call qtidy(step_length, k, qfields, procs, aerofields, aeroact, dustact, &
-               aeroice, dustliq , aerosol_procs, i_tidy2, i_atidy2, l_negonly=l_tidy_negonly)
-        end if
+        call qtidy(step_length, k, qfields, procs, aerofields, aeroact, dustact, &
+           aeroice, dustliq , aerosol_procs, i_tidy2, i_atidy2, l_negonly=l_tidy_negonly)
 
       end do
 
@@ -1191,7 +1185,7 @@ contains
             end do
           end do
         end if
-      end if      
+      end if
     end if
   end subroutine microphysics_common
 
