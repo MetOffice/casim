@@ -48,4 +48,7 @@ module mphys_constants
   real(wp) :: SIGLV=8.0e-02   ! Liquid water-air surface tension [N m-1].
 
   real(wp) :: pi=3.141592653589793 ! pi
+
+  real(wp) :: m3_to_cm3 = 1.0e-6 ! Conversion factor from [m-3] to [cm-3]
+
 end module mphys_constants

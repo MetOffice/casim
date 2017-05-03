@@ -7,7 +7,7 @@ module ice_nucleation
        l_passivenumbers_ice, active_number, active_ice, isol, iinsol, l_itotsg, contact_efficiency, immersion_efficiency
   use process_routines, only: process_rate, i_inuc, i_dnuc
   use mphys_parameters, only: nucleated_ice_mass, cloud_params, ice_params
-  use mphys_constants, only: Ls, cp, pi
+  use mphys_constants, only: Ls, cp, pi, m3_to_cm3
   use qsat_funs, only: qsaturation, qisaturation
   use thresholds, only: ql_small, w_small, ni_tidy, nl_tidy
   use aerosol_routines, only: aerosol_phys, aerosol_chem, aerosol_active
@@ -125,12 +125,14 @@ contains
         Tp01=0.01-Tc
 
         if (dustphys(k)%N(1) > ni_tidy) then
-          dN_contact=1.0e3/rho(k)*a_demott*(Tp01)**b_demott*(rho(k)*contact_efficiency*dustphys(k)%N(1))**(c_demott*Tp01+d_demott)
+          dN_contact=1.0e3/rho(k)*a_demott*(Tp01)**b_demott*                                &
+                     (rho(k) * m3_to_cm3 * contact_efficiency*dustphys(k)%N(1))**(c_demott*Tp01+d_demott)
           dN_contact=min(.9*dustphys(k)%N(1), dN_contact)
         end if
 
         if (dustliq(k)%nact1 > ni_tidy) then
-          dN_imm=1.0e3/rho(k)*a_demott*(Tp01)**b_demott*(rho(k)*dustliq(k)%nact1)**(c_demott*Tp01+d_demott)
+          dN_imm=1.0e3/rho(k)*a_demott*(Tp01)**b_demott*                                    &
+                 (rho(k) * m3_to_cm3 * dustliq(k)%nact1)**(c_demott*Tp01+d_demott)
           dN_imm=immersion_efficiency*dN_imm
           dN_imm=min(dustliq(k)%nact, dN_imm)
         end if
