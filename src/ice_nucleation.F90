@@ -37,6 +37,10 @@ contains
     type(process_rate), intent(inout), optional, target :: aerosol_procs(:,:)
 
     real(wp) :: dmass, dnumber, dmad, dmac, dmadl
+
+    ! Liquid water and ice saturation for Meyers equation
+    real(wp) :: lws_meyers, is_meyers
+
     !coefficients for Demott parametrization
     real(wp) :: a_demott, b_demott, c_demott, d_demott
     real(wp) :: Tp01 ! 273.16-Tk (or 0.01 - Tc)
@@ -47,6 +51,13 @@ contains
     real(wp) :: ice_number
     real(wp) :: cloud_number, cloud_mass
     real(wp) :: qs, qis, Si, Sw, limit, dN_imm, dN_contact, ql
+
+    ! parameters for Meyers et al (1992)
+    ! Meyers MP, DeMott PJ, Cotton WR (1992) New primary ice-nucleation
+    ! parameterizations in an explicit cloud model. J Appl Meteorol 31:708–721
+    real(wp), parameter :: meyers_a = -0.639 ! Meyers eq 2.4 coeff a
+    real(wp), parameter :: meyers_b = 0.1296 ! Meyers eq 2.4 coeff b
+
 
     type(process_rate), pointer :: this_proc
     type(process_rate), pointer :: aero_proc
@@ -84,6 +95,9 @@ contains
     select case(iopt_inuc)
     case default
       l_condition=(( Sw >= -0.001 .and. Tc < -8 .and. Tc > -38) .or. Si >= 0.08)
+    case (2) 
+      ! Meyers, same condition as DeMott
+      l_condition=( cloud_number >= nl_tidy .and. Tc < 0)
     case (4)
       ! DeMott Depletion of dust (contact and immersion)
       l_condition=( cloud_number >= nl_tidy .and. Tc < 0)
@@ -110,7 +124,12 @@ contains
         ! Meyers
         ! Meyers MP, DeMott PJ, Cotton WR (1992) New primary ice-nucleation
         ! parameterizations in an explicit cloud model. J Appl Meteorol 31:708–721
-        dN_imm=exp(4.108 - 0.262*Tc)/rho(k)
+        lws_meyers = 6.112 * exp(17.62*Tc/(243.12 + Tc))
+        is_meyers  = 6.112 * exp(22.46*Tc/(272.62 + Tc))
+        dN_imm     = 1.0e3 * exp(meyers_a + meyers_b *(100.0*(lws_meyers/is_meyers-1.0)))/rho(k)
+        dN_imm     = MAX( dN_imm-ice_number, 0.0 )
+        ! Applied just for water saturation, deposition freezing ignored
+
       case (3)
         ! Fletcher NH (1962) The Physics of Rain Clouds (Cambridge Univ Press, Cambridge, UK)
         dN_imm=0.01*exp(-0.6*Tc)/rho(k)
