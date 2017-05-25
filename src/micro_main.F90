@@ -549,9 +549,19 @@ contains
         end if
 
 
-        if ( casdiags % l_surface_rain ) casdiags % SurfaceRainR(i,j) = precip_r
-        if ( casdiags % l_surface_snow ) casdiags % SurfaceSnowR(i,j) = precip_s
-        if ( casdiags % l_surface_graup) casdiags % SurfaceGraupR(i,j) = precip_g
+        if ( l_warm ) then
+
+          if ( casdiags % l_surface_rain ) casdiags % SurfaceRainR(i,j)  = precip_r
+          if ( casdiags % l_surface_snow ) casdiags % SurfaceSnowR(i,j)  = 0.0
+          if ( casdiags % l_surface_graup) casdiags % SurfaceGraupR(i,j) = 0.0
+
+        else ! l_warm 
+
+          if ( casdiags % l_surface_rain ) casdiags % SurfaceRainR(i,j)  = precip_r
+          if ( casdiags % l_surface_snow ) casdiags % SurfaceSnowR(i,j)  = precip_s
+          if ( casdiags % l_surface_graup) casdiags % SurfaceGraupR(i,j) = precip_g
+
+        end if ! l_warm
 
       end do
     end do
