@@ -14,6 +14,8 @@ module graupel_embryo
   implicit none
   private
 
+  character(len=*), parameter, private :: ModuleName='GRAUPEL_EMBRYO'
+
   public graupel_embryos
 contains
 
@@ -25,6 +27,10 @@ contains
     !< OPTIMISATION POSSIBILITIES: See gamma functions and distribution calculations
     !<
     !< AEROSOL: NOT DONE YET - internal category transfer
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='GRAUPEL_EMBRYOS'
 
     real(wp), intent(in) :: dt
     integer, intent(in) :: k

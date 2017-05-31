@@ -5,6 +5,8 @@ module special
   implicit none
   private
 
+  character(len=*), parameter, private :: ModuleName='SPECIAL'
+
   real(wp), parameter :: euler=0.57721566
   real(wp), parameter :: pi=3.141592654
 
@@ -30,7 +32,12 @@ contains
   ! NB The following should provide sufficient range
   ! and density of points for linear interpolation
   ! to provide appropriate accuracy for any values required.
-  subroutine set_gammalookup(xmin, xmax, dx)   
+  subroutine set_gammalookup(xmin, xmax, dx)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='SET_GAMMALOOKUP'
+
     real(wp), intent(in) :: xmin !< Minimum value of argument
     real(wp), intent(in) :: xmax !< Maximum value of argument
     real(wp), intent(in) :: dx   !< spacing of argument calculations
@@ -56,6 +63,11 @@ contains
   end subroutine set_gammalookup
 
   function gammalookup(x)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='GAMMALOOKUP'
+
     real(wp), intent(in) :: x
     real(wp) :: gammalookup
 
@@ -75,6 +87,11 @@ contains
   ! Gamma function !
   !================!
   function gammafunc1(x)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='GAMMAFUNC1'
+
     real(wp), intent(in) :: x
     real(wp) :: gammafunc1
 
@@ -100,6 +117,11 @@ contains
   end function gammafunc1
 
   function erfg(x,c)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='ERFG'
+
     real(wp), intent(in) :: x
     integer, intent(in) :: c ! 0 gives erf(x)
     ! 1 gives erfc(x)
@@ -139,6 +161,11 @@ contains
 
   ! Now  use the fortran intrinsic erf
   function erf(x)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='ERF'
+
     real(wp), intent(in) :: x
     integer, parameter :: c=0
     real(wp) :: erf
@@ -147,6 +174,11 @@ contains
   end function erf
 
   function erfc(x)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='ERFC'
+
     real(wp), intent(in) :: x
     integer, parameter :: c=1
     real(wp) :: erfc
@@ -158,6 +190,11 @@ contains
   !
   ! This needs more work to get good accuracy
   function erfinv1(x)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='ERFINV1'
+
     real(wp), intent(in) :: x
     real(wp) :: erfinv1
 
@@ -170,6 +207,11 @@ contains
   !
   ! Alternative version solves equation
   function erfinv2(x)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='ERFINV2'
+
     real(wp), intent(in) :: x
     real(wp) :: erfinv2
 
@@ -193,6 +235,11 @@ contains
   !
   ! Alternative version solves equation
   function erfinv3(x, tol)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='ERFINV3'
+
     real(wp), intent(in) :: x
     real(wp), optional, intent(in) :: tol
     real(wp) :: erfinv3
@@ -224,6 +271,11 @@ contains
   end function erfinv3
 
   function erf_a(x)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='ERF_A'
+
     real(wp), intent(in) :: x
     real(wp) :: erf_a
 

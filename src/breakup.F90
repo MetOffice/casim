@@ -7,6 +7,9 @@ module breakup
   use distributions, only: dist_lambda, dist_mu, dist_n0
 
   implicit none
+
+  character(len=*), parameter, private :: ModuleName='BREAKUP'
+
   private
 
   public ice_breakup
@@ -20,6 +23,11 @@ contains
   !
   !< OPTIMISATION POSSIBILITIES: strip out shape parameters
   subroutine ice_breakup(dt, k, params, qfields, procs)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='ICE_BREAKUP'
+
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
     type(hydro_params), intent(in) :: params

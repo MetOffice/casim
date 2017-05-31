@@ -13,6 +13,9 @@ module ice_nucleation
   use aerosol_routines, only: aerosol_phys, aerosol_chem, aerosol_active
 
   implicit none
+
+  character(len=*), parameter, private :: ModuleName='ICE_NUCLEATION'
+
 contains
 
   !> Currently this routine considers heterogeneous nucleation
@@ -22,6 +25,11 @@ contains
   !> yet properly concidered.  Such freezing mechanisms should consider the
   !> processing of the aerosol in different ways.
   subroutine inuc(dt, k, qfields, procs, dustphys, dustchem, aeroact, dustliq, aerosol_procs)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='INUC'
+
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
     real(wp), intent(in), target :: qfields(:,:)

@@ -9,6 +9,8 @@ module lookup
   implicit none
   private
 
+  character(len=*), parameter, private :: ModuleName='LOOKUP'
+
   integer, parameter :: nmu=501
   real(wp) :: min_mu=0.0!, max_mu=35.
   real(wp), allocatable :: mu_g(:), mu_i(:)
@@ -29,6 +31,11 @@ module lookup
 contains
 
   function Gfunc(mu, p1, p2, p3)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='GFUNC'
+
     real(wp), intent(in) :: mu, p1, p2, p3
 
     real(wp) :: Gfunc, GfuncL
@@ -47,6 +54,11 @@ contains
   end function Gfunc
 
   function Hfunc(m1,m2,m3, p1, p2, p3)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='HFUNC'
+
     real(wp), intent(in) :: m1,m2,m3
     real(wp), intent(in) :: p1,p2,p3
     real(wp) :: Hfunc
@@ -60,6 +72,11 @@ contains
   end function Hfunc
 
   subroutine set_mu_lookup(p1, p2, p3, index, value)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='SET_MU_LOOKUP'
+
     real(wp), intent(in) :: p1, p2, p3
     real(wp), intent(inout) :: index(:), value(:)
 
@@ -75,6 +92,11 @@ contains
   end subroutine set_mu_lookup
 
   subroutine get_slope_generic(k, params, n0, lam, mu, mass, number, m3)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='GET_SLOPE_GENERIC'
+
     integer, intent(in) :: k
     type(hydro_params), intent(in) :: params
     real(wp), intent(out) :: n0, lam, mu
@@ -115,6 +137,11 @@ contains
 
   ! 3 moment version
   subroutine get_slope_3M(k, mass, number, moment3, p1, p2, p3, n0, lam, mu)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='GET_SLOPE_3M'
+
     integer, intent(in) :: k
     real(wp), intent(in) :: mass, number, moment3
     real(wp), intent(in) :: p1, p2, p3
@@ -131,7 +158,12 @@ contains
   end subroutine get_slope_3M
 
   ! 2 moment version
-  subroutine get_slope_2M(k, mass, number, p1, p2, n0, lam, mu)    
+  subroutine get_slope_2M(k, mass, number, p1, p2, n0, lam, mu)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='GET_SLOPE_2M'
+
     integer, intent(in) :: k
     real(wp), intent(in) :: mass, number
     real(wp), intent(in) :: p1, p2
@@ -161,7 +193,12 @@ contains
   end subroutine get_slope_2M
 
   ! 1 moment version
-  subroutine get_slope_1M(k, mass, p1, n0, lam, mu)    
+  subroutine get_slope_1M(k, mass, p1, n0, lam, mu)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='GET_SLOPE_1M'
+
     integer, intent(in) :: k
     real(wp), intent(in)  :: p1
     real(wp), intent(in) :: mass
@@ -176,6 +213,11 @@ contains
   end subroutine get_slope_1M
 
   subroutine get_mu(m1, m2, m3, p1, p2, p3, mu, mu_g_o, mu_i_o)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='GET_MU'
+
     real(wp), intent(in) :: m1, m2, m3
     real(wp), intent(in) :: p1, p2, p3
     real(wp), intent(in), optional :: mu_g_o(:), mu_i_o(:)
@@ -219,7 +261,12 @@ contains
   end subroutine get_mu
 
   ! 3M version
-  subroutine get_lam_n0_3M(m1, m2, m3, p1, p2, p3, mu, lam, n0)    
+  subroutine get_lam_n0_3M(m1, m2, m3, p1, p2, p3, mu, lam, n0)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='GET_LAM_N0_3M'
+    
     real(wp), intent(in) :: m1, m2, m3, mu
     real(wp), intent(in) :: p1, p2, p3
     real(wp), intent(out) :: lam, n0
@@ -245,6 +292,11 @@ contains
 
   ! 2M version
   subroutine get_lam_n0_2M(m1, m2, p1, p2, mu, lam, n0)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='GET_LAM_N0_2M'
+    
     real(wp), intent(in) :: m1, m2, mu
     real(wp), intent(in) :: p1, p2
     real(wp), intent(out) :: lam, n0
@@ -263,7 +315,12 @@ contains
   end subroutine get_lam_n0_2M
 
   ! 1M version
-  subroutine get_lam_n0_1M(m1, p1, mu, lam, n0)    
+  subroutine get_lam_n0_1M(m1, p1, mu, lam, n0)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='GET_LAM_N0_1M'
+    
     real(wp), intent(in) :: m1, mu, n0
     real(wp), intent(in) :: p1
     real(wp), intent(out) :: lam
@@ -280,7 +337,12 @@ contains
   end subroutine get_lam_n0_1M
 
   ! Get n0 given a moment and lamda and mu
-  subroutine get_n0(m, p, mu, lam, n0)    
+  subroutine get_n0(m, p, mu, lam, n0)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='GET_N0'
+    
     real(wp), intent(in) :: m, mu, lam
     real(wp), intent(in) :: p
     real(wp), intent(out) :: n0
@@ -289,6 +351,11 @@ contains
   end subroutine get_n0
 
   function moment(n0,lam,mu,p)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='MOMENT'
+  
     real(wp), intent(in) :: n0, lam, mu, p
     real(wp) :: moment
 

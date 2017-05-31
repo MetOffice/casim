@@ -8,10 +8,17 @@ module ventfac
   implicit none
   private
 
+  character(len=*), parameter, private :: ModuleName='VENTFAC'
+
   public ventilation
 contains
 
   subroutine ventilation(k, V, n0, lam, mu, params)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='VENTILATION'
+
     integer, intent(in) :: k
     real(wp), intent(in) :: n0, lam, mu
     real(wp), intent(out) :: V  ! bulk ventilation factor

@@ -1,6 +1,10 @@
 MODULE generic_diagnostic_variables
 
 IMPLICIT NONE
+
+CHARACTER(LEN=*), PARAMETER, PRIVATE :: &
+ModuleName = 'GENERIC_DIAGNOSTIC_VARIABLES'
+
 SAVE
 
 ! Method:
@@ -41,6 +45,8 @@ CONTAINS
 SUBROUTINE allocate_diagnostic_space(is, ie, js, je, ks, ke)
 
 IMPLICIT NONE
+
+CHARACTER(LEN=*), PARAMETER :: RoutineName='ALLOCATE_DIAGNOSTIC_SPACE'
 
 INTEGER, INTENT(IN) :: is ! Start of i array
 INTEGER, INTENT(IN) :: ie ! End of i array
@@ -83,6 +89,8 @@ END SUBROUTINE allocate_diagnostic_space
 SUBROUTINE deallocate_diagnostic_space()
 
 IMPLICIT NONE
+
+CHARACTER(LEN=*), PARAMETER :: RoutineName='DEALLOCATE_DIAGNOSTIC_SPACE'
 
 IF ( ALLOCATED ( casdiags %  SurfaceGraupR )) THEN
   DEALLOCATE ( casdiags % SurfaceGraupR )

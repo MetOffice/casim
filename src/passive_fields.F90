@@ -18,11 +18,18 @@ module passive_fields
   real(wp) :: dt
   integer :: kl, ku, nz
 
+  character(len=*), parameter, private :: ModuleName='PASSIVE_FIELDS'
+
   public set_passive_fields, rho, pressure, initialise_passive_fields, z, qws, exner, rexner, z_half, z_centre, dz, qws0, &
        TdegC, TdegK, w, tke, rhcrit_1d, rdz_on_rho
 contains
 
   subroutine initialise_passive_fields(kl_arg, ku_arg)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='INITIALISE_PASSIVE_FIELDS'
+
     integer, intent(in) :: kl_arg, ku_arg
 
     kl=kl_arg
@@ -46,6 +53,11 @@ contains
 
   subroutine set_passive_fields(dt_in, rho_in, p_in, exner_in,   &
        z_half_in, z_centre_in, dz_in, w_in, tke_in, qfields)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='SET_PASSIVE_FIELDS'
+
     real(wp), intent(in) :: dt_in
     real(wp), intent(in) :: rho_in(kl:ku), p_in(kl:ku), exner_in(kl:ku)
     real(wp), intent(in) :: z_half_in(kl-1:ku),z_centre_in(kl:ku),dz_in(kl:ku)

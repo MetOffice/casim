@@ -6,6 +6,9 @@ module derived_constants
   use mphys_switches, only: l_abelshipway
 
   implicit none
+
+  character(len=*), parameter, private :: ModuleName='DERIVED_CONSTANTS'
+
   private
 
   public set_constants
@@ -16,6 +19,11 @@ contains
   ! between species (for phase conversions) (IS THIS REALLY THE CASE?),
   ! but sp1,sp2,sp3 etc need not be the same
   subroutine set_constants()
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='SET_CONSTANTS'
+
     cloud_params%p1=p1
     cloud_params%sp1=sp1
     cloud_params%p2=p2

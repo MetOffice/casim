@@ -16,10 +16,17 @@ module gauss_casim_micro
   real(wp) :: gaussfunc_save_2D(nbins_a,maxq)
   logical :: l_save_2D(nbins_a,maxq) = .false.
 
+  character(len=*), parameter, private :: ModuleName='GAUSS_CASIM_MICRO'
+
   public gauss_casim_func, gaussfunclookup, gaussfunclookup_2d
 contains
 
   subroutine gaussfunclookup(iq, value, a, b, init)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='GAUSSFUNCLOOKUP'
+
     integer, intent(in) :: iq !< parameter index relating to variable we're considering
     real(wp), intent(out) :: value !< returned value
     real(wp), intent(in), optional :: a, b  !< Value of a and b to use. Only required if initializing
@@ -38,6 +45,11 @@ contains
   end subroutine gaussfunclookup
 
   subroutine gaussfunclookup_2d(iq, value, a, b)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='GAUSSFUNCLOOKUP_2D'
+
     integer, intent(in) :: iq !< parameter index relating to variable we're considering
     real(wp), intent(out) :: value !< returned value
     real(wp), intent(in) :: a, b  !< Value of a and b to use.  (a is mu, b is b_x)
@@ -55,6 +67,11 @@ contains
   end subroutine gaussfunclookup_2d
 
   function gauss_casim_func(a, b)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='GAUSS_CASIM_FUNC'
+
     real(wp), intent(in) :: a, b !< function arguments
 
     real(wp), parameter ::   tmax = 18.0    !< Limit of integration

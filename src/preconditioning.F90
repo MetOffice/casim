@@ -6,12 +6,18 @@ module Preconditioning
   use thresholds, only: thresh_tidy
   implicit none
   private
+  character(len=*), parameter, private :: ModuleName='PRECONDITIONING'
 
   logical, allocatable :: precondition(:)
   public precondition, preconditioner
 contains
 
   subroutine preconditioner(qfields)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='PRECONDITIONER'
+
     real(wp), intent(in) :: qfields(:,:)
 
     integer :: k

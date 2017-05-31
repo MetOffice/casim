@@ -55,6 +55,8 @@ module micro_main
 
   private
 
+  character(len=*), parameter, private :: ModuleName='MICRO_MAIN'
+
   logical :: l_tendency_loc
   logical :: l_warm_loc
 
@@ -92,6 +94,10 @@ contains
 
   subroutine initialise_micromain(il, iu, jl, ju, kl, ku,                 &       
        is_in, ie_in, js_in, je_in, ks_in, ke_in, l_tendency)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='INITIALISE_MICROMAIN'
 
     integer, intent(in) :: il, iu ! upper and lower i levels
     integer, intent(in) :: jl, ju ! upper and lower j levels
@@ -232,6 +238,11 @@ contains
   end subroutine initialise_micromain
 
   subroutine finalise_micromain()
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='FINALISE_MICROMAIN'
+
     ! deallocate diagnostics
     deallocate(precip)
 
@@ -283,6 +294,10 @@ contains
        da12, da13, da14, da15, da16, da17,                                  &
        is_in, ie_in, js_in, je_in, ks_in, ke_in,                            &
        l_tendency)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='SHIPWAY_MICROPHYSICS'
 
     integer, intent(in) :: il, iu ! upper and lower i levels
     integer, intent(in) :: jl, ju ! upper and lower j levels

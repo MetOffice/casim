@@ -21,10 +21,17 @@ module snow_autoconversion
   implicit none
   private
 
+  character(len=*), parameter, private :: ModuleName='SNOW_AUTOCONVERSION'
+
   public saut
 contains
 
   subroutine saut(dt, k, qfields, aerofields, procs, aerosol_procs)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='SAUT'
+
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
     real(wp), intent(in) :: qfields(:,:), aerofields(:,:)

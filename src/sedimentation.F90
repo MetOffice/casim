@@ -22,6 +22,8 @@ module sedimentation
   implicit none
   private
 
+  character(len=*), parameter, private :: ModuleName='SEDIMENTATION'
+
   character*(2) :: qchar
   real(wp), allocatable :: flux_n1(:)
   real(wp), allocatable :: flux_n2(:)
@@ -32,15 +34,30 @@ module sedimentation
 contains
 
   subroutine initialise_sedr()
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='INITIALISE_SEDR'
+
     allocate(flux_n1(nz), flux_n2(nz), flux_n3(nz), Grho(nz))
   end subroutine initialise_sedr
 
   subroutine finalise_sedr()
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='FINALISE_SEDR'
+
     deallocate(flux_n1, flux_n2, flux_n3, Grho)
   end subroutine finalise_sedr  
 
   subroutine sedr(step_length, qfields, aerofields, aeroact, dustact,   &
        tend, params, procs, aerosol_procs, precip, l_doaerosol)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='SEDR'
+
     real(wp), intent(in) :: step_length
     real(wp), intent(in), target :: qfields(:,:), aerofields(:,:)
     real(wp), intent(in) :: tend(:,:)
@@ -59,6 +76,11 @@ contains
 
   subroutine sedr_aero(step_length, qfields, aerofields, aeroact, dustact,   &
        tend, params, procs, aerosol_procs, precip, l_doaerosol)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='SEDR_AERO'
+
     real(wp), intent(in) :: step_length
     real(wp), intent(in), target :: qfields(:,:), aerofields(:,:)
     real(wp), intent(in) :: tend(:,:)

@@ -12,10 +12,17 @@ module sum_process
   implicit none
   private
 
+  character(len=*), parameter, private :: ModuleName='SUM_PROCESS'
+
   public sum_aprocs, sum_procs
 contains
 
   subroutine sum_aprocs(dst, procs, tend, iprocs, names, afields)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='SUM_APROCS'
+
     real(wp), intent(in) :: dst  ! step length (s)
     type(process_rate), intent(in) :: procs(:,:)
     type(process_name), intent(in) :: iprocs(:)
@@ -56,6 +63,11 @@ contains
   end subroutine sum_aprocs
 
   subroutine sum_procs(dst, procs, tend, iprocs, names, l_thermalexchange, i_thirdmoment, qfields, l_passive )
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='SUM_PROCS'
+
     real(wp), intent(in) :: dst  ! step length (s)
     type(process_rate), intent(in) :: procs(:,:)
     type(process_name), intent(in) :: iprocs(:)

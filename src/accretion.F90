@@ -13,6 +13,8 @@ module accretion
 
   implicit none
 
+  character(len=*), parameter, private :: ModuleName='ACCRETION'
+
   private
 
   public racw
@@ -26,6 +28,9 @@ contains
   !> cloud water by rain
   !--------------------------------------------------------------------------- !
   subroutine racw(dt, k, qfields, aerofields, procs, params, aerosol_procs)
+
+    implicit none
+
     real(wp), intent(in) :: dt !< microphysics time increment (s)
     integer,  intent(in)  :: k  !< k index
     real(wp), intent(in) :: qfields(:,:)     !< hydrometeor fields
@@ -48,6 +53,8 @@ contains
 
     real(wp) :: mu, n0, lam
     logical :: l_kk_acw=.true.
+
+    character(len=*), parameter :: RoutineName='RACW'
 
     cloud_mass=qfields(k, i_ql)
     if (l_2mc) then

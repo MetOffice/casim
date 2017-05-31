@@ -11,6 +11,8 @@ module mphys_switches
 
   implicit none
 
+  character(len=*), parameter, private :: ModuleName='MPHYS_SWITCHES'
+
   logical :: mphys_is_set = .false.
 
   ! Microphysics option are now specified through a 5 digit integer, such that
@@ -407,6 +409,11 @@ module mphys_switches
 contains
 
   subroutine set_mphys_switches(in_option, in_aerosol_option)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='SET_MPHYS_SWITCHES'
+
     integer, intent(in) :: in_option, in_aerosol_option
 
     integer :: iq,iproc,idgproc ! counters
@@ -825,7 +832,12 @@ contains
   end subroutine set_mphys_switches
 
   ! Allocate an index to a q variable
-  subroutine allocq(i, iq, names, name)    
+  subroutine allocq(i, iq, names, name)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='ALLOCQ'
+    
     integer, intent(out) :: i
     integer, intent(inout) :: iq
     character(10), intent(inout) :: names(:)
@@ -837,6 +849,11 @@ contains
   end subroutine allocq
 
   subroutine allocp(proc, iproc, idgproc, name, l_onoff)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='ALLOCP'
+    
     type(process_name), intent(inout) :: proc
     integer, intent(inout) :: iproc, idgproc
     character(*), intent(in) :: name
@@ -859,6 +876,11 @@ contains
   ! to aero_index if variable should act as an in
   ! or a ccn.
   subroutine alloca(i, iq, names, name, aero_index, i_ccn, i_in)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='ALLOCA'
+ 
     integer, intent(out) :: i
     integer, intent(inout) :: iq
     character(20), intent(inout) :: names(:)
@@ -904,6 +926,11 @@ contains
   ! Routine sets logical switches which depend on or are overridden by other switches
   ! Transfer namelist logicals to derived type for ease of use later
   subroutine derive_logicals()
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='DERIVE_LOGICALS'
+
     pswitch%l_pcond=>l_pcond ! Condensation
     pswitch%l_praut=>l_praut ! Autoconversion cloud -> rain
     pswitch%l_pracw=>l_pracw ! Accretion  cloud -> rain

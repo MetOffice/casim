@@ -14,6 +14,8 @@ module initialize
   implicit none
   private
 
+  character(len=*), parameter, private :: ModuleName='INITIALIZE'
+
   ! indices for process conversion rates
   integer :: n_cond_q, n_cond_n, n_aut_qr, n_aut_nr, n_aut_m3, n_aut_nl, n_acw_qr, n_acw_m3, n_acw_nl, n_evp_qr, &
        n_evp_nr, n_evp_m3, n_acr_nr, n_acr_m3, n_dep_qi, n_dep_ni, n_sub_qi, n_sub_ni, n_iacw_qi, n_iacw_ni, n_saut_qi, &
@@ -30,6 +32,10 @@ contains
 
   subroutine mphys_init(il, iu, jl, ju, kl, ku,                 &       
        is_in, ie_in, js_in, je_in, ks_in, ke_in, l_tendency)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='MPHYS_INIT'
 
     integer, intent(in) :: il, iu ! upper and lower i levels
     integer, intent(in) :: jl, ju ! upper and lower j levels
@@ -88,11 +94,19 @@ contains
   end subroutine mphys_init
 
   subroutine mphys_finalise()
+
+    implicit none
+    character(len=*), parameter :: RoutineName='MPHYS_FINALISE'
+
     call finalise_sedr()
     call finalise_micromain()
   end subroutine mphys_finalise
 
   subroutine initialise_lookup_tables()
+
+    implicit none
+    character(len=*), parameter :: RoutineName='INITIALISE_LOOKUP_TABLES'
+
     !------------------------------------------------------
     ! Look up tables... (These need to be extended)
     !------------------------------------------------------
@@ -107,6 +121,10 @@ contains
 
   ! Check that the options that have been selected are consitent
   subroutine check_options()
+
+    implicit none
+    character(len=*), parameter :: RoutineName='CHECK_OPTIONS'
+
     if (.not. l_override_checks) then
       if (l_warm .and. l_process) then
         call throw_mphys_error(1, 'check_options', 'processing does not currently work with l_warm=.true.')

@@ -13,12 +13,20 @@ module aggregation
   use gauss_casim_micro, only: gauss_casim_func, gaussfunclookup, gaussfunclookup_2d
 
   implicit none
+
+  character(len=*), parameter, private :: ModuleName='AGGREGATION'
+
   private
 
   public racr, ice_aggregation
 contains
 
   subroutine racr(dt, k, qfields, procs)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='RACR'
+
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
     real(wp), intent(in), target :: qfields(:,:)
@@ -76,6 +84,11 @@ contains
   !
   !< CODE TIDYING: Move efficiencies into parameters
   subroutine ice_aggregation(dt, k, params, qfields, procs)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='ICE_AGGREGATION'
+
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
     type(hydro_params), intent(in) :: params

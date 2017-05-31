@@ -17,12 +17,20 @@ module evaporation
   use which_mode_to_use, only : which_mode
 
   implicit none
+
+  character(len=*), parameter, private :: ModuleName='EVAPORATIOn'
+
   private
 
   public revp
 contains
 
   subroutine revp(dt, k, qfields, aerofields, aerophys, aerochem, aeroact, dustliq, procs, aerosol_procs, l_sigevap)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='REVP'
+
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
     real(wp), intent(in) :: qfields(:,:), aerofields(:,:)

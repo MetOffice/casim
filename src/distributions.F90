@@ -14,6 +14,8 @@ module distributions
   implicit none
   private
 
+  character(len=*), parameter, private :: ModuleName='DISTRIBUTIONS'
+
   real(wp), allocatable :: dist_lambda(:,:), dist_mu(:,:), dist_n0(:,:)
   real(wp), dimension(:), allocatable :: m1,m2, m3, m3_old
 
@@ -21,6 +23,11 @@ module distributions
 contains
 
   subroutine initialise_distributions(nz, nspecies)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='INITIALISE_DISTRIBUTIONS'
+
     integer, intent(in) :: nz, nspecies
     
     allocate(dist_lambda(nz,nspecies), dist_mu(nz,nspecies), dist_n0(nz,nspecies), m1(nz), m2(nz), m3(nz), m3_old(nz))
@@ -29,6 +36,11 @@ contains
   ! Any changes in number should be applied to the prognostic variable
   ! rather than just these parameters.  Currently this is not done.
   subroutine query_distributions(params, qfields, icall)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='QUERY_DISTRIBUTIONS'
+
     type(hydro_params), intent(in) :: params !< species parameters
     real(wp), intent(inout) :: qfields(:,:)
     integer, intent(in), optional :: icall

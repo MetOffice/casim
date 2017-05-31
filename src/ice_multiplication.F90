@@ -9,6 +9,9 @@ module ice_multiplication
   use distributions, only: dist_lambda, dist_mu, dist_n0
 
   implicit none
+
+  character(len=*), parameter, private :: ModuleName='ICE_MULTIPLICATION'
+
 contains
   !> Subroutine to determine the ice splintering by Hallet-Mossop
   !> This effect requires prior calculation of the accretion rate of
@@ -23,6 +26,11 @@ contains
   !
   !> OPTIMISATION POSSIBILITIES:
   subroutine hallet_mossop(dt, k, qfields, procs, aerophys, aerochem, aeroact , aerosol_procs)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='HALLET_MOSSOP'
+
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
     real(wp), intent(in), target :: qfields(:,:)

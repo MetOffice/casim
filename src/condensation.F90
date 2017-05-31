@@ -18,6 +18,9 @@ module condensation
   use cloud_frac_scheme, only: cloud_frac_casim_mphys
 
   implicit none
+
+  character(len=*), parameter, private :: ModuleName='CONDENSATION'
+
   private
 
   logical :: l_notransfer=.true.  ! don't transfer aerosol from one mode to another.
@@ -28,17 +31,30 @@ module condensation
 contains
 
   subroutine condevp_initialise()
+    implicit none
+
+    character(len=*), parameter :: RoutineName='CONDEVP_INITIALISE'
+
     allocate(dnccn_all(aero_index%nccn))
     allocate(dmac_all(aero_index%nccn))
   end subroutine condevp_initialise  
 
   subroutine condevp_finalise()
+    implicit none
+
+    character(len=*), parameter :: RoutineName='CONDEVP_FINALISE'
+
     deallocate(dnccn_all)
     deallocate(dmac_all)
   end subroutine condevp_finalise  
 
   subroutine condevp(dt, k, qfields, aerofields, procs, aerophys, aerochem,   &
        aeroact, dustphys, dustchem, dustliq, aerosol_procs, rhcrit_lev)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='CONDEVP'
+
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
     real(wp), intent(in), target :: qfields(:,:), aerofields(:,:)

@@ -16,11 +16,18 @@ module homogeneous
 
   implicit none
 
+  character(len=*), parameter, private :: ModuleName='HOMOGENEOUS'
+
 contains
 
   !> Calculates immersion freezing of rain drops
   !> See Bigg 1953
   subroutine ihom_rain(dt, k, qfields, aeroact, dustliq, procs, aerosol_procs)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='IHOM_RAIN'
+
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
     real(wp), intent(in), target :: qfields(:,:)
@@ -152,7 +159,10 @@ contains
 
   !> Calculates homogeneous freezing of cloud drops
   !> See Wisener 1972
-  subroutine ihom_droplets(dt, k, qfields, aeroact, dustliq, procs, aerosol_procs)
+  subroutine ihom_droplets(dt, k, qfields, aeroact, dustliq, procs, aerosol_procs)    
+    implicit none
+
+    character(len=*), parameter :: RoutineName='IHOM_DROPLETS'
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
     real(wp), intent(in), target :: qfields(:,:)

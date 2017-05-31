@@ -26,6 +26,8 @@ module ice_deposition
   implicit none
   private
 
+  character(len=*), parameter, private :: ModuleName='ICE_DEPOSITION'
+
   logical :: l_latenteffects = .false.
 
   public idep
@@ -35,6 +37,11 @@ contains
   !< ice, snow and graupel.  There is no source/sink for number
   !< when undergoing deposition, but there is a sink when sublimating.
   subroutine idep(dt, k, params, qfields, procs, dustact, aeroice, aerosol_procs)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='IDEP'
+
     real(wp), intent(IN) :: dt
     integer, intent(IN) :: k
     type(hydro_params), intent(IN) :: params

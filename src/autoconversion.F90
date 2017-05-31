@@ -11,12 +11,20 @@ module autoconversion
   use m3_incs, only: m3_inc_type2, m3_inc_type3
 
   implicit none
+
+  character(len=*), parameter, private :: ModuleName='AUTOCONVERSION'
+
   private
 
   public raut
 contains
 
   subroutine raut(dt, k, qfields, aerofields, procs, aerosol_procs)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='RAUT'
+
     real(wp), intent(in) :: dt
     integer,  intent(in) :: k
     real(wp), intent(in) :: qfields(:,:), aerofields(:,:)

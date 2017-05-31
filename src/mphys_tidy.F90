@@ -24,6 +24,8 @@ module mphys_tidy
   implicit none
   private
 
+  character(len=*), parameter, private :: ModuleName='MPHYS_TIDY'
+
   logical :: l_rescale_on_number
   logical :: l_tidym3 = .false.  ! Don't tidy based on m3 values
 
@@ -41,6 +43,11 @@ module mphys_tidy
 contains
 
   subroutine initialise_mphystidy()
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='INITIALISE_MPHYSTIDY'
+
     allocate(thresh(lbound(thresh_tidy,1):ubound(thresh_tidy,1)), qin_thresh(lbound(thresh_tidy,1):ubound(thresh_tidy,1)), &
          l_qsig(0:ntotalq), l_qpos(0:ntotalq), l_qsmall(0:ntotalq), l_qsneg(0:ntotalq), l_qpresent(0:ntotalq))
 
@@ -62,6 +69,11 @@ contains
   end subroutine initialise_mphystidy
 
   subroutine recompute_qin_constants(l_negonly)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='RECOMPUTE_QIN_CONSTANTS'
+
     logical, intent(in) :: l_negonly
 
     qin_thresh=thresh_tidy
@@ -71,6 +83,11 @@ contains
   end subroutine recompute_qin_constants  
 
   subroutine recompute_constants(l_negonly)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='RECOMPUTE_CONSTANTS'
+
     logical, intent(in) :: l_negonly
    
     if (l_negonly) then
@@ -81,6 +98,11 @@ contains
   end subroutine recompute_constants
 
   subroutine finalise_mphystidy()
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='FINALISE_MPHYSTIDY'
+
     if (l_process) then
       deallocate(l_asig, l_apresent, l_asneg, l_apos, l_asmall, athresh)
     end if
@@ -89,6 +111,11 @@ contains
 
   subroutine qtidy(dt, k, qfields, procs, aerofields, aeroact, dustact, aeroice, dustliq, &
        aeroprocs, i_proc, i_aproc, l_negonly)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='QTIDY'
+
     integer, intent(in) :: k
     real(wp), intent(in) :: dt
     real(wp), intent(in) :: qfields(:,:), aerofields(:,:)
@@ -511,6 +538,11 @@ contains
   end subroutine qtidy
 
   subroutine tidy_qin(qfields, l_negonly)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='TIDY_QIN'
+
     real(wp), intent(inout) :: qfields(:,:)
     logical, intent(in), optional :: l_negonly
 
@@ -662,6 +694,11 @@ contains
   end subroutine tidy_qin
 
   subroutine tidy_ain(qfields, aerofields)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='TIDY_AIN'
+
     real(wp), intent(in) :: qfields(:,:)
     real(wp), intent(inout) :: aerofields(:,:)
 
@@ -703,6 +740,11 @@ contains
     ! (including number and other terms)
   subroutine ensure_positive(k, dt, qfields, procs, params, iprocs_scalable, iprocs_nonscalable &
        , aeroprocs, iprocs_dependent, iprocs_dependent_ns)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='ENSURE_POSITIVE'
+
     integer, intent(in) :: k
     real(wp), intent(in) :: dt
     real(wp), intent(in) :: qfields(:,:)
@@ -972,6 +1014,11 @@ contains
   ! (NB this follows any rescaling due to the parent microphysical processes and
   ! we might lose consistency between number and mass here)
   subroutine ensure_positive_aerosol(k, dt, aerofields, aerosol_procs, iprocs)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='ENSURE_POSITIVE_AEROSOL'
+
     integer, intent(in) :: k
     real(wp), intent(in) :: dt
     real(wp), intent(in) :: aerofields(:,:)
@@ -1011,6 +1058,11 @@ contains
     ! Modified so it can also prevent sublimation processes from putting
     ! back too much vapour and so become supersaturated
   subroutine ensure_saturated(k, dt, qfields, procs, iprocs_scalable)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='ENSURE_SATURATED'
+
     integer, intent(in) :: k
     real(wp), intent(in) :: dt
     real(wp), intent(in) :: qfields(:,:)
@@ -1054,6 +1106,11 @@ contains
   ! Once tidied, there may be some negative numbers due to
   ! rounding error, so should be safe to lose these
   subroutine cleanup_q(qfields)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='CLEANUP_Q'
+
     real(wp), intent(inout) :: qfields(:,:)
 
     integer :: i1,i2 ! use loops instead of where construct

@@ -8,6 +8,8 @@ module which_mode_to_use
 
   private
 
+  character(len=*), parameter, private :: ModuleName='WHICH_MODE_TO_USE'
+
   integer :: imethod = 1 ! method to use
   integer, parameter :: iukca_method = 2 ! method to use if UKCA is used
 
@@ -20,6 +22,11 @@ contains
   ! Subroutine calculates how much of the total increments
   ! to mass and number should be sent to each of two modes.
   subroutine which_mode(dm, dn, r1_in, r2_in, density, dm1, dm2, dn1, dn2)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='WHICH_MODE'
+
     real(wp), intent(in) :: dm  ! total mass increment
     real(wp), intent(in) :: dn  ! total number increment
 

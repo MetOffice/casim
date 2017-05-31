@@ -6,6 +6,7 @@ module sweepout_rate
 
   implicit none
   private
+  character(len=*), parameter, private :: ModuleName='SWEEPOUT_RATE'
 
   public sweepout, binary_collection
 contains
@@ -13,6 +14,11 @@ contains
   ! Calculate the sweepout rate given the distribution
   ! and fallspeed parameters
   function sweepout(n0, lam, mu, params, rho, mass_weight)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='SWEEPOUT'
+
     real(wp), intent(in) :: mu, n0, lam
     type(hydro_params), intent(in) :: params
     real(wp), intent(in) :: rho ! air density
@@ -47,6 +53,11 @@ contains
   ! binary collisions as both species sediment
   function binary_collection(n0_X, lam_X, mu_X, n0_Y, lam_Y, mu_Y,   &
        params_X, params_Y, rho, mass_weight)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='BINARY_COLLECTION'
+
     real(wp), intent(in) :: mu_X, n0_X, lam_X
     real(wp), intent(in) :: mu_Y, n0_Y, lam_Y
     type(hydro_params), intent(in) :: params_X

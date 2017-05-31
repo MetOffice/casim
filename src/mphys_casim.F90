@@ -9,6 +9,8 @@ USE mphys_switches, ONLY: set_mphys_switches, option, aerosol_option,       &
      , i_am6, i_an6, i_am7, i_am8 , i_am9, i_am10, i_an10, i_an11, i_an12
 USE initialize, ONLY: mphys_init
 
+USE casim_parent_mod, ONLY: casim_parent, parent_kid
+
   !KiD variables
 USE physconst, ONLY : p0, r_on_cp
 USE column_variables, ONLY:                              &
@@ -28,9 +30,15 @@ IMPLICIT NONE
   !Logical switches
 LOGICAL :: micro_unset=.TRUE.
 
+character(len=*), parameter, private :: ModuleName='MPHYS_CASIM'
+
 CONTAINS
 
 SUBROUTINE mphys_casim_interface
+
+IMPLICIT NONE
+
+character(len=*), parameter :: RoutineName='MPHYS_CASIM_INTERFACE'
 
     !< OPTIMIZATIONS: A bit unwieldy, but should probably put the loops inside the
     ! if tests for each microphysics variable
@@ -127,6 +135,8 @@ dActiveInsolNumber = 0.0
 IF (micro_unset) THEN
   CALL set_mphys_switches(option, aerosol_option)
   CALL mphys_init
+  casim_parent = parent_kid ! Tells CASIM that it is being driven 
+                            ! by the KiD model
   micro_unset=.FALSE.
 END IF
 

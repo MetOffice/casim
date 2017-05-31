@@ -11,6 +11,9 @@ module adjust_deposition
   use m3_incs, only: m3_inc_type2
 
   implicit none
+
+  character(len=*), parameter, private :: ModuleName='ADJUST_DEPOSITION'
+
   private
 
   public adjust_dep
@@ -21,6 +24,10 @@ contains
     ! snow, c.f. Harrington et al (1995)
     ! This assumes that mu_ice==0, so the fraction becomes
     ! P(mu+2, lambda*DImax) (see Abramowitz & Stegun 6.5.13)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='ADJUST_DEP'
 
     real(wp), intent(in) :: dt
     integer, intent(in) :: k

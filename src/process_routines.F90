@@ -5,6 +5,8 @@ module process_routines
 
   implicit none
 
+  character(len=*), parameter, private :: ModuleName='PROCESS_ROUTINES'
+
   ! NB These ids are now overwritten in mphys_switches to only allocate those
   ! that are needed given namelist switches
   type(process_name) :: i_cond  = process_name(0, 1, 'pcond', on=.false.)
@@ -82,6 +84,11 @@ contains
 
   ! Allocate space to store the microphysical process rates
   subroutine allocate_procs(procs, nz, nprocs, ntotalq)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='ALLOCATE_PROCS'
+
     type(process_rate), intent(inout) :: procs(:,:)
     integer, intent(in) :: nz      ! number of height levels
     integer, intent(in) :: nprocs  ! number of physical processes
@@ -99,6 +106,11 @@ contains
   end subroutine allocate_procs
 
   subroutine zero_procs(procs)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='ZERO_PROCS'
+
     type(process_rate), intent(inout) :: procs(:,:)
 
     integer :: iproc, k
@@ -116,6 +128,11 @@ contains
   end subroutine zero_procs
 
   subroutine deallocate_procs(procs)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='DEALLOCATE_PROCS'
+
     type(process_rate), intent(inout) :: procs(:,:)
 
     integer :: k, iproc

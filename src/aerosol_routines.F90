@@ -12,6 +12,9 @@ module aerosol_routines
   use mphys_parameters, only: sigma_arc, nz
 
   implicit none
+
+  character(len=*), parameter, private :: ModuleName='AEROSOL_ROUTINES'
+
   private
 
   public aerosol_active, aerosol_phys, aerosol_chem, abdulRazzakGhan2000, invert_partial_moment, upperpartial_moment_logn, &
@@ -22,6 +25,11 @@ contains
   ! Allocate space for aerosol_chem and aerosol_phys
   !
   subroutine allocate_aerosol(aerophys, aerochem, nmodes, initphys, initchem)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='allocate_aerosol'
+
     type(aerosol_phys), intent(inout) :: aerophys(:)
     type(aerosol_chem), intent(inout) :: aerochem(:)
     integer, intent(in) :: nmodes    ! number of modes
@@ -62,7 +70,11 @@ contains
   !
   ! Deallocate space for aerosol_chem and aerosol_phys
   !
-  subroutine deallocate_aerosol(aerophys, aerochem)  
+  subroutine deallocate_aerosol(aerophys, aerochem)
+
+    implicit none
+    character(len=*), parameter :: RoutineName='deallocate_aerosol'
+
     type(aerosol_phys), intent(inout) :: aerophys(:)
     type(aerosol_chem), intent(inout) :: aerochem(:)
 
@@ -106,6 +118,11 @@ contains
   !
   subroutine examine_aerosol(aerofields, qfields, aerophys, aerochem, aeroact, &
        dustphys, dustchem, dustact, aeroice, dustliq, icall)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='examine_aerosol'
+
     real(wp), intent(in), target :: aerofields(:,:)
     type(aerosol_phys), intent(inout), target :: aerophys(:)
     type(aerosol_chem), intent(in), target :: aerochem(:)
@@ -562,6 +579,11 @@ contains
   ! Note: despite appearences this is only coded up
   ! for a single mode so far...
   subroutine AbdulRazzakGhan(w, qc, p, T, phys, chem, nccn, Smax, rcrit, tau)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='ABDULRAZZAKGHAN'
+
     real(wp), intent(in) :: w ! vertical velocity (ms-1)
     real(wp), intent(in) :: qc ! Pre-existing cloud mass
     real(wp), intent(in) :: p ! pressure (Pa)
@@ -618,6 +640,11 @@ contains
   ! Note: despite appearences this is only coded up
   ! for a single mode so far...
   subroutine AbdulRazzakGhan2000(w, p, T, phys, chem, nccn, Smax, active_phys, nccn_active, l_useactive )
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='ABDULRAZZAKGHAN2000'
+
     real(wp), intent(in) :: w ! vertical velocity (ms-1)
     real(wp), intent(in) :: p ! pressure (Pa)
     real(wp), intent(in) :: T ! temperature (K)
@@ -735,11 +762,17 @@ contains
   ! log(sigma) = s.d. of log(n(r)/N)
   !
   function moment_logn(N, rm, sigma, p)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='MOMENT_LOGN'
+
     real(wp), intent(in) :: N, rm, sigma
     real(wp), intent(in) :: p ! calculate pth moment
     real(wp) :: moment_logn
 
     moment_logn=N*rm**p*exp(.5*p*p*log(sigma)**2)
+
   end function moment_logn
 
   !
@@ -758,6 +791,11 @@ contains
   ! log(sigma) = s.d. of log(n(r)/N)
   !
   function upperpartial_moment_logn(N, rm, sigma, p, rcrit)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='UPPERPARTIAL_MOMENT_LOGN'
+
     real(wp), intent(in) :: N, rm, sigma
     real(wp), intent(in) :: p ! calculate pth moment
     real(wp), intent(in) :: rcrit ! lower threshold for partial moment
@@ -788,6 +826,11 @@ contains
   ! log(sigma) = s.d. of log(n(r)/N)
   !
   function invert_partial_moment(m, mup, p, rm, sigma)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='INVERT_PARTIAL_MOMENT'
+
     real(wp), intent(in) :: m, mup
     real(wp), intent(in) :: p ! pth moment
     real(wp), intent(in) :: rm, sigma
@@ -814,6 +857,11 @@ contains
   !
   ! This uses an approximation for erfc(log(x)) to achieve this
   function invert_partial_moment_approx(mup, p, rm, sigma)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='INVERT_PARTIAL_MOMENT_APPROX'
+
     real(wp), intent(in) :: mup, rm, sigma, p ! pth moment
     real(wp) :: invert_partial_moment_approx
 
@@ -853,6 +901,12 @@ contains
   !
   ! This uses an approximation 26.2.23 from A&S
   function invert_partial_moment_betterapprox(mup, p, N, rm, sigma)
+
+    implicit none
+
+    character(len=*), parameter :: &
+    RoutineName='INVERT_PARTIAL_MOMENT_BETTER_APPROX'
+
     real(wp), intent(in) :: mup, rm, sigma, N, p ! pth moment
     real(wp) :: invert_partial_moment_betterapprox
 
@@ -876,6 +930,11 @@ contains
 
   ! This uses an approximation 26.2.23 from A&S
   function normal_quantile(p)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='NORMAL_QUANTILE'
+
     real(wp), intent(in) :: p
     real(wp) :: normal_quantile
 
@@ -908,7 +967,12 @@ contains
   ! Calculate mean radius of lognormal distribution
   ! given Mass and number
   !
-  function MNtoRm(M, N, density, sigma)    
+  function MNtoRm(M, N, density, sigma)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='MNTORM'
+
     real(wp), intent(in) :: M, N, density, sigma
     real(wp) :: MNtoRm
 
@@ -918,4 +982,5 @@ contains
       MNtoRm=(3.0*M*exp(-4.5*log(sigma)**2)/(4.0*N*pi*density))**(1.0/3.0)
     end if
   end function MNtoRm
+
 end module aerosol_routines

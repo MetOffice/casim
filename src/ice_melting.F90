@@ -13,6 +13,9 @@ module ice_melting
   use distributions, only: dist_lambda, dist_mu, dist_n0
 
   implicit none
+
+  character(len=*), parameter, private :: ModuleName='ICE_MELTING'
+
 contains
 
   !> Subroutine to calculate rate of melting of ice species
@@ -20,6 +23,11 @@ contains
   !> OPTIMISATION POSSIBILITIES: Shouldn't have to recalculate all 3m quantities
   !>                             If just rescaling mass conversion for dry mode
   subroutine melting(dt, k, params, qfields, procs, aeroice, dustact, aerosol_procs)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='MELTING'
+
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
     type(hydro_params), intent(in) :: params

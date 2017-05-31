@@ -3,12 +3,20 @@ module qsat_funs
   implicit none
   private
 
+  character(len=*), parameter, private :: ModuleName='QSAT_FUNS'
+
   public Qsaturation, Qisaturation, dqwsatdt
+
 contains
   ! Function to return the saturation mr over water
   ! Based on tetans formular
   ! QS=3.8/(P*EXP(-17.2693882*(T-273.15)/(T-35.86))-6.109)
-  function Qsaturation (T, p)    
+  function Qsaturation (T, p)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='QSATURATION'
+   
     real(wp), intent(IN) :: T, p
     real(wp) :: Qsaturation
     ! Temperature in Kelvin
@@ -30,7 +38,12 @@ contains
   ! Function to return the saturation mr over ice
   ! Based on tetans formular
   ! QS=3.8/(P*EXP(-21.8745584*(T-273.15)/(T-7.66))-6.109)
-  function Qisaturation(T, p)    
+  function Qisaturation(T, p)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='QISATURATION'
+  
     real(wp), intent(IN) ::  T, p
     real(wp) :: qisaturation
     ! Temperature in Kelvin
@@ -51,6 +64,11 @@ contains
   ! Based on tetans formular
   ! QS=3.8/(P*EXP(-17.2693882*(T-273.15)/(T-35.86))-6.109)
   function dqwsatdt (qsat, T)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='DQWSATDT'
+ 
     real(wp) , intent(IN) ::qsat, T
     real(wp) ::dqwsatdt
     ! Saturatio mixing ratio

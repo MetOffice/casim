@@ -11,6 +11,9 @@ module activation
   use thresholds, only: w_small, nl_tidy, ccn_tidy
 
   implicit none
+
+  character(len=*), parameter, private :: ModuleName='ACTIVATION'
+
   private
 
   public activate
@@ -19,6 +22,10 @@ contains
   subroutine activate(dt, cloud_mass, cloud_number, w, rho, dnumber, dmac, T, p, &
        aerophys, aerochem, aeroact, dustphys, dustchem, dustliq, dnccn_all, dmac_all, &
        dnumber_d, dmass_d)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='ACTIVATE'
 
     real(wp), intent(in) :: dt
     real(wp), intent(in) :: cloud_mass, cloud_number, w, rho, T, p

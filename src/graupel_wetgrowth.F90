@@ -18,6 +18,8 @@ module graupel_wetgrowth
   implicit none
   private
 
+  character(len=*), parameter, private :: ModuleName='GRAUPEL_WETGROWTH'
+
   public wetgrowth
 contains
   subroutine wetgrowth(dt, k, qfields, procs, aerophys, aerochem, aeroact , aerosol_procs)
@@ -25,6 +27,10 @@ contains
     !< frozen or if there will be some shedding
     !<
     !< CODE TIDYING: Should move efficiencies into parameters
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='WETGROWTH'
 
     real(wp), intent(in) :: dt
     integer, intent(in) :: k

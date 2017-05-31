@@ -23,6 +23,8 @@ module ice_accretion
   implicit none
   private
 
+  character(len=*), parameter, private :: ModuleName='ICE_ACCRETION'
+
   public iacc
 contains
 
@@ -30,6 +32,10 @@ contains
        aeroact, dustliq, aerosol_procs)
     !
     !< CODE TIDYING: Move efficiencies into parameters
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='IACC'
 
     real(wp), intent(in) :: dt
     integer, intent(in) :: k

@@ -4,6 +4,8 @@ module m3_incs
   implicit none
   private
 
+  character(len=*), parameter, private :: ModuleName='M3_INCS'
+
   public m3_inc_type4, m3_inc_type3, m3_inc_type2, m3_inc_type1
 contains
 
@@ -12,7 +14,12 @@ contains
   ! c_x, c_y are densities of x and y respectively
   ! p3 is the third moment (must be the same for both x and y)
   ! This assumes both categories are spherical.
-  subroutine m3_inc_type4(dm3_y, c_x, c_y, p3, dm3_x)    
+  subroutine m3_inc_type4(dm3_y, c_x, c_y, p3, dm3_x)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='M3_INC_TYPE4'
+
     real(wp), intent(in) :: dm3_y
     real(wp), intent(in) :: c_x,c_y
     real(wp), intent(in) :: p3
@@ -24,6 +31,11 @@ contains
   ! tendency of m3 as a function of dm1, dm2
   ! assuming initial value for mu
   subroutine m3_inc_type3(p1, p2, p3, dm1, dm2, dm3, mu)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='M3_INC_TYPE3'
+
     real(wp), intent(in) :: dm1, dm2
     real(wp), intent(in) :: p1, p2, p3
     real(wp), intent(in) :: mu
@@ -40,7 +52,12 @@ contains
 
   ! tendency of m3 as a function of m1,m2,dm1,dm2
   ! assuming shape parameter does not vary
-  subroutine m3_inc_type2(m1, m2, m3, p1, p2, p3, dm1, dm2, dm3, mu_init)    
+  subroutine m3_inc_type2(m1, m2, m3, p1, p2, p3, dm1, dm2, dm3, mu_init)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='M3_INC_TYPE2'
+   
     real(wp), intent(in) :: m1, m2, m3, dm1, dm2
     real(wp), intent(in) :: p1, p2, p3
     real(wp), intent(out) :: dm3
@@ -79,7 +96,12 @@ contains
 
   ! tendency of m2 as a function of m1,dm1
   ! assuming shape parameter and slope do not vary
-  subroutine m3_inc_type1(m1, m2, dm1, dm2)   
+  subroutine m3_inc_type1(m1, m2, dm1, dm2)
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='M3_INC_TYPE1'
+
     real(wp), intent(in) :: m1, m2, dm1
     real(wp), intent(out) :: dm2
 
