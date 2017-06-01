@@ -1,6 +1,6 @@
 module sum_process
   use variable_precision, only: wp
-  use mphys_die, only: throw_mphys_error
+  use mphys_die, only: throw_mphys_error, incorrect_opt
   use type_process, only: process_name, process_rate
   use mphys_switches, only: i_th, i_qv, i_ql, i_qr, i_qs, i_qi, i_qg, l_warm, i_m3r, ntotalq, ntotala, &
        i_an11, i_am4, i_nl, i_am9, aero_index, i_nr, i_ng, i_ns, i_am7, i_am8
@@ -140,7 +140,8 @@ contains
                   case (2)
                     call m3_inc_type2(m1, m2, m3, params%p1, params%p2, params%p3, dm1, dm2, dm3)
                   case default
-                    call throw_mphys_error(1, 'sum_procs', 'i_thirdmoment incorrectly set')
+                    call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
+                                           'rain i_thirdmoment incorrectly set' )
                   end select
                   tend_temp(params%i_3m, k)=dm3
                 end if
@@ -164,7 +165,8 @@ contains
                   case (2)
                     call m3_inc_type2(m1, m2, m3, params%p1, params%p2, params%p3, dm1, dm2, dm3)
                   case default
-                    call throw_mphys_error(1, 'sum_procs', 'i_thirdmoment incorrectly set')
+                    call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
+                                           'snow i_thirdmoment incorrectly set')
                   end select
                   tend_temp(params%i_3m, k)=dm3
                 end if
@@ -188,7 +190,8 @@ contains
                   case (2)
                     call m3_inc_type2(m1, m2, m3, params%p1, params%p2, params%p3, dm1, dm2, dm3)
                   case default
-                    call throw_mphys_error(1, 'sum_procs', 'i_thirdmoment incorrectly set')
+                    call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
+                                           'graupel i_thirdmoment incorrectly set')
                   end select
                   tend_temp(params%i_3m, k)=dm3
                 end if

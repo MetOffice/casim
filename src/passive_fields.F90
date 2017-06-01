@@ -1,6 +1,6 @@
 !Fields which aren't updated during the microphysics calculation
 module passive_fields
-  use mphys_die, only: throw_mphys_error
+  use mphys_die, only: throw_mphys_error, bad_values
   use variable_precision, only: wp
   use qsat_funs, only: qsaturation
   use mphys_switches, only: i_th
@@ -91,7 +91,8 @@ contains
     qws(nz)=1.0e-8
 
     if (any(qws==0.0)) then
-      call throw_mphys_error(2, 'passive_fields', 'Error in saturation calculation - qws is zero')
+      call throw_mphys_error(bad_values, ModuleName//':'//RoutineName,      &
+                            'Error in saturation calculation - qws is zero')
     end if
     nullify(theta)
   end subroutine set_passive_fields

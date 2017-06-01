@@ -1,5 +1,5 @@
 module aerosol_routines
-  use mphys_die, only: throw_mphys_error
+  use mphys_die, only: throw_mphys_error, warn
   use type_aerosol, only: aerosol_type, aerosol_phys, aerosol_chem, aerosol_active
   use variable_precision, only: wp
   use mphys_constants, only: Mw, zetasa, Ru, rhow, g, Lv, mp_eps, cp, Rd, Rv, ka, Dv, pi
@@ -156,6 +156,8 @@ contains
     real(wp) :: foo
 
     logical :: l_condition, l_condition_r
+
+    character(len=1900) :: warn_msg=''
 
     ! Some diagnostic strings
     if (present(icall)) then
@@ -324,9 +326,15 @@ contains
           mode_N=aerofields(k,aero_index%in_n(imode))
           mode_M=aerofields(k,aero_index%in_m(imode))
           if (mode_m < 0 .or. mode_n < 0 ) then
-            print*, aero_index%in_m(imode), aerofields(k,:)
-            print*, 'Problem! Using pragmatic hack to continue.  If you see this message, report it to Ben!!!'
-            print*, k, chcall, imode, mode_m, mode_n, nitot, ice_number, snow_number, graupel_number
+
+            write(warn_msg,*)  'Problem! Using pragmatic hack to continue.  '//       &
+                               'If you see this message, report it to Ben Shipway!!!',&
+                                aero_index%in_m(imode), aerofields(k,:),              &
+                                k, chcall, imode, mode_m, mode_n, nitot, ice_number,  &
+                                snow_number, graupel_number
+                                
+            call throw_mphys_error(warn, ModuleName//':'//RoutineName, warn_msg)
+            
             if (mode_m < 0) mode_m=aeromass_small
             if (mode_n < 0) mode_n=aeronumber_small
           end if

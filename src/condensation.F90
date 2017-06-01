@@ -1,5 +1,4 @@
 module condensation
-  use mphys_die, only: throw_mphys_error
   use variable_precision, only: wp
   use passive_fields, only: rho, pressure, w, exner, qws
   use mphys_switches, only: i_qv, i_ql, i_nl, i_th, i_qr, i_qi, i_qs, i_qg, hydro_complexity, l_warm, &

@@ -5,7 +5,7 @@ module distributions
   use lookup, only: get_slope_generic, get_n0, moment, get_mu, get_lam_n0
   use special, only: GammaFunc
   use thresholds, only: thresh_tidy, thresh_sig, thresh_large
-  use mphys_die, only: throw_mphys_error
+  use mphys_die, only: throw_mphys_error, warn, bad_values
   use m3_incs, only: m3_inc_type3
 
   ! VERBOSE = 1 for verbose print statements, otherwise dont display
@@ -41,18 +41,18 @@ contains
 
     character(len=*), parameter :: RoutineName='QUERY_DISTRIBUTIONS'
 
+    character(len=1900) :: warn_msg = ''
+
     type(hydro_params), intent(in) :: params !< species parameters
     real(wp), intent(inout) :: qfields(:,:)
     integer, intent(in), optional :: icall
-
-    integer, parameter :: bad_values = 2
 
     integer :: k    
     integer(wp) :: i1,i2,i3,ispec 
     real(wp) :: n0_old, mu_old, lam_old, alpha, D0, mu_pass=1.0, k1,k2,k3, mu_maxes_calc
 
     character(2) :: chcall
-    character(len = 200) :: err_msg
+    character(len = 200) :: err_msg=''
 
     ! Some diagnostic strings
     if (present(icall)) then
@@ -89,14 +89,20 @@ contains
           if (m3(k) < spacing(m3(k))) then
             call m3_inc_type3(params%p1, params%p2, params%p3, m1(k), m2(k), m3(k), max_mu)
 #if VERBOSE==1                
-            print*, 'WARNING: resetting negative third moment', time, params%id, m3(k), m3_old(k)
-            print*, 'm1 and m2 are: ', qfields(k, i1)/params%c_x, m2(k)
+            write(warn_msg,*) 'WARNING: resetting negative third moment',  &
+                               params%id, m3(k), m3_old(k), 'm1 and m2 are: ',  &
+                               qfields(k, i1)/params%c_x, m2(k)
+
+            call throw_mphys_error(warn, ModuleName//':'//RoutineName, warn_msg)
 #endif                
           else if (m3(k) > thresh_large(params%i_3m)) then
             call m3_inc_type3(params%p1, params%p2, params%p3, m1(k), m2(k), m3(k), 0.0_wp)
 #if VERBOSE==1                 
-            print*, 'WARNING: resetting large third moment', time, params%id, m3(k), m3_old(k)
-            print*, 'm1 and m2 are: ', qfields(k, i1)/params%c_x, m2(k)
+            write(warn_msg,*) 'WARNING: resetting large third moment',    &
+                               params%id, m3(k), m3_old(k), 'm1 and m2 are: ', &
+                               qfields(k, i1)/params%c_x, m2(k)
+
+            call throw_mphys_error(warn, ModuleName//':'//RoutineName, warn_msg)
 #endif                
           end if            
           qfields(k,i3)=m3(k)
@@ -122,7 +128,8 @@ contains
             m3(k)=moment(dist_n0(k,ispec),dist_lambda(k,ispec),dist_mu(k,ispec),params%p3)
             qfields(k,i3)=m3(k)
 #if VERBOSE==1
-            print*, 'WARNING: resetting negative mu', time, mu_old, m1(k), m2(k), m3(k), m3_old(k)
+            write(warn_msg, *) 'WARNING: resetting negative mu',  mu_old, m1(k), m2(k), m3(k), m3_old(k)
+            call throw_mphys_error(warn, ModuleName//':'//RoutineName, warn_msg)
 #endif
           else if (.not. l_limit_psd .and. (dist_mu(k,ispec) + epsilon(1.0) > max_mu .or. mu_pass +epsilon(1.0) > max_mu)) then
             mu_old=dist_mu(k,ispec)
@@ -131,7 +138,8 @@ contains
             m3(k)=moment(dist_mu(k,ispec),dist_lambda(k,ispec),dist_mu(k,ispec),params%p3)
             qfields(k,i3)=m3(k)
 #if VERBOSE==1
-                print*, 'WARNING: resetting large mu', time, mu_old, m1(k), m2(k), m3(k), m3_old(k)
+            write(warn_msg, *) 'WARNING: resetting large mu',  mu_old, m1(k), m2(k), m3(k), m3_old(k)
+            call throw_mphys_error(warn, ModuleName//':'//RoutineName, warn_msg)
 #endif
           end if
         end if
@@ -153,8 +161,9 @@ contains
               m3(k)=moment(dist_n0(k,ispec),dist_lambda(k,ispec),dist_mu(k,ispec),params%p3)
               qfields(k,i3) = m3(k)
 #if VERBOSE==1
-              print*, 'WARNING: adjusting m3 with large mu', time, params%id, dist_mu(k,ispec), mu_old, &
-                       m1(k), m2(k), m3(k), m3_old(k)
+               write(warn_msg, *) 'WARNING: adjusting m3 with large mu',  params%id, dist_mu(k,ispec), mu_old, &
+                                   m1(k), m2(k), m3(k), m3_old(k)
+               call throw_mphys_error(warn, ModuleName//':'//RoutineName, warn_msg)
 #endif
             end if
           end if
@@ -183,8 +192,10 @@ contains
               qfields(k,i3)=m3(k)
             end if
 #if VERBOSE==1
-            print*, 'WARNING: adjusting number and m3', time, params%id, n0_old, dist_n0(k,ispec), m3_old(k), m3(k)
-            print*, 'new m1, m2, m3 are: ', m1(k), m2(k), m3(k)
+            write(warn_msg,*) 'WARNING: adjusting number and m3',  params%id, n0_old,     &
+                              dist_n0(k,ispec), m3_old(k), m3(k), 'new m1, m2, m3 are: ', &
+                              m1(k), m2(k), m3(k)
+            call throw_mphys_error(warn, ModuleName//':'//RoutineName, warn_msg)
 #endif
           end if
           if (D0 < params%Dmin) then
@@ -202,8 +213,10 @@ contains
                qfields(k,i3)=m3(k)
             end if
 #if VERBOSE==1
-            print*, 'WARNING: adjusting number and m3', time, params%id, n0_old, dist_n0(k,ispec), m3_old(k), m3(k)
-            print*, 'new m1, m2, m3 are: ', m1(k), m2(k), m3(k)
+            write(warn_msg,*) 'WARNING: adjusting number and m3',  params%id, n0_old,      &
+                              dist_n0(k,ispec), m3_old(k), m3(k), 'new m1, m2, m3 are: ',  &
+                              m1(k), m2(k), m3(k)
+            call throw_mphys_error(warn, ModuleName//':'//RoutineName, warn_msg)
 #endif
 
           end if
@@ -217,17 +230,17 @@ contains
       if ( m1(k) > 0.0 ) then
         if (params % l_1m .and. dist_lambda(k, ispec) <= 0.0) then
           write(err_msg, '(A,F7.2)')'Unexpected zero or negative lambda: lambda =', dist_lambda(k, ispec)
-          call throw_mphys_error(bad_values, 'query_distributions', err_msg)
+          call throw_mphys_error(bad_values, ModuleName//':'//RoutineName, err_msg)
         end if
 
         if (params % l_2m .and. dist_n0(k, ispec) <= 0.0) then
           write(err_msg, '(A,F7.2)')'Unexpected zero or negative n0: n0 =', dist_n0(k, ispec)
-          call throw_mphys_error(bad_values, 'query_distributions', err_msg)
+          call throw_mphys_error(bad_values, ModuleName//':'//RoutineName, err_msg)
         end if
 
         if (params % l_3m .and. dist_mu(k, ispec) <= 0.0) then
           write(err_msg, '(A,F7.2)')'Unexpected zero or negative mu: mu =', dist_mu(k, ispec)
-          call throw_mphys_error(bad_values, 'query_distributions', err_msg)
+          call throw_mphys_error(bad_values, ModuleName//':'//RoutineName, err_msg)
         end if
       end if ! m1(k) > 0
 

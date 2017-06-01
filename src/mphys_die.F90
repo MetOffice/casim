@@ -10,7 +10,13 @@ module mphys_die
   implicit none
   private
 
-  public throw_mphys_error
+  character(len=*), parameter, private :: ModuleName='MPHYS_DIE'
+
+  integer, parameter :: incorrect_opt = 1
+  integer, parameter :: bad_values    = 2
+  integer, parameter :: warn          = -1
+
+  public throw_mphys_error, incorrect_opt, bad_values, warn
 contains
 
   subroutine throw_mphys_error(itype, routine, info)
@@ -18,28 +24,83 @@ contains
     ! If modifying the subroutine or argument list, ensure that the 
     ! UM version of mphys_die is also modified to give the same answers
 
-    integer, optional, intent(in) :: itype  ! type of error 1 = incorrect specification of options, 0 = unknown
+    implicit none
+
+    integer,      intent(in) :: itype  ! type of error 1 = Incorrect specification of options
+                                       !               2 = Bad values found
+                                       !               3 = Unknown error
+                                       !              <0 = Warning, code will continue
     character(*), intent(in) :: routine
-    character(*), optional, intent(in) :: info ! error information
+    character(*), intent(in) :: info ! error information
 
     integer, parameter :: nstandard_types=3
     character(100) :: stdinfo(nstandard_types) =     &
-         (/ 'incorrect specification of options      ' &
+         (/ 'Incorrect specification of options      ' &
          ,  'Bad values found                        ' &
-         ,  'unknown error                           ' &
+         ,  'Unknown error                           ' &
          /)
     character(1000) :: str
     real :: minus_one=-1.
 
-    str='Error in microphysics: '
-    if (itype <= nstandard_types) str=trim(str)//trim(stdinfo(itype))
-    if (present(info)) str=trim(str)//' Additional information: '//trim(info)
+    character(len=*), parameter :: RoutineName='THROW_MPHYS_ERROR'
+
+    if (itype > 0) then
+
+      !------------------------------------------------------------
+      ! Produce error message
+      !------------------------------------------------------------
+
+      str='Error in CASIM microphysics: '
+
+      if ( itype <= 3 ) then
+        str=trim(str)//trim(stdinfo(itype))
+      else
+        str=trim(str)//trim(stdinfo(3))
+      end if
+
+      str=trim(str)//' Additional information: '//trim(info)
 #if DEF_MODEL==MODEL_KiD
-    print*, 'Runtime is:' , time
+      print*, 'Runtime is:' , time
 #endif
-    print*, routine,':', trim(str)
-    print*, (minus_one)**0.5
-    stop
+      print*, routine,':', trim(str)
+      print*, (minus_one)**0.5
+      stop
+
+    else if ( itype < 0 ) then
+
+      !------------------------------------------------------------
+      ! Produce warning message
+      !------------------------------------------------------------
+
+      str='Warning from CASIM microphysics! '
+      str=trim(str)//' Message: '//trim(info)
+#if DEF_MODEL==MODEL_KiD
+      print*, 'Runtime is:' , time
+#endif
+      print*, routine,':', trim(str)
+
+    end if
 
   end subroutine throw_mphys_error
+
+
+  subroutine mphys_message(routine, msg)
+
+    implicit none
+
+    character(*), intent(in) :: routine ! Routine providing the message
+    character(*), intent(in) :: msg ! Message
+
+    character(len=*), parameter :: RoutineName='MPHYS_MESSAGE'
+
+    character(2000) :: str
+
+    str = '| Message from CASIM microphysics | Routine:' 
+    str = trim(str)//trim(routine)//' | Message: '
+    str = trim(str)//trim(msg)//' |'
+
+    print *, trim(str)
+
+  end subroutine mphys_message
+
 end module mphys_die

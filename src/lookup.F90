@@ -1,5 +1,5 @@
 module lookup
-  use mphys_die, only: throw_mphys_error
+  use mphys_die, only: throw_mphys_error, bad_values
   use variable_precision, only: wp
   use mphys_switches, only: diag_mu_option, l_passive3m, max_mu, l_sm_fix_n0
   use mphys_parameters, only: hydro_params, c_r, d_r, p1, p2, p3
@@ -105,6 +105,8 @@ contains
 
     real(wp) :: m1, m2, p1, p2, p3
 
+    character(len=1900) :: err_msg
+
     m1=mass/params%c_x
     p1=params%p1
     p2=params%p2
@@ -130,8 +132,8 @@ contains
       call get_lam_n0(m1, p1, mu, lam, n0)
     end if
     if (lam <= 0) then
-      print*, 'ERROR2 in lookup', params%id, params%i_2m, m1, number, lam
-      call throw_mphys_error(2, 'get_slope_generic', 'ERROR2 in lookup')
+      write(err_msg, *) 'ERROR in lookup', params%id, params%i_2m, m1, number, lam
+      call throw_mphys_error(bad_values, ModuleName//':'//RoutineName, err_msg)
     end if
   end subroutine get_slope_generic
 
