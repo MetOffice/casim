@@ -141,7 +141,7 @@ contains
       if (cloud_params%l_2m .and. aerosol_option == 0     &
            .and. (iopt_act== 1 .or. iopt_act==3)) then
         write(std_msg, '(A)') 'for double moment cloud you must have aerosol_option>0'// &
-             'or else activation should be independent of aerosol')
+             'or else activation should be independent of aerosol'
         call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
                                std_msg)
              
