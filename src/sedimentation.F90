@@ -1,5 +1,5 @@
 module sedimentation
-  use mphys_die, only: throw_mphys_error, incorrect_opt
+  use mphys_die, only: throw_mphys_error, incorrect_opt, std_msg
   use variable_precision, only: wp, iwp, defp
   use mphys_parameters, only: nz, hydro_params, cloud_params, rain_params   &
        , ice_params, snow_params, graupel_params
@@ -152,8 +152,10 @@ contains
 
     ! we don't want flexible approach in this version....
     if (p1/=sp1 .or. p2/=sp2 .or. p3/=sp3) then
+      write(std_msg, '(A)') 'Cannot have flexible sedimentation options '//&
+                            'with CASIM aerosol'
       call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
-                             'Cannot have flexible sedimentation options with CASIM aerosol')
+                             std_msg)
     end if
 
     a_x=params%a_x
@@ -434,8 +436,9 @@ contains
                 dnumber_d=(flux_n2(k+1)*dustact(k+1)%nratio3)*rdz_on_rho(k)
               end if
             else
+              write(std_msg, '(A)') 'ERROR: GET RID OF i_aerosed_method variable!'
               call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
-                                      'ERROR: GET RID OF i_aerosed_method variable!' )
+                                     std_msg )
             end if
           end if
         end if

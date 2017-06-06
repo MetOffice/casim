@@ -1,13 +1,11 @@
 module m3_incs
   use variable_precision, only: wp
   use lookup, only: Gfunc
-  use mphys_die, only: throw_mphys_error, warn
+  use mphys_die, only: throw_mphys_error, warn, std_msg
   implicit none
   private
 
   character(len=*), parameter, private :: ModuleName='M3_INCS'
-
-  character(len=1900) :: warn_msg=''
 
   public m3_inc_type4, m3_inc_type3, m3_inc_type2, m3_inc_type1
 contains
@@ -89,10 +87,10 @@ contains
       end if
       if (fac < -1.0) then
 
-        write(warn_msg, *) 'm3inc_2 ERROR:', fac, m1,m2,m3,dm1,dm2,k1,k2,k3, &
+        write(std_msg, *) 'm3inc_2 ERROR:', fac, m1,m2,m3,dm1,dm2,k1,k2,k3, &
                             sqrt(fac)
 
-        call throw_mphys_error(warn, ModuleName//':'//RoutineName, warn_msg)
+        call throw_mphys_error(warn, ModuleName//':'//RoutineName, std_msg)
 
       end if
       dm3 = m3*fac

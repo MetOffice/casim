@@ -15,6 +15,9 @@ module mphys_die
   integer, parameter :: incorrect_opt = 1
   integer, parameter :: bad_values    = 2
   integer, parameter :: warn          = -1
+  integer, parameter :: std_msg_len   = 400 ! Length of a standard message
+
+  character(len=std_msg_len) :: std_msg = ''
 
   public throw_mphys_error, incorrect_opt, bad_values, warn
 contains

@@ -1,5 +1,4 @@
 module micro_main
-  use mphys_die, only: throw_mphys_error
   use variable_precision, only: wp
   use mphys_parameters, only: nz, nq, naero, nprocs, naeroprocs, rain_params, cloud_params, ice_params, &
        snow_params, graupel_params, nspecies, parent_dt, ZERO_REAL_WP

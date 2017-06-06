@@ -19,13 +19,12 @@ module mphys_tidy
   use mphys_constants, only: Lv, Ls, cp
   use qsat_funs, only: qisaturation
   use mphys_parameters, only: hydro_params
-  use mphys_die, only: throw_mphys_error, bad_values, warn
+  use mphys_die, only: throw_mphys_error, bad_values, warn, std_msg
 
   implicit none
   private
 
   character(len=*), parameter, private :: ModuleName='MPHYS_TIDY'
-  character(len=1900) :: warn_msg=''
 
   logical :: l_rescale_on_number
   logical :: l_tidym3 = .false.  ! Don't tidy based on m3 values
@@ -772,8 +771,6 @@ contains
     integer :: i_1m, i_2m, i_3m
     logical :: l_rescaled
 
-    character(len=200) :: err_msg
-
     i_1m=params%i_1m
     if (params%l_2m) i_2m=params%i_2m
     if (params%l_3m) i_3m=params%i_3m
@@ -829,9 +826,9 @@ contains
             end if
           end do
           
-          write(err_msg, '(A, F7.4)') 'Problem with ratio > 1.0: ratio = ', ratio
+          write(std_msg, '(A, F7.4)') 'Problem with ratio > 1.0: ratio = ', ratio
           ! Tell mphys_error that this is due to bad values
-          call throw_mphys_error(bad_values, ModuleName//':'//RoutineName, err_msg)
+          call throw_mphys_error(bad_values, ModuleName//':'//RoutineName, std_msg)
 
         end if
         ! Now rescale the scalable processes
@@ -972,14 +969,14 @@ contains
               if (ratio<0.95) then
                 ! Some warnings for testing
 
-                write(warn_msg, *) 'WARNING: Significantly rescaled number, but not sure ' // &
+                write(std_msg, *) 'WARNING: Significantly rescaled number, but not sure ' // &
                                    'what to do with other moments. id, ratio, bad',           &
                                     params%id, ratio, delta_scalable + delta_nonscalable +    &
                                     qfields(k, i_2m), spacing(qfields(k, i_2m)),              &
                                     (qfields(k, i_2m) + delta_nonscalable), delta_scalable,   &
                                     'qfields', qfields(k, i_1m), qfields(k, i_2m)
 
-                call throw_mphys_error(warn, ModuleName//':'//RoutineName, warn_msg)
+                call throw_mphys_error(warn, ModuleName//':'//RoutineName, std_msg)
 
 
                 if (present(iprocs_nonscalable)) then

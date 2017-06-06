@@ -1,5 +1,5 @@
 module ice_nucleation
-  use mphys_die, only: throw_mphys_error, bad_values
+  use mphys_die, only: throw_mphys_error, bad_values, std_msg
   use variable_precision, only: wp
   use passive_fields, only: rho, pressure, w, exner
   use mphys_switches, only: i_qv, i_ql, i_qi, i_ni, i_th , hydro_complexity, i_am4, i_am6, i_an2, l_2mi, l_2ms, l_2mg, &
@@ -88,8 +88,8 @@ contains
     end if
 
     if (qs==0.0 .or. qis==0.0) then
-      call throw_mphys_error(bad_values,  ModuleName//':'//RoutineName, &
-                          'Error in saturation calculation - qs or qis is zero')
+      write(std_msg, '(A)') 'Error in saturation calculation - qs or qis is zero' 
+      call throw_mphys_error(bad_values,  ModuleName//':'//RoutineName, std_msg)
     end if
 
     Sw=qv/qs - 1.0

@@ -1,5 +1,5 @@
 module initialize
-  use mphys_die, only: throw_mphys_error, incorrect_opt
+  use mphys_die, only: throw_mphys_error, incorrect_opt, std_msg
   use variable_precision, only: wp
   use lookup, only: set_mu_lookup, mu_i, mu_g, mu_i_sed, mu_g_sed, nmu
   use derived_constants, only: set_constants
@@ -127,74 +127,93 @@ contains
 
     if (.not. l_override_checks) then
       if (l_warm .and. l_process) then
+        write(std_msg, '(A)') 'processing does not currently work with l_warm=.true.'
         call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
-             'processing does not currently work with l_warm=.true.')
+                               std_msg)
       end if
 
       if (.not. ice_params%l_1m .and. .not. l_warm) then
+        write(std_msg, '(A)') 'l_warm must be true if not using ice'
         call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
-             'l_warm must be true if not using ice')
+                               std_msg)
       end if
 
       if (cloud_params%l_2m .and. aerosol_option == 0     &
            .and. (iopt_act== 1 .or. iopt_act==3)) then
-        call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
-             'for double moment cloud you must have aerosol_option>0'// &
+        write(std_msg, '(A)') 'for double moment cloud you must have aerosol_option>0'// &
              'or else activation should be independent of aerosol')
+        call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
+                               std_msg)
+             
       end if
 
       if (.not. cloud_params%l_2m .and. aerosol_option > 0) then
+        write(std_msg, '(A)') 'aerosol_option must be 0 if not using double moment microphysics'
         call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
-             'aerosol_option must be 0 if not using double moment microphysics')
+                               std_msg)
       end if
 
       if (l_g .and. .not. l_sg) then
-        !      call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, 'cannot run with graupel but not with snow')
+        write(std_msg, '(A)') 'Cannot run with graupel but not with snow'
+        call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
+                               std_msg)
         l_g=.false.
       end if
 
       ! Some options are not yet working or well tested so don't let anyone use these
       if (aerosol_option == 3) then
+        write(std_msg, '(A)') 'This aerosol_option is not yet well tested.'
         call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
-             'This aerosol_option is not yet well tested.')
+                               std_msg)
       end if
 
       if (i_am10 > 0 .or. i_an10 > 0) then
+        write(std_msg, '(A)') 'Accumulation mode dust is not yet used.'
         call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
-             'Accumulation mode dust is not yet used.')
+                               std_msg)
       end if
 
       ! Aerosol consistency
       if (active_rain(isol) .and. .not. active_cloud(isol)) then
+        write(std_msg, '(A)') 'active_rain(isol) .and. .not. active_cloud(isol)'
         call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
-             'active_rain(isol) .and. .not. active_cloud(isol)')
+                               std_msg)
       end if
 
       ! Aerosol consistency
       if (aero_index%i_accum == 0 .and. aero_index%i_coarse==0 .and. &
          (iopt_act==1 .or. iopt_act==3) )                            then
+        write(std_msg, '(A)') 'Must have accumulation or coarse mode aerosol '//&
+                              'for chosen activation option'
         call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
-        'Must have accumulation or coarse mode aerosol for chosen activation option')
+                               std_msg)
       end if
 
       ! Aerosol consistency
       if (aero_index%i_accum == 0 .and. aero_index%nccn /= 1 .and. &
           active_number(isol))                                     then
+      
+        write(std_msg, '(A)') 'Soluble modes must only be accumulation mode '//&
+                              'with soluble active_number'
         call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
-        'Soluble modes must only be accumulation mode with soluble active_number')
+                               std_msg)
       end if
 
       ! Aerosol consistency
       if (aero_index%i_accum_dust == 0 .and. aero_index%nin /= 1 .and. &
           active_number(iinsol))                                  then
+        write(std_msg, '(A)') 'Dust modes must only be accumulation mode '//&
+                              'with insoluble active_number'
         call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
-         'Dust modes must only be accumulation mode with insoluble active_number')
+                               std_msg)
       end if
 
       ! Aerosol processing consistency
       if (process_level > 0 .and. iopt_act < 3) then
+        write(std_msg, '(A)') 'If processing aerosol, must use higher '//&
+                              'level activation code, i.e check iopt_act'
         call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
-        'If processing aerosol, must use higher level activatio code, i.e check iopt_act')
+                               std_msg)
       end if
     end if
   end subroutine check_options
