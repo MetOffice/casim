@@ -4,7 +4,8 @@ module ice_nucleation
   use passive_fields, only: rho, pressure, w, exner
   use mphys_switches, only: i_qv, i_ql, i_qi, i_ni, i_th , hydro_complexity, i_am4, i_am6, i_an2, l_2mi, l_2ms, l_2mg, &
        i_am8, i_am9, aerosol_option, i_nl, i_ns, i_ng, iopt_inuc, i_am7, i_an6, i_an12, l_process, l_passivenumbers, &
-       l_passivenumbers_ice, active_number, active_ice, isol, iinsol, l_itotsg, contact_efficiency, immersion_efficiency
+       l_passivenumbers_ice, active_number, active_ice, isol, iinsol, l_itotsg, contact_efficiency, immersion_efficiency, &
+       aero_index
   use process_routines, only: process_rate, i_inuc, i_dnuc
   use mphys_parameters, only: nucleated_ice_mass, cloud_params, ice_params
   use mphys_constants, only: Ls, cp, pi, m3_to_cm3
@@ -50,7 +51,7 @@ contains
     real(wp) :: lws_meyers, is_meyers
 
     !coefficients for Demott parametrization
-    real(wp) :: a_demott, b_demott, c_demott, d_demott
+    real(wp) :: a_demott, b_demott, c_demott, d_demott, cf
     real(wp) :: Tp01 ! 273.16-Tk (or 0.01 - Tc)
     real(wp) :: Tc ! local temperature in C
     real(wp) :: Tk ! local temperature in K
@@ -66,6 +67,11 @@ contains
     real(wp), parameter :: meyers_a = -0.639 ! Meyers eq 2.4 coeff a
     real(wp), parameter :: meyers_b = 0.1296 ! Meyers eq 2.4 coeff b
 
+    ! parameters for Tobo et al. (2013)
+    real(wp) :: a_tobo, b_tobo, c_tobo, d_tobo
+  
+    ! variables for surface site based parameterisations
+    real(wp) :: n_sites, surf_area
 
     type(process_rate), pointer :: this_proc
     type(process_rate), pointer :: aero_proc
@@ -110,6 +116,17 @@ contains
     case (4)
       ! DeMott Depletion of dust (contact and immersion)
       l_condition=( cloud_number >= nl_tidy .and. Tc < 0)
+    case (6)
+      l_condition=( cloud_number >= nl_tidy .and. Tc < 0)
+    case (7)
+      l_condition=( cloud_number >= nl_tidy .and. Tc < 0)
+    case (8)
+      l_condition=( cloud_number >= nl_tidy .and. Tc < 0)
+    case (9)
+      l_condition=( cloud_number >= nl_tidy .and. Tc < 0)
+    case (10)
+      l_condition=( cloud_number >= nl_tidy .and. Tc < 0)
+      
     end select
 
     if (l_condition) then
@@ -168,6 +185,108 @@ contains
       case (5)
         dN_imm=0.0
         dN_contact=max(0.0_wp, (dustphys(k)%N(1)-ice_number))
+
+      case (6)
+        ! DeMott Depletion of dust (2015)
+        ! 'Integrating laborator and field data to quantify the immersion freezing ice nucleation
+        !  activity of mineral dust particles', Atmos. Chem. Phys., 15, 393-409, doi:10.5194/acp-15-393-2015
+        a_demott = 0.0
+        b_demott = 1.25
+        c_demott = 0.46
+        d_demott = -11.6
+        cf = 1.0
+        Tp01 = 0.01 - Tc
+    
+        if (dustphys(k)%N(1) > ni_tidy) then
+          dN_contact=1.0e3/rho(k)*cf*                                                        &
+                 (rho(k)*m3_to_cm3*contact_efficiency*dustphys(k)%N(1))**(a_demott*(273.16-Tk)+b_demott)*  &
+                 exp(c_demott*(273.16-Tk)+d_demott)
+          dN_contact=min(.9*dustphys(k)%N(1), dN_contact)
+        end if
+
+        if (dustliq(k)%nact1 > ni_tidy) then
+          dN_imm=1.0e3/rho(k)*cf*                                                            &
+                 (rho(k)*dustliq(k)%nact1*m3_to_cm3)**(a_demott*(273.16-Tk)+b_demott)*       &
+                 exp(c_demott*(273.16-Tk)+d_demott)
+          dN_imm=MAX(dN_imm-ice_number,0.0)
+          dN_imm=MIN(dustliq(k)%nact1, dN_imm)
+        end if
+   
+      case (7)
+        ! Niemand et al. (2012) - using only insoluble in liquid!
+        ! 'A particle-surface-area-based parameterization of immersion freezing on desert dust particles',
+        ! J. Atmos. Sci., 69, 3077-3092, doi:10.1175/JAS-D-11-0249.1
+        if (dustliq(k)%nact1 > ni_tidy) then
+          surf_area = 4*pi*dustliq(k)%nact1*rho(k)*dustphys(k)%rd(aero_index%i_coarse_dust)**2* &
+                      EXP(2*dustphys(k)%sigma(aero_index%i_coarse_dust)**2)      ! m2/m3
+          n_sites = EXP(-0.517*Tc+8.934)    ! 1/m2
+          dN_imm = n_sites*surf_area/rho(k) ! 1/kg
+          ! AKM: this approximation is only valid for small particles with Sae,j*ns <<1 !
+          ! according to the paper for monodisperse aerosol this is ok for d<3mum and T < -30degC
+          dN_imm=MAX(dN_imm-ice_number,0.0)
+          dN_imm=MIN(dustliq(k)%nact1, dN_imm)
+        end if
+
+      case (8)
+        ! Atkinson et al. (2013) - using only insoluble in liquid!
+        ! 'The importance of feldspar for ice nucleation by mineral dust in mixed-phase clouds',
+        ! Nature, 498, 355-358, doi:10.1038/nature12278
+        if (dustliq(k)%nact1 > ni_tidy) then
+          surf_area=0.35*4*pi*dustliq(k)%nact1*rho(k)*(dustphys(k)%rd(aero_index%i_coarse_dust))**2* &
+                    EXP(2*dustphys(k)%sigma(aero_index%i_coarse_dust)**2) ! cm2/m3 
+          ! AKM: assuming fraction of K-feldspar in insoluble dust is 0.35
+          n_sites = EXP(-1.038*Tk+275.26) !1/cm2
+          dN_imm = n_sites*surf_area/rho(k)      ! 1/kg
+          ! AKM: this approximation is only valid for small particles ! (s. comment for case (7))
+          dN_imm=MAX(dN_imm-ice_number,0.0)
+          dN_imm=MIN(dustliq(k)%nact1, dN_imm)
+        end if
+
+      case (9)
+        ! Tobo et al. (2013) - using only insoluble in liquid!
+        ! 'Biological aerosol particles as a key determinant of ice nuclei populations in a forest
+        !  ecosystem', J. Geophys. Res., 118, 10100-10110, doi:10.1002/jgrd.50801
+        a_tobo = -0.074
+        b_tobo = 3.8
+        c_tobo = 0.414
+        d_tobo = -9.671
+        if (dustliq(k)%nact1 > ni_tidy) then
+          dN_imm=1.0e3/rho(k)*(rho(k)*m3_to_cm3*dustliq(k)%nact1)**(a_tobo*(273.16-Tk)+b_tobo)*EXP(c_tobo*(273.16-Tk)+d_tobo)
+          dN_imm=MAX(dN_imm-ice_number,0.0)
+          dN_imm=MIN(dustliq(k)%nact1, dN_imm)
+        end if
+
+      case (10)
+        ! DeMott Depletion of dust - not distinguishing between insoluble in
+        ! liquid and interstitial aerosol
+        ! 'Predicting global atmospheric ice nuclei distributions and their impacts on climate',
+        ! Proc. Natnl. Acad. Sci., 107 (25), 11217-11222, 2010, doi:10.1073/pnas.0910818107
+        a_demott = 5.94e-5
+        b_demott = 3.33
+        c_demott = 0.0264
+        d_demott = 0.0033
+        Tp01 = 0.01 - Tc
+    
+        if ((dustliq(k)%nact1 > ni_tidy) .or. (dustphys(k)%N(1) > ni_tidy)) then
+          dN_imm=1.0e3/rho(k)*a_demott*(Tp01)**b_demott*                               &
+                 (rho(k)*m3_to_cm3*(dustliq(k)%nact1+dustphys(k)%N(1)))**(c_demott*Tp01+d_demott)
+          dN_imm=MAX(dN_imm-ice_number,0.0)
+          ! distribute INP between interstital and activated dust (for budgeting
+          ! simulations with l_process > 0)
+          if ((dustliq(k)%nact1 > ni_tidy) .and. (dustphys(k)%N(1) > ni_tidy)) then
+             dN_contact = dN_imm - dustliq(k)%nact1 
+             dN_imm = dN_imm - dN_contact 
+             dN_contact=MIN(0.9*dustphys(k)%N(1), dN_contact)
+          else if (dustliq(k)%nact1 > ni_tidy) then
+             dN_imm=MIN(dustliq(k)%nact1, dN_imm)
+             dN_contact=0.0
+          else if (dustphys(k)%N(1) > ni_tidy) then
+             dN_contact=dN_imm
+             dN_imm=0.0
+             dN_contact=MIN(0.9*dustphys(k)%N(1), dN_contact)
+          end if
+        end if
+
       end select
 
       if (cloud_params%l_2m) dN_imm=min(dN_imm, cloud_number)
