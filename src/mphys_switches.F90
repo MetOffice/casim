@@ -306,7 +306,7 @@ module mphys_switches
   real(wp) :: contact_efficiency = 0.0001   ! Arbitrary efficiency for contact nucleation
   real(wp) :: immersion_efficiency = 1.0 ! Arbitrary efficiency for immersion/condensation freezing
 
-  real(wp) :: max_mu = 35 ! Maximum value of shape parameter
+  real(wp) :: max_mu = 35.0 ! Maximum value of shape parameter
   real(wp) :: max_mu_frac = 0.75 ! Fraction of maximum value of shape parameter at which psd limitation kicks in
   ! (I l_limit_psd=.true.)
   real(wp) :: fix_mu = 2.5 ! Fixed value for shape parameter (1M/2M)

@@ -12,16 +12,9 @@ module lookup
   character(len=*), parameter, private :: ModuleName='LOOKUP'
 
   integer, parameter :: nmu=501
-  real(wp) :: min_mu=0.0!, max_mu=35.
+  real(wp) :: min_mu = 0.0  ! ( max_mu = 35 )
   real(wp), allocatable :: mu_g(:), mu_i(:)
   real(wp), allocatable :: mu_g_sed(:), mu_i_sed(:)
-  !  real(wp) :: j1, j2
-  !  real(wp) :: k1, k2
-  !  real(wp) :: l2, l3
-
-  interface get_slope
-     module procedure get_slope_3M, get_slope_2M, get_slope_1M
-  end interface get_slope
 
   interface get_lam_n0
      module procedure get_lam_n0_3M, get_lam_n0_2M, get_lam_n0_1M
@@ -134,83 +127,6 @@ contains
       call throw_mphys_error(bad_values, ModuleName//':'//RoutineName, std_msg)
     end if
   end subroutine get_slope_generic
-
-  ! 3 moment version
-  subroutine get_slope_3M(k, mass, number, moment3, p1, p2, p3, n0, lam, mu)
-
-    implicit none
-
-    character(len=*), parameter :: RoutineName='GET_SLOPE_3M'
-
-    integer, intent(in) :: k
-    real(wp), intent(in) :: mass, number, moment3
-    real(wp), intent(in) :: p1, p2, p3
-    real(wp), intent(out) :: n0, lam, mu
-    
-    real(wp) :: m1,m2,m3
-
-    m1=mass/c_r
-    m2=number
-    m3=moment3
-
-    call get_mu(m1, m2, m3, p1, p2, p3, mu)
-    call get_lam_n0(m1, m2, m3, p1, p2, p3, mu, lam, n0)
-  end subroutine get_slope_3M
-
-  ! 2 moment version
-  subroutine get_slope_2M(k, mass, number, p1, p2, n0, lam, mu)
-
-    implicit none
-
-    character(len=*), parameter :: RoutineName='GET_SLOPE_2M'
-
-    integer, intent(in) :: k
-    real(wp), intent(in) :: mass, number
-    real(wp), intent(in) :: p1, p2
-    real(wp), intent(out) :: n0, lam, mu
-    
-    real(wp) :: m1,m2
-    real(wp) :: Dm, Deq
-
-    m1=mass/c_r
-    m2=number
-
-    select case (diag_mu_option)
-    case default
-      mu=0.0!params%fix_mu
-    case (1)
-      mu=11.8*(1000.0*(m2/m1)**(1.0/(p2-p1))-.7)**2+2.0
-    case (2)
-      Dm=1.0e3*(m1/m2/c_r)**(1.0/p1) ! in mm
-      Deq=1.1
-      if (Dm <= Deq) then
-        mu=6.0*tanh((4.0*(Dm - Deq))**2)+1.0
-      else
-        mu=30.0*tanh((1.0*(Dm - Deq))**2)+1.0
-      end if
-    end select
-    call get_lam_n0(m1, m2, p1, p2, mu, lam, n0)
-  end subroutine get_slope_2M
-
-  ! 1 moment version
-  subroutine get_slope_1M(k, mass, p1, n0, lam, mu)
-
-    implicit none
-
-    character(len=*), parameter :: RoutineName='GET_SLOPE_1M'
-
-    integer, intent(in) :: k
-    real(wp), intent(in)  :: p1
-    real(wp), intent(in) :: mass
-    real(wp), intent(out) :: n0, lam, mu
-    real(wp) :: m1
-
-    m1=mass/c_r
-
-    mu=fixed_rain_mu
-
-    call get_lam_n0(m1, p1, mu, lam, n0)
-  end subroutine get_slope_1M
 
   subroutine get_mu(m1, m2, m3, p1, p2, p3, mu, mu_g_o, mu_i_o)
 
