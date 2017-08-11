@@ -97,6 +97,7 @@ contains
     if (present(l_thermalexchange)) do_thermal=l_thermalexchange
 
     do_third=.false.
+    third_type = 0 ! Set up a default value
     if (present(i_thirdmoment)) then
       do_third=.true.
       third_type=i_thirdmoment
@@ -136,7 +137,7 @@ contains
                 dm3=-m3
               else
                 if (m3> 0.0 .and. m1 > 0.0 .and. m2 > 0.0 .and. (abs(dm1) > 0.0 .or. abs(dm2) > 0.0)) then
-                  select case (i_thirdmoment)
+                  select case (third_type)
                   case (2)
                     call m3_inc_type2(m1, m2, m3, params%p1, params%p2, params%p3, dm1, dm2, dm3)
                   case default
@@ -162,7 +163,7 @@ contains
                 dm3=-m3
               else
                 if (m3> 0.0 .and. m1 > 0.0 .and. m2 > 0.0 .and. (abs(dm1) > 0.0 .or. abs(dm2) > 0.0)) then
-                  select case (i_thirdmoment)
+                  select case (third_type)
                   case (2)
                     call m3_inc_type2(m1, m2, m3, params%p1, params%p2, params%p3, dm1, dm2, dm3)
                   case default
@@ -188,7 +189,7 @@ contains
                 dm3=-m3
               else
                 if (m3 > 0.0 .and. m1 > 0.0 .and. m2 > 0.0 .and. (abs(dm1) > 0.0 .or. abs(dm2) > 0.0)) then
-                  select case (i_thirdmoment)
+                  select case (third_type)
                   case (2)
                     call m3_inc_type2(m1, m2, m3, params%p1, params%p2, params%p3, dm1, dm2, dm3)
                   case default
