@@ -25,6 +25,7 @@ module condensation
   logical :: l_notransfer=.true.  ! don't transfer aerosol from one mode to another.
 
       real(wp), allocatable :: dnccn_all(:),dmac_all(:)
+      real(wp), allocatable :: dnccnd_all(:),dmad_all(:)
 
   public condevp_initialise, condevp_finalise, condevp
 contains
@@ -36,6 +37,8 @@ contains
 
     allocate(dnccn_all(aero_index%nccn))
     allocate(dmac_all(aero_index%nccn))
+    allocate(dnccnd_all(aero_index%nin))
+    allocate(dmad_all(aero_index%nin))
   end subroutine condevp_initialise  
 
   subroutine condevp_finalise()
@@ -45,6 +48,8 @@ contains
 
     deallocate(dnccn_all)
     deallocate(dmac_all)
+    deallocate(dnccnd_all)
+    deallocate(dmad_all)
   end subroutine condevp_finalise  
 
   subroutine condevp(dt, k, qfields, aerofields, procs, aerophys, aerochem,   &
@@ -165,7 +170,8 @@ contains
             call activate(tau, cloud_mass, cloud_number, w_act, rho(k), dnumber, dmac, &
                  th*exner(k), pressure(k), aerophys(k), aerochem(k), aeroact(k),   &
                  dustphys(k), dustchem(k), dustliq(k),           &
-                 dnccn_all, dmac_all, dnumber_d, dmad)
+                 dnccn_all, dmac_all, dnumber_d, dmad,           &
+                 dnccnd_all,dmad_all)
 
             dnumber_a=dnumber
           end if
@@ -198,6 +204,9 @@ contains
                 else
                   dnumber_d=dnumber
                 end if
+
+                dmad_all(aero_index%i_coarse_dust) = dmad
+                dnccnd_all(aero_index%i_coarse_dust) = dnumber_d
 
                 if (aero_index%i_accum >0 .and. aero_index%i_coarse >0) then
                   ! We have both accumulation and coarse modes
@@ -236,6 +245,8 @@ contains
             dmac_all=0.0 ! No aerosol processing required
             dnumber_a=0.0 ! No aerosol processing required
             dnumber_d=0.0 ! No aerosol processing required
+            dnccnd_all = 0.0
+            dmad_all = 0.0
           end if
         else  ! Nothing significant here to remove - the tidying routines will deal with this
           dmass=0.0 ! no need to do anything since this is now just numerical noise
@@ -245,6 +256,8 @@ contains
           dmac_all=0.0 ! No aerosol processing required
           dnumber_a=0.0 ! No aerosol processing required
           dnumber_d=0.0 ! No aerosol processing required
+          dnccnd_all = 0.0
+          dmad_all = 0.0
         end if
       end if
 
@@ -284,9 +297,9 @@ contains
 
           if (.not. l_warm .and. dmad /=0.0) then
             ! We may have some dust in the liquid...
-            aero_proc%source(i_am9)=dmad
-            aero_proc%source(i_am6)=-dmad ! < USING COARSE
-            aero_proc%source(i_an6)=-dnumber_d ! < USING COARSE
+            aero_proc%source(i_am9)= dmad_all(aero_index%i_coarse_dust)
+            aero_proc%source(i_am6)=-dmad_all(aero_index%i_coarse_dust)! < USING COARSE
+            aero_proc%source(i_an6)=-dnccnd_all(aero_index%i_coarse_dust) ! < USING COARSE
           end if
           nullify(aero_proc)
         end if

@@ -6,7 +6,8 @@ module activation
        i_am2, i_an2, i_am4, i_am1, i_an1, i_am3, i_an3, i_am5, i_am6, i_an6, i_am7, l_warm
   use aerosol_routines, only: aerosol_active, aerosol_phys, aerosol_chem, &
        abdulRazzakGhan2000, invert_partial_moment, upperpartial_moment_logn, &
-       invert_partial_moment_approx, invert_partial_moment_betterapprox
+       invert_partial_moment_approx, invert_partial_moment_betterapprox, &
+       AbdulRazzakGhan2000_dust
   use special, only: erfinv, erf, pi
   use thresholds, only: w_small, nl_tidy, ccn_tidy
 
@@ -21,7 +22,7 @@ contains
 
   subroutine activate(dt, cloud_mass, cloud_number, w, rho, dnumber, dmac, T, p, &
        aerophys, aerochem, aeroact, dustphys, dustchem, dustliq, dnccn_all, dmac_all, &
-       dnumber_d, dmass_d)
+       dnumber_d, dmass_d, dnccnd_all, dmad_all)
 
     implicit none
 
@@ -37,8 +38,9 @@ contains
     type(aerosol_chem), intent(in) :: dustchem
     type(aerosol_active), intent(in) :: dustliq
     real(wp), intent(out) :: dnccn_all(:),dmac_all(:)
+    real(wp), intent(out) :: dnccnd_all(:),dmad_all(:)
     real(wp), intent(out) :: dnumber_d, dmass_d ! activated dust number and mass
-    real(wp) :: active, nccn, Smax, rcrit, nccn_active
+    real(wp) :: active, nccn, Smax, rcrit, nccn_active, dactive,nccn_dactive
     real(wp) :: Nd, rm, sigma, density
 
     real :: work, dmac_i, diff
@@ -74,12 +76,34 @@ contains
 
         if (Smax > 0.02 .and. .not. l_warm) then
           ! need better model than this. Could do partitioning in the same way as CCN
-          dnumber_d=.01*dustphys%N(1)
-          dmass_d=dnumber_d*dustphys%M(1)/dustphys%N(1)
+          dactive = 0.01*dustphys%N(1)
+          !dnumber_d=.01*dustphys%N(1)
+          dmass_d=dactive*dustphys%M(1)/dustphys%N(1)
         end if
       else
         active=0.0
+        dactive=0.0
       end if
+    case(4)
+      ! Use scheme of Abdul-Razzak and Ghan (including for insoluble aerosol by
+      ! assuming small amount of soluble material on it)
+      if (w > w_small .and. sum(aerophys%N(:)) > ccn_tidy) then
+        if (l_warm) then
+          call AbdulRazzakGhan2000(w, p, T, aerophys, aerochem, dnccn_all, Smax, aeroact, &
+             nccn_active, l_useactive)
+          active=sum(dnccn_all(:))
+        end if
+        if (.not. l_warm) then
+           call AbdulRazzakGhan2000_dust(w, p, T, aerophys, aerochem, dnccn_all, Smax, aeroact, &
+                nccn_active, nccn_dactive, dustphys, dustchem, dustliq, dnccnd_all, l_useactive)
+           active   = sum(dnccn_all(:))
+           dactive  = dnccnd_all(aero_index%i_coarse_dust) !SUM(dnccnd_all(:)) i_accum_dust currently not used!
+        end if
+      else
+        active=0.0
+        dactive=0.0
+      end if
+
     end select
 
     select case(iopt_act)
@@ -90,10 +114,14 @@ contains
       if (active > nl_tidy) then
         if (l_useactive) then
           dnumber=active
+          dnumber_d=dactive
         else
-          dnumber=max(0.0_wp,(active-cloud_number))
+          dnumber=max(0.0_wp,(active+dactive-cloud_number))
           ! Rescale to ensure total removal of aerosol number=creation of cloud number
-          dnccn_all = dnccn_all*(dnumber/(sum(dnccn_all) + tiny(dnumber)))
+          dnccn_all = dnccn_all*(dnumber/(sum(dnccn_all) + sum(dnccnd_all) + tiny(dnumber)))
+          dnccnd_all = dnccnd_all*(dnumber/(sum(dnccn_all) + sum(dnccnd_all) + tiny(dnumber)))
+          dnumber = sum(dnccn_all)
+          dnumber_d = sum(dnccnd_all)
         end if
         ! Need to make this consistent with all aerosol_options
         do imode = 1, aero_index%nccn
@@ -110,6 +138,23 @@ contains
             dmac=dmac+dmac_all(imode)
           end if
         end do
+        ! for the insoluble mode
+        if (iopt_act == 4) then
+          do imode = 1, aero_index%nin
+            Nd=dustphys%N(imode)
+            if (Nd > ccn_tidy) then
+              rm=dustphys%rd(imode)
+              sigma=dustphys%sigma(imode)
+              density=dustchem%density(imode)
+
+              rcrit=invert_partial_moment_betterapprox(dnccnd_all(imode), 0.0_wp, Nd, rm, sigma)
+
+              dmad_all(imode)=(4.0*pi*density/3.0)*(upperpartial_moment_logn(Nd, rm, sigma, 3.0_wp, rcrit))
+              dmad_all(imode)=min(dmac_all(imode),0.999*dustphys%M(imode)) ! Don't remove more than 99.9%
+              dmass_d=dmass_d+dmad_all(imode)
+            end if
+          end do
+        end if
       end if
     end select
 
@@ -118,8 +163,10 @@ contains
     dmac_all=dmac_all/dt
     dnccn_all=dnccn_all/dt
     dnumber=dnumber/dt
+    dmass_d = dmass_d/dt
+    dmad_all = dmad_all/dt
+    dnccnd_all=dnccnd_all/dt
     dnumber_d=dnumber_d/dt
-    dmass_d=dmass_d/dt
 
   end subroutine activate
 end module activation
