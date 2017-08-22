@@ -63,29 +63,6 @@ contains
     real(wp), intent(in) :: tend(:,:)
     type(hydro_params), intent(in) :: params
     type(aerosol_active), intent(in) :: aeroact(:), dustact(:)
-    ! NB for liquid phase (cloud/rain) dustact is dustliq
-    ! for ice phase (ice/snow/graupel) aeroact is iceact
-    type(process_rate), intent(inout), target :: procs(:,:)
-    type(process_rate), intent(inout), target :: aerosol_procs(:,:)
-    real(wp), intent(out) :: precip
-    logical, optional, intent(in) :: l_doaerosol
-
-    call sedr_aero(step_length, qfields, aerofields, aeroact, dustact,       &
-         tend, params, procs, aerosol_procs, precip, l_doaerosol)
-  end subroutine sedr
-
-  subroutine sedr_aero(step_length, qfields, aerofields, aeroact, dustact,   &
-       tend, params, procs, aerosol_procs, precip, l_doaerosol)
-
-    implicit none
-
-    character(len=*), parameter :: RoutineName='SEDR_AERO'
-
-    real(wp), intent(in) :: step_length
-    real(wp), intent(in), target :: qfields(:,:), aerofields(:,:)
-    real(wp), intent(in) :: tend(:,:)
-    type(hydro_params), intent(in) :: params
-    type(aerosol_active), intent(in) :: aeroact(:), dustact(:)
     type(process_rate), intent(inout), target :: procs(:,:)
     type(process_rate), intent(inout), target :: aerosol_procs(:,:)
     real(wp), intent(out) :: precip
@@ -483,5 +460,5 @@ contains
       if (params%l_2m) procs(k, iproc%id)%source(params%i_2m)=dm2
       if (params%l_3m) procs(k, iproc%id)%source(params%i_3m)=dm3
     end do
-  end subroutine sedr_aero
+  end subroutine sedr
 end module sedimentation
