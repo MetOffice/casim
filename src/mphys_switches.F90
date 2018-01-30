@@ -48,6 +48,12 @@ module mphys_switches
 
   logical :: l_cfrac_casim_diag_scheme = .false. ! Use diagnostic cloud scheme
 
+! Flag to decide whether to transfer the evaporating aerosol based on whether 
+! it is less or more than halfway between the sizes of accum and coarse modes
+! This is True (Dan Grosvenor Bug) in the package branch
+! Turn to false to turn off Dan's bug fix
+  logical :: l_aeroproc_midway =.true. 
+
   logical :: l_ukca_casim = .false. ! CASIM is coupled to UKCA. 
   ! This is set to false, but needs setting to .true. if l_ukca
   ! is true in the UM.
@@ -378,6 +384,9 @@ module mphys_switches
   ! 1=90% of total aerosol number
   ! 2=Twomey
   ! 3=Abdul-Razzak and Ghan
+  ! 5=Shipway (2015)
+  integer, parameter :: iopt_shipway_act = 5
+
   logical :: l_active_inarg2000 = .false.  ! consider activated aerosol in activation calculation
 
   integer :: iopt_rcrit = 0 ! method used to calculate rcrit (only use 0)
@@ -410,6 +419,9 @@ contains
 
   subroutine set_mphys_switches(in_option, in_aerosol_option)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
     character(len=*), parameter :: RoutineName='SET_MPHYS_SWITCHES'
@@ -419,6 +431,15 @@ contains
     integer :: iq,iproc,idgproc ! counters
     logical :: l_on
     real :: k1,k2,k3
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     if (.not. mphys_is_set) then
       call derive_logicals()
@@ -653,7 +674,13 @@ contains
         soluble_modes(:)=(/ 0, 2, 2/)
         insoluble_modes(:)=(/ 0, 0/)
       case (2)
-        soluble_modes(:)=(/ 0, 2, 2/)
+        soluble_modes(:)=(/ 2, 2, 2/)
+        insoluble_modes(:)=(/ 0, 0/)
+      case (3)
+        soluble_modes(:)=(/ 2, 2, 2/)
+        insoluble_modes(:)=(/ 0, 2/)
+      case (4)
+        soluble_modes(:)=(/ 2, 2, 2/)
         insoluble_modes(:)=(/ 0, 2/)
       end select
 
@@ -829,10 +856,16 @@ contains
       !----------------------------------------------------
       mphys_is_set=.true.
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine set_mphys_switches
 
   ! Allocate an index to a q variable
   subroutine allocq(i, iq, names, name)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -843,12 +876,27 @@ contains
     character(10), intent(inout) :: names(:)
     character(*), intent(in) :: name
 
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
     i=iq+1
     iq=i
     names(iq)=adjustr(trim(name))
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine allocq
 
   subroutine allocp(proc, iproc, idgproc, name, l_onoff)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -858,6 +906,15 @@ contains
     integer, intent(inout) :: iproc, idgproc
     character(*), intent(in) :: name
     logical, optional, intent(in) :: l_onoff
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     iproc=iproc+1
     idgproc=idgproc+1
@@ -869,6 +926,9 @@ contains
     else
       proc%on=.true.
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine allocp
 
   ! Allocate an index to a aerosol variable
@@ -876,6 +936,9 @@ contains
   ! to aero_index if variable should act as an in
   ! or a ccn.
   subroutine alloca(i, iq, names, name, aero_index, i_ccn, i_in)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -890,6 +953,15 @@ contains
     integer, optional, intent(in) :: i_ccn, i_in
 
     integer :: is_ccn, is_in, nin, nccn
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     is_ccn=0
     is_in=0
@@ -921,15 +993,30 @@ contains
       aero_index%in_n(nin)=iq
       aero_index%nin=nin
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine alloca
 
   ! Routine sets logical switches which depend on or are overridden by other switches
   ! Transfer namelist logicals to derived type for ease of use later
   subroutine derive_logicals()
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
     character(len=*), parameter :: RoutineName='DERIVE_LOGICALS'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     pswitch%l_pcond=>l_pcond ! Condensation
     pswitch%l_praut=>l_praut ! Autoconversion cloud -> rain
@@ -1031,5 +1118,8 @@ contains
     if (.not. (pswitch%l_pgacs .or. pswitch%l_psmlt .or. pswitch%l_psacr .or. pswitch%l_pssub)) l_pos4=.false.
     if (.not. (pswitch%l_praut .or. pswitch%l_pracw)) l_pos5=.false.
     if (.not. (pswitch%l_prevp)) l_pos6=.false.
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine derive_logicals
 end module mphys_switches

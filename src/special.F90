@@ -8,7 +8,9 @@ module special
   character(len=*), parameter, private :: ModuleName='SPECIAL'
 
   real(wp), parameter :: euler=0.57721566
-  real(wp), parameter :: pi=3.141592654
+  ! PI is set to the same value as that used in the UM 
+  ! (see conversions_mod in UM)
+  real(wp), parameter :: pi= 3.14159265358979323846
 
   interface erfinv
      module procedure erfinv1
@@ -27,12 +29,15 @@ module special
   real(wp) :: gammalookup_xmin, gammalookup_xmax, gammalookup_dx
   logical :: l_gammalookup_set=.false.
   
-  public pi, Gammafunc, erfc, erfinv, erf
+  public pi, Gammafunc, erfc, erfinv
 contains
   ! NB The following should provide sufficient range
   ! and density of points for linear interpolation
   ! to provide appropriate accuracy for any values required.
   subroutine set_gammalookup(xmin, xmax, dx)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -46,6 +51,16 @@ contains
     real(wp) :: arg
     integer :: nargs
     integer :: i
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
     gammalookup_xmin=xmin
     gammalookup_xmax=xmax
     gammalookup_dx=dx
@@ -60,9 +75,15 @@ contains
       gammalookup_val(i)=gammaFunc1(arg)
       arg=arg+dx
     end do
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine set_gammalookup
 
   function gammalookup(x)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -74,6 +95,15 @@ contains
     real(wp) :: xmin=1e-12, xmax=100.0, dx=.0001
     integer :: i_minus
 
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
     if (.not. l_gammalookup_set) then
       call set_gammalookup(xmin, xmax, dx)
       l_gammalookup_set=.true.
@@ -81,12 +111,18 @@ contains
     ! Locate x in table
     i_minus=int((x - gammalookup_xmin)/gammalookup_dx)+1
     gammalookup=0.5*(gammalookup_val(i_minus)+gammalookup_val(i_minus+1))
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end function gammalookup
 
   !================!
   ! Gamma function !
   !================!
   function gammafunc1(x)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -96,6 +132,15 @@ contains
     real(wp) :: gammafunc1
 
     real(wp) :: f,g,z
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     f=huge(x)
     g=1
@@ -114,9 +159,15 @@ contains
       f=(exp(f)/g)*sqrt(2.0*pi/z)
     end if
     gammafunc1=f
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end function gammafunc1
 
   function erfg(x,c)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -127,8 +178,15 @@ contains
     ! 1 gives erfc(x)
     real(wp) :: erfg, f, z
     integer :: j, cc
-    real(wp) :: t, a1, a2, a3, a4, a5, p
-    integer :: sign
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     z=x
     cc=c
@@ -157,23 +215,15 @@ contains
     ! quick fix, but should do this properly...
     f=f*((1-c)*abs(z)/z +c)
     erfg=f
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end function erfg
 
-  ! Now  use the fortran intrinsic erf
-  function erf(x)
-
-    implicit none
-
-    character(len=*), parameter :: RoutineName='ERF'
-
-    real(wp), intent(in) :: x
-    integer, parameter :: c=0
-    real(wp) :: erf
-
-    erf=erfg(x,c)
-  end function erf
-
   function erfc(x)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -183,13 +233,28 @@ contains
     integer, parameter :: c=1
     real(wp) :: erfc
 
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
     erfc=erfg(x,c)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end function erfc
 
   ! Inverse of error function
   !
   ! This needs more work to get good accuracy
   function erfinv1(x)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -198,15 +263,30 @@ contains
     real(wp), intent(in) :: x
     real(wp) :: erfinv1
 
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
     erfinv1=.5*sqrt(pi)*(x+pi/12.0*x*x*x+7.0/480.0*pi*pi*x**5 &
          +127.0/40320*pi**3*x**7+4369.0/5806080*pi**4*x**9 &
          +34807.0/182476800.0*pi**5*x**11)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end function erfinv1
 
   ! Inverse of error function
   !
   ! Alternative version solves equation
   function erfinv2(x)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -216,6 +296,15 @@ contains
     real(wp) :: erfinv2
 
     real(wp) :: work, work_old, diff, erfx, erfx_old
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     diff=9999.0
     work_old=.2
@@ -229,12 +318,18 @@ contains
     end do
 
     erfinv2=work
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end function erfinv2
 
   ! Inverse of error function
   !
   ! Alternative version solves equation
   function erfinv3(x, tol)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -245,6 +340,15 @@ contains
     real(wp) :: erfinv3
 
     real(wp) :: work, diff, erfx, derfx, tolval
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     tolval=1e-3
     if (present(tol)) tolval=tol
@@ -268,9 +372,15 @@ contains
       end do
     end if
     erfinv3=work
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end function erfinv3
 
   function erf_a(x)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -279,6 +389,18 @@ contains
     real(wp), intent(in) :: x
     real(wp) :: erf_a
 
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
     erf_a=erf(x)-set_a
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end function erf_a
 end module special

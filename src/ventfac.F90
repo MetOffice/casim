@@ -15,6 +15,9 @@ contains
 
   subroutine ventilation(k, V, n0, lam, mu, params)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
     character(len=*), parameter :: RoutineName='VENTILATION'
@@ -27,6 +30,15 @@ contains
     real(wp) :: T1, T2
     real(wp) :: Sc ! Schmidt number
     real(wp) :: a_x, b_x, f_x
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     a_x=params%a_x
     b_x=params%b_x
@@ -41,5 +53,8 @@ contains
          *(1.0 + .5*f_x/lam)**(-(.5*b_x + mu + 2.5))*lam**(-.5*b_x-1.5))
     ! for computational efficiency/accuracy changed from...
     ![' ']    !*(lam + .5*f_x)**(-(.5*b_x + mu + 2.5))*lam**(1.+mu)) &
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine ventilation
 end module ventfac

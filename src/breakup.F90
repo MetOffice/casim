@@ -24,22 +24,36 @@ contains
   !< OPTIMISATION POSSIBILITIES: strip out shape parameters
   subroutine ice_breakup(dt, k, params, qfields, procs)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='ICE_BREAKUP'
-
+    ! Subroutine arguments
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
     type(hydro_params), intent(in) :: params
     real(wp), intent(in), target :: qfields(:,:)
     type(process_rate), intent(inout), target :: procs(:,:)
 
+    ! Local variables
     type(process_name) :: iproc ! processes selected depending on which species we're modifying
     real(wp) :: dnumber, dm1, dm2, dm3
     real(wp) :: number, mass, m1, m2, m3
     type(process_rate), pointer :: this_proc
     real(wp) :: n0, lam, mu
     real(wp) :: Dm ! Mass-weighted mean diameter
+
+    character(len=*), parameter :: RoutineName='ICE_BREAKUP'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     select case (params%id)
     case (4_iwp) !snow
@@ -63,5 +77,8 @@ contains
         nullify(this_proc)
       end if
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine ice_breakup
 end module breakup

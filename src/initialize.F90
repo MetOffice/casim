@@ -33,10 +33,13 @@ contains
   subroutine mphys_init(il, iu, jl, ju, kl, ku,                 &       
        is_in, ie_in, js_in, je_in, ks_in, ke_in, l_tendency)
 
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='MPHYS_INIT'
-
+    ! Subroutine arguments
     integer, intent(in) :: il, iu ! upper and lower i levels
     integer, intent(in) :: jl, ju ! upper and lower j levels
     integer, intent(in) :: kl, ku ! upper and lower k levels
@@ -50,6 +53,7 @@ contains
     ! if false then an increment is returned (i.e. units/timestep)
     logical, intent(in), optional :: l_tendency
 
+    ! Local variables
     integer :: iproc
     real(wp) :: tmp
 
@@ -57,6 +61,17 @@ contains
     integer :: js, je ! upper and lower j levels
     integer :: ks, ke ! upper and lower k levels    
     logical :: l_tendency_loc
+
+    character(len=*), parameter :: RoutineName='MPHYS_INIT'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     call check_options()
     call set_constants()
@@ -91,39 +106,91 @@ contains
     call initialise_lookup_tables()
     !Gaussfunc
     call gaussfunclookup(snow_params%id, tmp, a=snow_params%fix_mu, b=snow_params%d_x, init=.true.)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine mphys_init
 
   subroutine mphys_finalise()
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
+
+    ! Local variables
     character(len=*), parameter :: RoutineName='MPHYS_FINALISE'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     call finalise_sedr()
     call finalise_micromain()
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine mphys_finalise
 
   subroutine initialise_lookup_tables()
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
+
+    ! Local variables
     character(len=*), parameter :: RoutineName='INITIALISE_LOOKUP_TABLES'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     !------------------------------------------------------
     ! Look up tables... (These need to be extended)
     !------------------------------------------------------
     ! mu lookup
+
     allocate(mu_i(nmu))
     allocate(mu_g(nmu))
     call set_mu_lookup(p1, p2, p3, mu_i, mu_g)
     allocate(mu_i_sed(nmu))
     allocate(mu_g_sed(nmu))
     call set_mu_lookup(sp1, sp2, sp3, mu_i_sed, mu_g_sed)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine initialise_lookup_tables
 
   ! Check that the options that have been selected are consitent
   subroutine check_options()
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
+
+    ! Local variables
     character(len=*), parameter :: RoutineName='CHECK_OPTIONS'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     if (.not. l_override_checks) then
       if (l_warm .and. l_process) then
@@ -161,11 +228,6 @@ contains
       end if
 
       ! Some options are not yet working or well tested so don't let anyone use these
-      if (aerosol_option == 3) then
-        write(std_msg, '(A)') 'This aerosol_option is not yet well tested.'
-        call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
-                               std_msg)
-      end if
 
       if (i_am10 > 0 .or. i_an10 > 0) then
         write(std_msg, '(A)') 'Accumulation mode dust is not yet used.'
@@ -216,5 +278,8 @@ contains
                                std_msg)
       end if
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine check_options
 end module initialize

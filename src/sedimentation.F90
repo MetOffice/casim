@@ -35,28 +35,101 @@ contains
 
   subroutine initialise_sedr()
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
     character(len=*), parameter :: RoutineName='INITIALISE_SEDR'
 
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
     allocate(flux_n1(nz), flux_n2(nz), flux_n3(nz), Grho(nz))
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine initialise_sedr
 
   subroutine finalise_sedr()
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
     character(len=*), parameter :: RoutineName='FINALISE_SEDR'
 
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
     deallocate(flux_n1, flux_n2, flux_n3, Grho)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine finalise_sedr  
 
   subroutine sedr(step_length, qfields, aerofields, aeroact, dustact,   &
        tend, params, procs, aerosol_procs, precip, l_doaerosol)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
     character(len=*), parameter :: RoutineName='SEDR'
+
+    real(wp), intent(in) :: step_length
+    real(wp), intent(in), target :: qfields(:,:), aerofields(:,:)
+    real(wp), intent(in) :: tend(:,:)
+    type(hydro_params), intent(in) :: params
+    type(aerosol_active), intent(in) :: aeroact(:), dustact(:)
+    ! NB for liquid phase (cloud/rain) dustact is dustliq
+    ! for ice phase (ice/snow/graupel) aeroact is iceact
+    type(process_rate), intent(inout), target :: procs(:,:)
+    type(process_rate), intent(inout), target :: aerosol_procs(:,:)
+    real(wp), intent(out) :: precip
+    logical, optional, intent(in) :: l_doaerosol
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+    call sedr_aero(step_length, qfields, aerofields, aeroact, dustact,       &
+         tend, params, procs, aerosol_procs, precip, l_doaerosol)
+
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
+  end subroutine sedr
+
+  subroutine sedr_aero(step_length, qfields, aerofields, aeroact, dustact,   &
+       tend, params, procs, aerosol_procs, precip, l_doaerosol)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='SEDR_AERO'
 
     real(wp), intent(in) :: step_length
     real(wp), intent(in), target :: qfields(:,:), aerofields(:,:)
@@ -95,6 +168,15 @@ contains
     logical :: l_da_local  ! local tranfer of l_doaerosol
     real(wp) :: ratio ! used to scale back fluxes if the timestep is too small
     ! If this is used, you can't trust the results.
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     l_da_local=.false.
     if (present(l_doaerosol)) l_da_local=l_doaerosol
@@ -205,9 +287,9 @@ contains
           n2=moment(n0, lam, mu, sp2)
           n3=moment(n0, lam, mu, sp3)
         else
-          n1=m1
-          n2=m2
-          n3=m3
+          n1=m1*rho(k)
+          n2=m2*rho(k)
+          n3=m3*rho(k)
         end if
 
         u1r=a_x*Grho(k)*(lam**(1.0+mu+sp1)*(lam+f_x)**(-(1.0+mu+sp1+b_x)))     &
@@ -268,8 +350,7 @@ contains
 
         ! diagnostic for precip
         if (k==1) then
-          udp=a_x*Grho(k)*(lam**d_x*(lam+f_x)**(-(d_x+b_x)))*(Gammafunc(1.0+mu+d_x+b_x)/Gammafunc(1.0+mu+d_x))
-          precip=(rho(k)*hydro_mass)*udp
+          precip=flux_n1(k)*c_x
         end if
       end if
 
@@ -460,5 +541,8 @@ contains
       if (params%l_2m) procs(k, iproc%id)%source(params%i_2m)=dm2
       if (params%l_3m) procs(k, iproc%id)%source(params%i_3m)=dm3
     end do
-  end subroutine sedr
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
+  end subroutine sedr_aero
 end module sedimentation

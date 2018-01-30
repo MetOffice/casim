@@ -24,9 +24,10 @@ contains
   !> See Bigg 1953
   subroutine ihom_rain(dt, k, qfields, aeroact, dustliq, procs, aerosol_procs)
 
-    implicit none
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
-    character(len=*), parameter :: RoutineName='IHOM_RAIN'
+    implicit none
 
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
@@ -52,6 +53,17 @@ contains
 
     logical :: l_condition, l_freezeall
     logical :: l_ziegler=.true.
+
+    character(len=*), parameter :: RoutineName='IHOM_RAIN'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     th = qfields(k, i_th)
     Tc = th*exner(k) - 273.15
@@ -155,14 +167,20 @@ contains
       end if
       nullify(this_proc)
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine ihom_rain
 
   !> Calculates homogeneous freezing of cloud drops
   !> See Wisener 1972
-  subroutine ihom_droplets(dt, k, qfields, aeroact, dustliq, procs, aerosol_procs)    
+  subroutine ihom_droplets(dt, k, qfields, aeroact, dustliq, procs, aerosol_procs)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='IHOM_DROPLETS'
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
     real(wp), intent(in), target :: qfields(:,:)
@@ -184,6 +202,18 @@ contains
     real(wp) :: Tc
 
     logical :: l_condition
+
+    character(len=*), parameter :: RoutineName='IHOM_DROPLETS'
+
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     th = qfields(k, i_th)
     Tc = th*exner(k) - 273.15
@@ -222,5 +252,8 @@ contains
       end if
       nullify(this_proc)
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine ihom_droplets
 end module homogeneous

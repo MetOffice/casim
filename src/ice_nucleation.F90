@@ -27,10 +27,12 @@ contains
   !> processing of the aerosol in different ways.
   subroutine inuc(dt, k, qfields, procs, dustphys, dustchem, aeroact, dustliq, aerosol_procs)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='INUC'
-
+    ! Subroutine arguments
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
     real(wp), intent(in), target :: qfields(:,:)
@@ -45,6 +47,8 @@ contains
     ! optional aerosol fields to be processed
     type(process_rate), intent(inout), optional, target :: aerosol_procs(:,:)
 
+
+    ! Local variables
     real(wp) :: dmass, dnumber, dmad, dmac, dmadl
 
     ! Liquid water and ice saturation for Meyers equation
@@ -78,6 +82,18 @@ contains
 
     integer :: kk
     logical :: l_condition
+
+    character(len=*), parameter :: RoutineName='INUC'
+
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     qv=qfields(k, i_qv)
     th=qfields(k, i_th)
@@ -337,5 +353,8 @@ contains
       end if
       nullify(this_proc)
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine inuc
 end module ice_nucleation

@@ -24,10 +24,12 @@ contains
   !>                             If just rescaling mass conversion for dry mode
   subroutine melting(dt, k, params, qfields, procs, aeroice, dustact, aerosol_procs)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='MELTING'
-
+    ! Subroutine arguments
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
     type(hydro_params), intent(in) :: params
@@ -51,6 +53,17 @@ contains
     real(wp) :: acc_correction
     logical :: l_meltall ! do we melt everything?
     real(wp) :: dmac, dmad
+
+    character(len=*), parameter :: RoutineName='MELTING'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     l_meltall=.false.
     mass=qfields(k, params%i_1m)
@@ -126,7 +139,10 @@ contains
 
         dmass=max(dmass, ZERO_REAL_WP) ! ensure positive
 
-        if (dmass == ZERO_REAL_WP) return  ! No need to do anything
+        if (dmass == ZERO_REAL_WP) then
+          IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+          return  ! No need to do anything
+        end if 
 
         dmass=min(dmass, mass/dt) ! ensure we don't remove too much
         if (dmass*dt > 0.95*mass) then ! we're pretty much removing everything
@@ -203,5 +219,8 @@ contains
       end if
       nullify(this_proc)
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine melting
 end module ice_melting

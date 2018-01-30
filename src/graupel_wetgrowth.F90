@@ -28,10 +28,13 @@ contains
     !<
     !< CODE TIDYING: Should move efficiencies into parameters
 
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='WETGROWTH'
-
+    ! Subroutine arguments
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
     real(wp), intent(in), target :: qfields(:,:)
@@ -44,6 +47,8 @@ contains
 
     ! optional aerosol fields to be processed
     type(process_rate), intent(inout), optional :: aerosol_procs(:,:)
+
+    ! Local variables
 
     type(process_name) :: iproc ! processes selected depending on
     ! which species we're modifying
@@ -63,6 +68,17 @@ contains
     real(wp) :: pgaci_dry, pgacs_dry, pgdry
     real(wp) :: pgwet       !< Amount of liquid that graupel can freeze withouth shedding
     real(wp) :: pgacsum     !< Sum of all graupel accretion terms
+
+    character(len=*), parameter :: RoutineName='WETGROWTH'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     mass=qfields(k, graupel_params%i_1m)
 
@@ -143,6 +159,10 @@ contains
       ! Aerosol processing...
       !----------------------
       nullify(this_proc)
+
     end if
+  
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine wetgrowth
 end module graupel_wetgrowth

@@ -23,23 +23,37 @@ contains
 
   subroutine racr(dt, k, qfields, procs)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='RACR'
-
+    ! Subroutine arguments
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
     real(wp), intent(in), target :: qfields(:,:)
     type(process_rate), intent(inout), target :: procs(:,:)
 
+    ! Local variables
     real(wp) :: dmass, dnumber, Dr, Eff
     real(wp) :: m1, m2, m3, dm1, dm2, dm3
     real(wp) :: rain_mass
     real(wp) :: rain_number
     real(wp) :: rain_m3
     type(process_rate), pointer :: this_proc
-
     logical :: l_beheng=.true.
+
+    character(len=*), parameter :: RoutineName='RACR'
+    
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
 
     if (l_2mr) then
       rain_mass=qfields(k, i_qr)
@@ -74,6 +88,9 @@ contains
         nullify(this_proc)
       end if
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine racr
 
   !< Subroutine to determine the aggregation of
@@ -85,22 +102,36 @@ contains
   !< CODE TIDYING: Move efficiencies into parameters
   subroutine ice_aggregation(dt, k, params, qfields, procs)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='ICE_AGGREGATION'
-
+    ! Subroutine arguments
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
     type(hydro_params), intent(in) :: params
     real(wp), intent(in), target :: qfields(:,:)
     type(process_rate), intent(inout), target :: procs(:,:)
 
+    ! Local variables
     type(process_name) :: iproc ! processes selected depending on which species we're modifying
     real(wp) :: dnumber, dm1, dm2, dm3
     real(wp) :: Eff ! collection efficiencies need to re-evaluate these and put them in properly to mphys_parameters
     real(wp) :: number, mass, m1, m2, m3, gaussterm
     type(process_rate), pointer :: this_proc
     real(wp) :: n0, lam, mu
+
+    character(len=*), parameter :: RoutineName='ICE_AGGREGATION'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     Eff=min(1.0_wp, 0.2*exp(0.08*TdegC(k)))
     select case (params%id)
@@ -134,5 +165,8 @@ contains
       this_proc%source(params%i_2m)=dnumber
       nullify(this_proc)
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine ice_aggregation
 end module aggregation

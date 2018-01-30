@@ -25,6 +25,9 @@ contains
 
   function Gfunc(mu, p1, p2, p3)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
     character(len=*), parameter :: RoutineName='GFUNC'
@@ -33,6 +36,15 @@ contains
 
     real(wp) :: Gfunc, GfuncL
     real(wp) :: k1, k2, k3
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     k3=p2-p1
     k1=(p3-p2)/k3
@@ -44,9 +56,15 @@ contains
     !         )
 
     Gfunc=GammaFunc(1.0+mu+p1)**k1*GammaFunc(1.0+mu+p2)**k2*GammaFunc(1.0+mu+p3)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end function Gfunc
 
   function Hfunc(m1,m2,m3, p1, p2, p3)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -57,14 +75,29 @@ contains
     real(wp) :: Hfunc
     real(wp) :: k1, k2, k3
 
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
     k3=p2-p1
     k1=(p3-p2)/k3
     k2=(p1-p3)/k3
 
     Hfunc=exp(k1*log(m1)+k2*log(m2)+log(m3))
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end function Hfunc
 
   subroutine set_mu_lookup(p1, p2, p3, index, value)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -75,6 +108,15 @@ contains
 
     integer :: i, lb, ub
 
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
     lb=lbound(index,1)
     ub=ubound(index,1)
 
@@ -82,9 +124,15 @@ contains
       index(i)=min_mu+(max_mu-min_mu)/(nmu-1.0)*(i-1)
       value(i)=Gfunc(index(i), p1, p2, p3)
     end do
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine set_mu_lookup
 
   subroutine get_slope_generic(k, params, n0, lam, mu, mass, number, m3)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -97,6 +145,15 @@ contains
     real(wp), intent(in), optional :: number, m3
 
     real(wp) :: m1, m2, p1, p2, p3
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     m1=mass/params%c_x
     p1=params%p1
@@ -126,9 +183,138 @@ contains
       write(std_msg, *) 'ERROR in lookup', params%id, params%i_2m, m1, number, lam
       call throw_mphys_error(bad_values, ModuleName//':'//RoutineName, std_msg)
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine get_slope_generic
 
+  ! 3 moment version
+  subroutine get_slope_3M(k, mass, number, moment3, p1, p2, p3, n0, lam, mu)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='GET_SLOPE_3M'
+
+    integer, intent(in) :: k
+    real(wp), intent(in) :: mass, number, moment3
+    real(wp), intent(in) :: p1, p2, p3
+    real(wp), intent(out) :: n0, lam, mu
+    
+    real(wp) :: m1,m2,m3
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+    m1=mass/c_r
+    m2=number
+    m3=moment3
+
+    call get_mu(m1, m2, m3, p1, p2, p3, mu)
+    call get_lam_n0(m1, m2, m3, p1, p2, p3, mu, lam, n0)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
+  end subroutine get_slope_3M
+
+  ! 2 moment version
+  subroutine get_slope_2M(k, mass, number, p1, p2, n0, lam, mu)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='GET_SLOPE_2M'
+
+    integer, intent(in) :: k
+    real(wp), intent(in) :: mass, number
+    real(wp), intent(in) :: p1, p2
+    real(wp), intent(out) :: n0, lam, mu
+    
+    real(wp) :: m1,m2
+    real(wp) :: Dm, Deq
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+    m1=mass/c_r
+    m2=number
+
+    select case (diag_mu_option)
+    case default
+      mu=0.0!params%fix_mu
+    case (1)
+      mu=11.8*(1000.0*(m2/m1)**(1.0/(p2-p1))-.7)**2+2.0
+    case (2)
+      Dm=1.0e3*(m1/m2/c_r)**(1.0/p1) ! in mm
+      Deq=1.1
+      if (Dm <= Deq) then
+        mu=6.0*tanh((4.0*(Dm - Deq))**2)+1.0
+      else
+        mu=30.0*tanh((1.0*(Dm - Deq))**2)+1.0
+      end if
+    end select
+
+    call get_lam_n0(m1, m2, p1, p2, mu, lam, n0)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
+  end subroutine get_slope_2M
+
+  ! 1 moment version
+  subroutine get_slope_1M(k, mass, p1, n0, lam, mu)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='GET_SLOPE_1M'
+
+    integer, intent(in) :: k
+    real(wp), intent(in)  :: p1
+    real(wp), intent(in) :: mass
+    real(wp), intent(out) :: n0, lam, mu
+    real(wp) :: m1
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+    m1=mass/c_r
+
+    mu=fixed_rain_mu
+
+    call get_lam_n0(m1, p1, mu, lam, n0)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
+  end subroutine get_slope_1M
+
   subroutine get_mu(m1, m2, m3, p1, p2, p3, mu, mu_g_o, mu_i_o)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -143,6 +329,15 @@ contains
     real(wp) :: muG(nmu), muI(nmu)
     integer  :: i
     real(wp) :: k1, k2, k3, pos
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     if (present(mu_g_o) .and. present(mu_i_o)) then
       muG=mu_g_o
@@ -174,10 +369,16 @@ contains
         mu=muI(i)+(G-muG(i))/(muG(i+1)-muG(i))*(muI(i+1)-muI(i))
       end if
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine get_mu
 
   ! 3M version
   subroutine get_lam_n0_3M(m1, m2, m3, p1, p2, p3, mu, lam, n0)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -189,6 +390,15 @@ contains
 
     real(wp) :: p, m
     real(wp) :: l2
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     !    l2 = 1./(p2-p3)
     !
@@ -204,10 +414,16 @@ contains
     p=p2
 
     n0=lam**(p)*m*GammaFunc(1.0+mu)/GammaFunc(1.0+mu+p)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine get_lam_n0_3M
 
   ! 2M version
   subroutine get_lam_n0_2M(m1, m2, p1, p2, mu, lam, n0)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -220,6 +436,15 @@ contains
     real(wp) :: p, m
     real(wp) :: j1
 
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
     j1=1.0/(p1-p2)
 
     lam=((GammaFunc(1.0+mu+p1)/GammaFunc(1.0+mu+p2))*(m2/m1))**(j1)
@@ -228,10 +453,16 @@ contains
     p=p2
 
     n0=lam**(p)*m*GammaFunc(1.0+mu)/GammaFunc(1.0+mu+p)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine get_lam_n0_2M
 
   ! 1M version
   subroutine get_lam_n0_1M(m1, p1, mu, lam, n0)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -240,6 +471,15 @@ contains
     real(wp), intent(in) :: m1, mu, n0
     real(wp), intent(in) :: p1
     real(wp), intent(out) :: lam
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     ! 
     ! Fixing Nx is equivalent to having n0=na*lam**(1+mu)
@@ -250,10 +490,16 @@ contains
     !
 
     lam=(n0*GammaFunc(1.0+mu+p1)/GammaFunc(1.0+mu)*m1**(-1.0))**(1.0/p1)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine get_lam_n0_1M
 
   ! Get n0 given a moment and lamda and mu
   subroutine get_n0(m, p, mu, lam, n0)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -263,10 +509,25 @@ contains
     real(wp), intent(in) :: p
     real(wp), intent(out) :: n0
 
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
     n0=m/(GammaFunc(1+mu+p)*lam**(-p)/GammaFunc(1+mu))
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine get_n0
 
   function moment(n0,lam,mu,p)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -275,6 +536,18 @@ contains
     real(wp), intent(in) :: n0, lam, mu, p
     real(wp) :: moment
 
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
     moment=n0*GammaFunc(1+mu+p)*lam**(-p)/GammaFunc(1+mu)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end function moment
 end module lookup

@@ -21,16 +21,19 @@ contains
 
   subroutine raut(dt, k, qfields, aerofields, procs, aerosol_procs)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='RAUT'
-
+    ! Subroutine arguments
     real(wp), intent(in) :: dt
     integer,  intent(in) :: k
     real(wp), intent(in) :: qfields(:,:), aerofields(:,:)
     type(process_rate), intent(inout), target :: procs(:,:)
     type(process_rate), intent(inout), target :: aerosol_procs(:,:)
 
+    ! Local variables
     real(wp) :: dmass, dnumber1, dnumber2, damass
     real(wp) :: m1, m2, m3, dm1,dm2,dm3
     real(wp) :: n0, lam, mu
@@ -45,6 +48,16 @@ contains
     real(wp) :: mu_qc ! < cloud shape parameter (currently only used diagnostically here)
 
     integer :: i
+    character(len=*), parameter :: RoutineName='RAUT'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     cloud_mass=qfields(k, i_ql)
     if (l_2mc) then
@@ -101,5 +114,8 @@ contains
       end if
       nullify(this_proc)
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine raut
 end module autoconversion

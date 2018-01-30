@@ -28,10 +28,12 @@ contains
     !<
     !< AEROSOL: NOT DONE YET - internal category transfer
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='GRAUPEL_EMBRYOS'
-
+    ! Subroutine arguments
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
     real(wp), intent(in), target :: qfields(:,:)
@@ -45,6 +47,7 @@ contains
     ! optional aerosol fields to be processed
     type(process_rate), intent(inout), optional :: aerosol_procs(:,:)
 
+    ! Local variables
     real(wp) :: cloud_mass, snow_mass, snow_number
     real(wp) :: dmass, dnumber
     real(wp) :: m1, m2, m3, dm1, dm2, dm3
@@ -63,6 +66,17 @@ contains
 
     real(wp) :: Garg ! Argument for Gamma function
     integer  :: pid  ! Process id
+
+    character(len=*), parameter :: RoutineName='GRAUPEL_EMBRYOS'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     snow_mass=qfields(k, snow_params%i_1m)
     cloud_mass=qfields(k, cloud_params%i_1m)
@@ -104,6 +118,10 @@ contains
       ! Aerosol processing...
       !----------------------
       nullify(this_proc)
+
     end if
+      
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine graupel_embryos
 end module graupel_embryo

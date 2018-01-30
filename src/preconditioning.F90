@@ -2,7 +2,7 @@ module Preconditioning
   use variable_precision, only: wp
   use passive_fields, only: qws
   use mphys_switches, only: i_qv, i_ql, i_qr, i_qi, i_qs, i_qg , cloud_params, &
-       rain_params, ice_params, snow_params, graupel_params
+       rain_params, ice_params, snow_params, graupel_params, l_cfrac_casim_diag_scheme
   use thresholds, only: thresh_tidy
   implicit none
   private
@@ -14,6 +14,9 @@ contains
 
   subroutine preconditioner(qfields)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
     character(len=*), parameter :: RoutineName='PRECONDITIONER'
@@ -22,6 +25,15 @@ contains
 
     integer :: k
     logical :: l_temp
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     do k=ubound(precondition,1)-1, 1, -1
       ! Do we have any existing hydrometeor mass?
@@ -38,7 +50,9 @@ contains
       ! l_temp = l_temp .or. Si > 0.25
       ! Do we have something above which might fall down
       l_temp=l_temp .or. precondition(k+1)
-
+      l_temp = l_temp .or. l_cfrac_casim_diag_scheme !DPG - To prevent early quit from
+        !CASIM if we are sub-saturated since want to allow cloud scheme to operate even
+        !if we are subsaturated.
       ! qsat doesn't work at very low pressures,
       ! so if qsaturation is 0.0 then don't do microphysics
       if (qws(k) <= 1.0e-6) l_temp=.false.
@@ -47,5 +61,8 @@ contains
       ! OK, that's all...
       precondition(k)=l_temp
     end do
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine preconditioner
 end module Preconditioning

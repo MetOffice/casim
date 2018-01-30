@@ -44,9 +44,21 @@ contains
 
   subroutine initialise_mphystidy()
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
     character(len=*), parameter :: RoutineName='INITIALISE_MPHYSTIDY'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     allocate(thresh(lbound(thresh_tidy,1):ubound(thresh_tidy,1)), qin_thresh(lbound(thresh_tidy,1):ubound(thresh_tidy,1)), &
          l_qsig(0:ntotalq), l_qpos(0:ntotalq), l_qsmall(0:ntotalq), l_qsneg(0:ntotalq), l_qpresent(0:ntotalq))
@@ -66,9 +78,15 @@ contains
     l_qsmall(0)=.false.
     l_qsneg(0)=.false.
     l_qpresent(0)=.false.
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine initialise_mphystidy
 
   subroutine recompute_qin_constants(l_negonly)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -76,13 +94,28 @@ contains
 
     logical, intent(in) :: l_negonly
 
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
     qin_thresh=thresh_tidy
     if (l_negonly) then
       qin_thresh=0.0*qin_thresh
-    end if   
+    end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine recompute_qin_constants  
 
   subroutine recompute_constants(l_negonly)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -90,27 +123,57 @@ contains
 
     logical, intent(in) :: l_negonly
    
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
     if (l_negonly) then
       thresh=0.0
     else
       thresh=thresh_tidy
-    end if   
+    end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine recompute_constants
 
   subroutine finalise_mphystidy()
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
     character(len=*), parameter :: RoutineName='FINALISE_MPHYSTIDY'
 
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
     if (l_process) then
       deallocate(l_asig, l_apresent, l_asneg, l_apos, l_asmall, athresh)
     end if
     deallocate(l_qsig, l_qpresent, l_qsneg, l_qpos, l_qsmall, thresh, qin_thresh)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine finalise_mphystidy  
 
   subroutine qtidy(dt, k, qfields, procs, aerofields, aeroact, dustact, aeroice, dustliq, &
        aeroprocs, i_proc, i_aproc, l_negonly)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -134,6 +197,15 @@ contains
     real(wp) :: dmass, dnumber    
 
     integer :: iq
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     ql_reset=.false.
     nl_reset=.false.
@@ -535,9 +607,15 @@ contains
         end if
       end if
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine qtidy
 
   subroutine tidy_qin(qfields, l_negonly)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -551,6 +629,15 @@ contains
     logical :: qi_reset, ni_reset, qs_reset, ns_reset, m3s_reset
     logical :: qg_reset, ng_reset, m3g_reset
     integer :: k    
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     if (present(l_negonly)) then
       if (l_negonly .neqv. current_qin_l_negonly) then
@@ -691,9 +778,15 @@ contains
       end if
 
     end do
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine tidy_qin
 
   subroutine tidy_ain(qfields, aerofields)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -703,6 +796,15 @@ contains
     real(wp), intent(inout) :: aerofields(:,:)
 
     integer :: k
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     do k=1, ubound(qfields,1)
       if ((qfields(k, i_ql)+qfields(k,i_qr) <=0.0 .and. aerofields(k,i_am4)>0.0) .or. aerofields(k,i_am4) < 0.0) then
@@ -733,6 +835,9 @@ contains
         end if
       end if
     end do
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine tidy_ain
 
   ! Subroutine to ensure parallel processes don't remove more
@@ -740,6 +845,9 @@ contains
     ! (including number and other terms)
   subroutine ensure_positive(k, dt, qfields, procs, params, iprocs_scalable, iprocs_nonscalable &
        , aeroprocs, iprocs_dependent, iprocs_dependent_ns)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -770,6 +878,15 @@ contains
     real(wp) :: delta_scalable, delta_nonscalable, ratio, maxratio
     integer :: i_1m, i_2m, i_3m
     logical :: l_rescaled
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     i_1m=params%i_1m
     if (params%l_2m) i_2m=params%i_2m
@@ -1011,6 +1128,8 @@ contains
       end if
     end if
 
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine ensure_positive
 
   ! Subroutine to ensure parallel aerosol processes don't remove more
@@ -1018,6 +1137,9 @@ contains
   ! (NB this follows any rescaling due to the parent microphysical processes and
   ! we might lose consistency between number and mass here)
   subroutine ensure_positive_aerosol(k, dt, aerofields, aerosol_procs, iprocs)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -1031,6 +1153,15 @@ contains
 
     integer :: iq, iproc, id
     real(wp) :: ratio, delta_scalable
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     do iq=1, ntotala
       delta_scalable=0.0
@@ -1053,6 +1184,9 @@ contains
         end do
       end if
     end do
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine ensure_positive_aerosol
 
   ! Subroutine to ensure parallel ice processes don't remove more
@@ -1062,6 +1196,9 @@ contains
     ! Modified so it can also prevent sublimation processes from putting
     ! back too much vapour and so become supersaturated
   subroutine ensure_saturated(k, dt, qfields, procs, iprocs_scalable)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -1076,6 +1213,15 @@ contains
     integer :: iproc, id
     real(wp) :: delta_scalable, ratio, delta_sat
     real(wp) :: th, qv, qis
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     delta_scalable=0.0
     do iproc=1, size(iprocs_scalable)
@@ -1105,11 +1251,17 @@ contains
         end do
       end if
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine ensure_saturated
 
   ! Once tidied, there may be some negative numbers due to
   ! rounding error, so should be safe to lose these
   subroutine cleanup_q(qfields)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -1120,6 +1272,15 @@ contains
     integer :: i1,i2 ! use loops instead of where construct
     integer :: lbounds(2), ubounds(2)
 
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
     lbounds=lbound(qfields)
     ubounds=ubound(qfields)
     do i2=lbounds(2), ubounds(2)
@@ -1129,5 +1290,8 @@ contains
         end if
       end do
     end do
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine cleanup_q
 end module mphys_tidy

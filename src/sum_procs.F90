@@ -19,6 +19,9 @@ contains
 
   subroutine sum_aprocs(dst, procs, tend, iprocs, names, afields)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
     character(len=*), parameter :: RoutineName='SUM_APROCS'
@@ -37,6 +40,15 @@ contains
 
     character(2) :: char
     character(100) :: name
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     allocate(tend_temp(lbound(tend,1):ubound(tend,1), lbound(tend,2):ubound(tend,2)))
     tend_temp=ZERO_REAL_WP
@@ -60,9 +72,15 @@ contains
     ! Add on tendencies to those already passed in.
     tend=tend+tend_temp
     deallocate(tend_temp)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine sum_aprocs
 
   subroutine sum_procs(dst, procs, tend, iprocs, names, l_thermalexchange, i_thirdmoment, qfields, l_passive )
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -92,6 +110,15 @@ contains
     logical :: do_update ! update the tendency
     integer :: third_type
     real :: qh ! total hydrometeor
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     do_thermal=.false.
     if (present(l_thermalexchange)) do_thermal=l_thermalexchange
@@ -226,5 +253,8 @@ contains
       end do
     end if    
     deallocate(tend_temp)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine sum_procs
 end module sum_process

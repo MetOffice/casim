@@ -15,6 +15,9 @@ contains
   ! and fallspeed parameters
   function sweepout(n0, lam, mu, params, rho, mass_weight)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
     character(len=*), parameter :: RoutineName='SWEEPOUT'
@@ -34,6 +37,16 @@ contains
 
     integer :: k ! loop index
 
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
     arg3=3.0+params%b_x+mu
     coef=1.0
     if (present(mass_weight)) then
@@ -47,12 +60,18 @@ contains
     G1_mu=GammaFunc(1.0+mu)
     sweepout=coef*(pi*n0*params%a_x/4.0)*G3_b_mu/G1_mu* (1.0 + params%f_x/lam)**(-arg3)&
          *lam**(1 + mu - arg3)* (rho/rho0)**(params%g_x)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end function sweepout
 
   ! Calculate the number of species Y collected by species X through
   ! binary collisions as both species sediment
   function binary_collection(n0_X, lam_X, mu_X, n0_Y, lam_Y, mu_Y,   &
        params_X, params_Y, rho, mass_weight)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -91,6 +110,15 @@ contains
     real(wp) :: delV !< bulk fall-speed differential
 
     integer :: k ! loop index
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     arg1_X=1.0+mu_X
     arg2_X=2.0+mu_X
@@ -131,5 +159,8 @@ contains
     delV=max(max(V_X,V_Y)/4.0, abs(V_X-V_Y))
 
     binary_collection=coef*0.25*pi*n0_X*n0_Y*delV*(l_X3*l_Y1*G1_Y*G3_X+2.0*l_X2*l_Y2*G2_Y*G2_X+l_X1*l_Y3*G3_Y*G1_X)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end function binary_collection
 end module sweepout_rate

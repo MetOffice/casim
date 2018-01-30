@@ -26,11 +26,23 @@ contains
 
   subroutine initialise_passive_fields(kl_arg, ku_arg)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
     character(len=*), parameter :: RoutineName='INITIALISE_PASSIVE_FIELDS'
 
     integer, intent(in) :: kl_arg, ku_arg
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     kl=kl_arg
     ku=ku_arg
@@ -49,10 +61,16 @@ contains
     allocate(qws0(nz))
     allocate(TdegK(nz))
     allocate(TdegC(nz))
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine initialise_passive_fields
 
   subroutine set_passive_fields(dt_in, rho_in, p_in, exner_in,   &
        z_half_in, z_centre_in, dz_in, w_in, tke_in, qfields)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -66,6 +84,15 @@ contains
     integer :: k
 
     real(wp), pointer :: theta(:)
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     theta=>qfields(:,i_th)
 
@@ -96,5 +123,8 @@ contains
                               std_msg )
     end if
     nullify(theta)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine set_passive_fields
 end module passive_fields

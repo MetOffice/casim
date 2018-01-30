@@ -31,34 +31,70 @@ module condensation
 contains
 
   subroutine condevp_initialise()
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
+    ! Local variables
     character(len=*), parameter :: RoutineName='CONDEVP_INITIALISE'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     allocate(dnccn_all(aero_index%nccn))
     allocate(dmac_all(aero_index%nccn))
     allocate(dnccnd_all(aero_index%nin))
     allocate(dmad_all(aero_index%nin))
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine condevp_initialise  
 
   subroutine condevp_finalise()
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
+    ! Local variables
     character(len=*), parameter :: RoutineName='CONDEVP_FINALISE'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     deallocate(dnccn_all)
     deallocate(dmac_all)
     deallocate(dnccnd_all)
     deallocate(dmad_all)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine condevp_finalise  
 
   subroutine condevp(dt, k, qfields, aerofields, procs, aerophys, aerochem,   &
        aeroact, dustphys, dustchem, dustliq, aerosol_procs, rhcrit_lev)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='CONDEVP'
-
+    ! Subroutine arguments
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
     real(wp), intent(in), target :: qfields(:,:), aerofields(:,:)
@@ -77,6 +113,7 @@ contains
 
     real(wp), intent(in) :: rhcrit_lev
 
+    ! Local variables
     real(wp) :: dmass, dnumber, dmac, dmad, dnumber_a, dnumber_d
     real(wp) :: dmac1, dmac2, dnac1, dnac2
 
@@ -98,6 +135,17 @@ contains
     real(wp) :: cloud_mass_new, abs_liquid_t
 
     logical :: l_docloud  ! do we want to do the calculation of cond/evap
+
+    character(len=*), parameter :: RoutineName='CONDEVP'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     tau=dt ! adjust instantaneously
 
@@ -143,15 +191,16 @@ contains
     l_docloud=.true.
     if (qs==0.0) l_docloud=.false.
 
-    if ((qv/qs > 1.0 - ss_small .or. cloud_mass > 0.0) .and. l_docloud) then
-
+    if ((qv/qs > 1.0 - ss_small .or. cloud_mass > 0.0 .or. l_cfrac_casim_diag_scheme) .and. l_docloud) then
+! DPG - allow the cloud scheme to operate even if we are sub-saturated (since
+! this is it's purpose!)
       if (l_cfrac_casim_diag_scheme .AND. casim_parent == parent_um ) then
 
         !Call Smith scheme before setting up microphysics vars, to work out
         ! cloud fraction, which is used to derive in-cloud mass and number
         !
         !IMPORTANT - qv is total water at this stage!
-        call cloud_frac_casim_mphys(k, pressure(k), abs_liquid_T, rhcrit_lev,         &
+        call cloud_frac_casim_mphys(k, pressure(k), th*exner(k), abs_liquid_T, rhcrit_lev,  &
              qs, qv, cloud_mass, qfields(k,i_qr), cloud_mass_new )
 
         dmass=max(-cloud_mass, (cloud_mass_new-cloud_mass))/dt
@@ -216,6 +265,7 @@ contains
                   call which_mode(dmac, dnumber_a,                                 &
                        aerophys(k)%rd(aero_index%i_accum), aerophys(k)%rd(aero_index%i_coarse), &
                        aerochem(k)%density(aero_index%i_accum),     &
+                       aerophys(k)%sigma(aero_index%i_accum),       &
                        dmac1, dmac2, dnac1, dnac2)
 
                   dmac_all(aero_index%i_accum)=dmac1  ! put it back into accumulation mode
@@ -304,6 +354,9 @@ contains
           nullify(aero_proc)
         end if
       end if
-    end if    
+    end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine condevp
 end module condensation

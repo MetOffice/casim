@@ -29,7 +29,12 @@ contains
   !--------------------------------------------------------------------------- !
   subroutine racw(dt, k, qfields, aerofields, procs, params, aerosol_procs)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
+
+    ! Subroutine arguments
 
     real(wp), intent(in) :: dt !< microphysics time increment (s)
     integer,  intent(in)  :: k  !< k index
@@ -38,6 +43,8 @@ contains
     type(process_rate), intent(inout), target :: procs(:,:)         !< hydrometeor process rates
     type(process_rate), intent(inout), target :: aerosol_procs(:,:) !< aerosol process rates
     type(hydro_params), intent(in) :: params !< parameters describing hydrometor size distribution/fallspeeds etc.
+
+    ! Local Variables
 
     real(wp) :: dmass, dnumber, damass
     real(wp) :: m1, m2, m3, dm1, dm2, dm3
@@ -55,6 +62,15 @@ contains
     logical :: l_kk_acw=.true.
 
     character(len=*), parameter :: RoutineName='RACW'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     cloud_mass=qfields(k, i_ql)
     if (l_2mc) then
@@ -109,5 +125,8 @@ contains
       end if
       nullify(this_proc)
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine racw
 end module accretion

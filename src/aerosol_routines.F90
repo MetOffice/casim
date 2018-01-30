@@ -10,6 +10,9 @@ module aerosol_routines
        active_ice, isol, iinsol, l_process, l_passivenumbers, l_passivenumbers_ice, l_separate_rain
   use thresholds, only: nr_tidy, nl_tidy, ni_tidy, ccn_tidy, qr_tidy, aeromass_small, aeronumber_small
   use mphys_parameters, only: sigma_arc, nz
+  use lognormal_funcs, only: MNtoRm ! DPG - added this for MNtoRm since was 
+                                    ! causing circular conflicts as wanted 
+                                    ! to use it in which_mode_to_use.F90
 
   implicit none
 
@@ -19,16 +22,19 @@ module aerosol_routines
 
   public aerosol_active, aerosol_phys, aerosol_chem, abdulRazzakGhan2000, invert_partial_moment, upperpartial_moment_logn, &
        invert_partial_moment_approx, invert_partial_moment_betterapprox, examine_aerosol, allocate_aerosol, &
-       deallocate_aerosol, MNtoRm, abdulRazzakGhan2000_dust
+       deallocate_aerosol, abdulRazzakGhan2000_dust
 contains
   !
   ! Allocate space for aerosol_chem and aerosol_phys
   !
   subroutine allocate_aerosol(aerophys, aerochem, nmodes, initphys, initchem)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='allocate_aerosol'
+    ! Subroutine arguments
 
     type(aerosol_phys), intent(inout) :: aerophys(:)
     type(aerosol_chem), intent(inout) :: aerochem(:)
@@ -36,7 +42,19 @@ contains
     type(aerosol_phys), intent(in), optional :: initphys
     type(aerosol_chem), intent(in), optional :: initchem
 
+    ! Local variables
+
     integer :: k
+    character(len=*), parameter :: RoutineName='ALLOCATE_AEROSOL'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     !------------------------
     ! First allocate aerophys
@@ -65,6 +83,9 @@ contains
 
       if (present(initphys)) aerochem(k)=initchem
     end do
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine allocate_aerosol
 
   !
@@ -72,13 +93,30 @@ contains
   !
   subroutine deallocate_aerosol(aerophys, aerochem)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
-    character(len=*), parameter :: RoutineName='deallocate_aerosol'
+    
+
+    ! Subroutine arguments
 
     type(aerosol_phys), intent(inout) :: aerophys(:)
     type(aerosol_chem), intent(inout) :: aerochem(:)
 
+    ! Local variables
+
     integer :: k
+    character(len=*), parameter :: RoutineName='DEALLOCATE_AEROSOL'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     !------------------------
     ! First deallocate aerophys
@@ -102,6 +140,8 @@ contains
       deallocate(aerochem(k)%beta)
     end do
 
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine deallocate_aerosol
 
   !
@@ -119,9 +159,12 @@ contains
   subroutine examine_aerosol(aerofields, qfields, aerophys, aerochem, aeroact, &
        dustphys, dustchem, dustact, aeroice, dustliq, icall)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='examine_aerosol'
+    ! Subroutine arguments
 
     real(wp), intent(in), target :: aerofields(:,:)
     type(aerosol_phys), intent(inout), target :: aerophys(:)
@@ -134,6 +177,8 @@ contains
     type(aerosol_active), intent(inout), optional :: dustliq(:)
     real(wp), intent(inout), target :: qfields(:,:)
     integer, intent(in), optional :: icall
+
+    ! Local variables
 
     real(wp) :: n, m, mac, mar, mad, maai, madl, cloud_number, rain_number
     real(wp) :: cloud_mass, rain_mass
@@ -156,6 +201,17 @@ contains
     real(wp) :: foo
 
     logical :: l_condition, l_condition_r
+
+    character(len=*), parameter :: RoutineName='EXAMINE_AEROSOL'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     ! Some diagnostic strings
     if (present(icall)) then
@@ -577,15 +633,20 @@ contains
       end if
     end if
 
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine examine_aerosol
 
   ! Note: despite appearences this is only coded up
   ! for a single mode so far...
   subroutine AbdulRazzakGhan(w, qc, p, T, phys, chem, nccn, Smax, rcrit, tau)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='ABDULRAZZAKGHAN'
+    ! Subroutine arguments
 
     real(wp), intent(in) :: w ! vertical velocity (ms-1)
     real(wp), intent(in) :: qc ! Pre-existing cloud mass
@@ -598,10 +659,23 @@ contains
     real(wp), intent(out) :: rcrit ! radius of smallest activated aerosol
     real(wp), intent(out) :: tau   ! equilibrium adjustment timescale
 
+    ! Local variables
+
     real(wp), allocatable :: s_cr(:)
     real(wp) :: Tc, Ak, Bk, eta, alpha, gamma, es, bigG, Galt
     real(wp) :: f1, f2, zeta, error_func
     integer :: i
+
+    character(len=*), parameter :: RoutineName='ABDULRAZZAKGHAN'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     allocate(s_cr(phys%nmodes))
 
@@ -638,15 +712,21 @@ contains
     end do
     tau=1.0/(alpha*w+gamma*4*pi*rhow*bigG*qc)
     deallocate(s_cr)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine AbdulRazzakGhan
 
   ! Note: despite appearences this is only coded up
   ! for a single mode so far...
   subroutine AbdulRazzakGhan2000(w, p, T, phys, chem, nccn, Smax, active_phys, nccn_active, l_useactive )
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='ABDULRAZZAKGHAN2000'
+    ! Subroutine arguments
 
     real(wp), intent(in) :: w ! vertical velocity (ms-1)
     real(wp), intent(in) :: p ! pressure (Pa)
@@ -659,6 +739,8 @@ contains
     real(wp), intent(out) :: smax ! peak supersaturation
     logical, intent(out) :: l_useactive ! Do we use consider already activated aerosol
 
+    ! Local variables
+
     real(wp), allocatable :: s_cr(:)
     real(wp) :: s_cr_active
     real(wp) :: Tc, Ak, Bk, eta, alpha, gamma, es, bigG, Galt
@@ -667,6 +749,17 @@ contains
     real(wp) :: diff
     integer :: i
     real(wp) :: sum
+
+    character(len=*), parameter :: RoutineName='ABDULRAZZAKGHAN2000'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     l_useactive=.false.
     if (present(active_phys)) l_useactive=active_phys%nact > ccn_tidy .and. l_active_inarg2000
@@ -748,6 +841,9 @@ contains
     end if
     nccn=.99*nccn ! Don't allow all aerosol to be removed.
     deallocate(s_cr)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine AbdulRazzakGhan2000
 
   subroutine AbdulRazzakGhan2000_dust(w, p, T, phys, chem, nccn, Smax, active_phys, nccn_active, &
@@ -928,15 +1024,32 @@ contains
   !
   function moment_logn(N, rm, sigma, p)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='MOMENT_LOGN'
+    ! Subroutine arguments
 
     real(wp), intent(in) :: N, rm, sigma
     real(wp), intent(in) :: p ! calculate pth moment
+
+
+    ! Local variables
     real(wp) :: moment_logn
+    character(len=*), parameter :: RoutineName='MOMENT_LOGN'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     moment_logn=N*rm**p*exp(.5*p*p*log(sigma)**2)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
   end function moment_logn
 
@@ -957,14 +1070,30 @@ contains
   !
   function upperpartial_moment_logn(N, rm, sigma, p, rcrit)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='UPPERPARTIAL_MOMENT_LOGN'
+    ! Subroutine arguments
 
     real(wp), intent(in) :: N, rm, sigma
     real(wp), intent(in) :: p ! calculate pth moment
     real(wp), intent(in) :: rcrit ! lower threshold for partial moment
     real(wp) :: upperpartial_moment_logn
+
+    ! Local variables
+
+    character(len=*), parameter :: RoutineName='UPPERPARTIAL_MOMENT_LOGN'
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
 
     if (rcrit==0.0) then
       upperpartial_moment_logn=moment_logn(N, rm, sigma, p)
@@ -972,6 +1101,9 @@ contains
       upperpartial_moment_logn=N*rm**p*exp(.5*p*p*log(sigma)**2)     &
            * .5*erfc((log(rcrit/rm)/log(sigma) - p*log(sigma))/sqrt(2.0))
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end function upperpartial_moment_logn
 
   !
@@ -992,17 +1124,35 @@ contains
   !
   function invert_partial_moment(m, mup, p, rm, sigma)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='INVERT_PARTIAL_MOMENT'
-
+    ! Subroutine arguments
     real(wp), intent(in) :: m, mup
     real(wp), intent(in) :: p ! pth moment
     real(wp), intent(in) :: rm, sigma
     real(wp) :: x, invert_partial_moment
 
+    ! Local variables
+    character(len=*), parameter :: RoutineName='INVERT_PARTIAL_MOMENT'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+
     x=rm*exp(p*log(sigma)**2+sqrt(2.0)*log(sigma)*erfinv(1.0-2.0*mup/m))
     invert_partial_moment=x
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end function invert_partial_moment
 
   !
@@ -1023,15 +1173,30 @@ contains
   ! This uses an approximation for erfc(log(x)) to achieve this
   function invert_partial_moment_approx(mup, p, rm, sigma)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
+
+    ! Subroutine arguments
+
+    real(wp), intent(in) :: mup, rm, sigma, p ! pth moment
+    
+    ! Local variables
+    real(wp) :: invert_partial_moment_approx
+    real(wp) :: beta, c, lsig, mbeta
+    real(wp) :: x
 
     character(len=*), parameter :: RoutineName='INVERT_PARTIAL_MOMENT_APPROX'
 
-    real(wp), intent(in) :: mup, rm, sigma, p ! pth moment
-    real(wp) :: invert_partial_moment_approx
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
 
-    real(wp) :: beta, c, lsig, mbeta
-    real(wp) :: x
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     c=-0.1021 ! constant in approximation
     lsig=sqrt(2.0)*log(sigma)
@@ -1047,6 +1212,9 @@ contains
       x=rm * (sigma**(-0.5*p)*(((mbeta)*c+sqrt((mbeta)**2*c*c + 4.0*beta*(mbeta)))/(2.0*beta)))**(lsig)
     end if
     invert_partial_moment_approx=x
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end function invert_partial_moment_approx
 
   !
@@ -1067,16 +1235,31 @@ contains
   ! This uses an approximation 26.2.23 from A&S
   function invert_partial_moment_betterapprox(mup, p, N, rm, sigma)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: &
-    RoutineName='INVERT_PARTIAL_MOMENT_BETTER_APPROX'
 
+    ! Subroutine arguments
     real(wp), intent(in) :: mup, rm, sigma, N, p ! pth moment
-    real(wp) :: invert_partial_moment_betterapprox
 
+    ! Local variables
+    real(wp) :: invert_partial_moment_betterapprox
     real(wp) :: frac, x
     real(wp) :: small_frac=1e-6
+
+    character(len=*), parameter :: &
+    RoutineName='INVERT_PARTIAL_MOMENT_BETTERAPPROX'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     if (mup==0.0) then
       frac=epsilon(x)
@@ -1091,20 +1274,37 @@ contains
     else
       invert_partial_moment_betterapprox=0.0
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end function invert_partial_moment_betterapprox
 
   ! This uses an approximation 26.2.23 from A&S
   function normal_quantile(p)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='NORMAL_QUANTILE'
-
+    ! Subroutine arguments
     real(wp), intent(in) :: p
-    real(wp) :: normal_quantile
 
+    ! Local variables
+    real(wp) :: normal_quantile
     real(wp) :: pp, t,x
     real(wp) :: c0,c1,c2,d1,d2,d3
+    character(len=*), parameter :: RoutineName='NORMAL_QUANTILE'
+
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     c0=2.515517
     c1=0.802853
@@ -1126,26 +1326,9 @@ contains
       if (p>0.5)x=-x
     end if
     normal_quantile=x
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end function normal_quantile
-
-  !
-  ! Calculate mean radius of lognormal distribution
-  ! given Mass and number
-  !
-  function MNtoRm(M, N, density, sigma)
-
-    implicit none
-
-    character(len=*), parameter :: RoutineName='MNTORM'
-
-    real(wp), intent(in) :: M, N, density, sigma
-    real(wp) :: MNtoRm
-
-    if (N==0 .or. M==0) then ! shouldn't really be here
-      MNtoRm=0.0
-    else
-      MNtoRm=(3.0*M*exp(-4.5*log(sigma)**2)/(4.0*N*pi*density))**(1.0/3.0)
-    end if
-  end function MNtoRm
 
 end module aerosol_routines

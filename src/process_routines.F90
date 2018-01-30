@@ -85,6 +85,9 @@ contains
   ! Allocate space to store the microphysical process rates
   subroutine allocate_procs(procs, nz, nprocs, ntotalq)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
     character(len=*), parameter :: RoutineName='ALLOCATE_PROCS'
@@ -96,6 +99,15 @@ contains
 
     integer :: iproc, k
 
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
     do iproc=1, nprocs
       do k=1,nz
         allocate(procs(k,iproc)%source(ntotalq))
@@ -103,9 +115,15 @@ contains
     end do
 
     call zero_procs(procs)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine allocate_procs
 
   subroutine zero_procs(procs)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -116,6 +134,15 @@ contains
     integer :: iproc, k
     integer :: lb1, lb2, ub1, ub2
 
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
     lb1=lbound(procs,1)
     ub1=ubound(procs,1)
     lb2=lbound(procs,2)
@@ -125,9 +152,15 @@ contains
         procs(k,iproc)%source(:)=0.0
       end do
     end do
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine zero_procs
 
   subroutine deallocate_procs(procs)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -137,10 +170,22 @@ contains
 
     integer :: k, iproc
 
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
     do iproc=lbound(procs,2), ubound(procs,2)
       do k=lbound(procs,1), ubound(procs,1)
         if (allocated(procs(k,iproc)%source)) deallocate(procs(k,iproc)%source)
       end do
     end do
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine deallocate_procs
 end module process_routines

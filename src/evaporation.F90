@@ -18,7 +18,7 @@ module evaporation
 
   implicit none
 
-  character(len=*), parameter, private :: ModuleName='EVAPORATIOn'
+  character(len=*), parameter, private :: ModuleName='EVAPORATION'
 
   private
 
@@ -27,10 +27,12 @@ contains
 
   subroutine revp(dt, k, qfields, aerofields, aerophys, aerochem, aeroact, dustliq, procs, aerosol_procs, l_sigevap)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='REVP'
-
+    ! Subroutine arguments
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
     real(wp), intent(in) :: qfields(:,:), aerofields(:,:)
@@ -41,6 +43,7 @@ contains
     type(process_rate), intent(inout) :: aerosol_procs(:,:)
     logical, intent(out) :: l_sigevap ! Determines if there is significant evaporation
 
+    ! Local variables
     real(wp) :: dmass, dnumber, dnumber_a, dnumber_d
     real(wp) :: m1, m2, m3, dm1, dm3
 
@@ -55,6 +58,17 @@ contains
     logical :: l_rain_test ! conditional test on rain
 
     real(wp) :: dmac, dmac1, dmac2, dnac1, dnac2, dmacd
+
+    character(len=*), parameter :: RoutineName='REVP'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     l_sigevap=.false.
 
@@ -126,8 +140,10 @@ contains
         if (aero_index%i_accum >0 .and. aero_index%i_coarse >0) then
           ! Coarse and accumulation mode being used. Which one to return to?
           call which_mode(dmac, dnumber*aeroact(k)%nratio2, aerophys(k)%rd(aero_index%i_accum), &
-               aerophys(k)%rd(aero_index%i_coarse), aerochem(k)%density(aero_index%i_accum),     &
+               aerophys(k)%rd(aero_index%i_coarse), aerochem(k)%density(aero_index%i_accum),    &
+               aerophys(k)%sigma(aero_index%i_accum),                                           &
                dmac1, dmac2, dnac1, dnac2)
+
           aerosol_procs(k, i_arevp%id)%source(i_am2)=dmac1
           aerosol_procs(k, i_arevp%id)%source(i_an2)=dnac1
           aerosol_procs(k, i_arevp%id)%source(i_am3)=dmac2
@@ -163,5 +179,8 @@ contains
         end if
       end if
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine revp
 end module evaporation

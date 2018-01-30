@@ -25,19 +25,35 @@ contains
     ! This assumes that mu_ice==0, so the fraction becomes
     ! P(mu+2, lambda*DImax) (see Abramowitz & Stegun 6.5.13)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='ADJUST_DEP'
+    ! Subroutine arguments
 
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
     type(process_rate), intent(inout), target :: procs(:,:)
     real(wp), intent(in) :: qfields(:,:)
 
+    ! local variables
+
     type(process_rate), pointer :: ice_dep, snow_dep, ice_aut
     real(wp) :: lam, frac, dmass
     integer :: i_pqi, i_pqai, i_pqs, i_pns, i_pm3s
     real(wp) :: m1,m2,m3,dm1,dm2,dm3
+
+    character(len=*), parameter :: RoutineName='ADJUST_DEP'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     ice_dep=>procs(k, i_idep%id)
     snow_dep=>procs(k, i_sdep%id)
@@ -55,5 +71,8 @@ contains
     nullify(ice_dep)
     nullify(ice_aut)
     nullify(snow_dep)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine adjust_dep
 end module adjust_deposition

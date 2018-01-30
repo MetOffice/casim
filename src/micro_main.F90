@@ -11,15 +11,17 @@ module micro_main
        i_dgacr, i_draci, process_name
   use sum_process, only: sum_procs, sum_aprocs
   use aerosol_routines, only: examine_aerosol, aerosol_phys, aerosol_chem, aerosol_active, allocate_aerosol, &
-       deallocate_aerosol, MNtoRm
+       deallocate_aerosol
   use mphys_switches, only: hydro_complexity, aero_complexity, i_qv, i_ql, i_nl, i_qr, i_nr, i_m3r, i_th, i_qi, &
        i_qs, i_qg, i_ni, i_ns, i_ng, i_m3s, i_m3g, i_am1, i_an1, i_am2, i_an2, i_am3, i_an3, i_am4, i_am5, i_am6, &
        i_an6, i_am7, i_am8 , i_am9, i_am10, i_an10, i_an11, i_an12, hydro_names, aero_names,  aerosol_option, l_warm, &
        l_inuc, l_sed, l_condensation, l_iaut, l_imelt, l_iacw, l_idep, aero_index, nq_l, nq_r, nq_i, nq_s, nq_g, &
        l_sg, l_g, l_process, l_halletmossop, max_sed_length, max_step_length, l_harrington, l_passive, ntotala, ntotalq, &
        active_number, isol, iinsol, l_raci_g, l_onlycollect, l_pracr, pswitch, l_isub, l_pos1, l_pos2, l_pos3, l_pos4, &
-       l_pos5, l_pos6, i_hstart, nsubsteps, nsubseds, l_tidy_negonly, inv_nsubsteps, inv_nsubseds, inv_allsubs
-
+       l_pos5, l_pos6, i_hstart, nsubsteps, nsubseds, l_tidy_negonly, inv_nsubsteps, inv_nsubseds, inv_allsubs, &
+       iopt_act, iopt_shipway_act
+  use passive_fields, only: rexner
+  use mphys_constants, only: cp, Lv, Ls
   use distributions, only: query_distributions, initialise_distributions, dist_lambda, dist_mu, dist_n0
   use passive_fields, only: initialise_passive_fields, set_passive_fields, TdegK, rhcrit_1d
   use autoconversion, only: raut
@@ -47,6 +49,10 @@ module micro_main
   use mphys_tidy, only: initialise_mphystidy, finalise_mphystidy, qtidy, ensure_positive, &
        ensure_saturated, tidy_qin, tidy_ain, ensure_positive_aerosol
   use preconditioning, only: precondition, preconditioner
+
+  use casim_reflec_mod, only: casim_reflec, setup_reflec_constants
+  ! For initialization of Shipway (2015) activation scheme
+  use shipway_lookup, only: generate_tables
 
   use generic_diagnostic_variables, only: casdiags
 
@@ -94,6 +100,9 @@ contains
   subroutine initialise_micromain(il, iu, jl, ju, kl, ku,                 &       
        is_in, ie_in, js_in, je_in, ks_in, ke_in, l_tendency)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
     character(len=*), parameter :: RoutineName='INITIALISE_MICROMAIN'
@@ -125,12 +134,22 @@ contains
     real(wp) :: rain_m3
     real(wp) :: n0,lam,mu
     real(wp) :: m1,m2,m3
+    real(wp) :: beta_init
 
     !diagnostics
     real(wp) :: field, res
     character(100) :: units, name
     integer :: im
     character(1) :: char
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     !    if (timestep_number*dt < 3600)then
     !      l_warm_loc=.true. ! Force warm in spinup
@@ -196,6 +215,14 @@ contains
     allocate(aeroice(nz))
     allocate(dustliq(nz))
 
+    
+    ! Preserve initial values for non-Shipway activation
+    if ( iopt_act == iopt_shipway_act ) then
+      beta_init = 0.5
+    else
+      beta_init = 1.0
+    end if
+
     ! Temporary initialization of chem and sigma
     do k =1,size(aerophys)
       aerophys(k)%sigma(:)=fixed_aerosol_sigma
@@ -204,7 +231,7 @@ contains
       aerochem(k)%massMole(:)=132.0e-3
       aerochem(k)%density(:)=fixed_aerosol_density
       aerochem(k)%epsv(:)=1.0
-      aerochem(k)%beta(:)=1.0
+      aerochem(k)%beta(:)=beta_init
     end do
     do k =1,size(dustphys)
       dustphys(k)%sigma(:)=fixed_aerosol_sigma
@@ -213,7 +240,7 @@ contains
       dustchem(k)%massMole(:)=132.0e-3
       dustchem(k)%density(:)=fixed_aerosol_density
       dustchem(k)%epsv(:)=1.0
-      dustchem(k)%beta(:)=1.0
+      dustchem(k)%beta(:)=beta_init
     end do
 
     !allocate space for the process rates
@@ -234,13 +261,35 @@ contains
     call initialise_distributions(nz, nspecies)
     call initialise_mphystidy()
     call condevp_initialise()
+! Here we initialise some things for the Shipway(2015) aerosol activation.
+
+    if ( iopt_act == iopt_shipway_act ) then
+      call generate_tables()
+    end if
+    
+    call setup_reflec_constants()
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine initialise_micromain
 
   subroutine finalise_micromain()
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
     character(len=*), parameter :: RoutineName='FINALISE_MICROMAIN'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     ! deallocate diagnostics
     deallocate(precip)
@@ -281,6 +330,9 @@ contains
     deallocate(dist_n0)
     call finalise_mphystidy()
     call condevp_finalise()
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine finalise_micromain  
 
   subroutine shipway_microphysics(il, iu, jl, ju, kl, ku, dt,               &
@@ -293,6 +345,9 @@ contains
        da12, da13, da14, da15, da16, da17,                                  &
        is_in, ie_in, js_in, je_in, ks_in, ke_in,                            &
        l_tendency)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
@@ -388,6 +443,19 @@ contains
     real(wp) :: precip_s
     real(wp) :: precip_g
 
+    real(wp) :: dbz_tot_c(ks:ke), dbz_g_c(ks:ke), dbz_i_c(ks:ke), &
+                dbz_s_c(ks:ke),   dbz_l_c(ks:ke), dbz_r_c(ks:ke) 
+
+    INTEGER :: kc ! Casim Z-level
+       
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     ! Save parent model timestep for later use (e.g. in diagnostics)
     parent_dt=dt
@@ -491,7 +559,7 @@ contains
         !--------------------------------------------------
         ! Do the business...
         !--------------------------------------------------
-        call microphysics_common(dt, ks, ke, qfields, dqfields, tend, procs, precip(i,j) &
+        call microphysics_common(dt, ks, ke, i , j, qfields, dqfields, tend, procs, precip(i,j) &
              , precip_r, precip_s, precip_g                                        &
              , aerophys, aerochem, aeroact                                         &
              , dustphys, dustchem, dustact                                         &
@@ -577,12 +645,56 @@ contains
 
         end if ! l_warm
 
-      end do
-    end do
+        if ( casdiags % l_radar ) then
+
+          call casim_reflec( nz, nq, rho, TdegK, qfields,                        &
+                             dbz_tot_c, dbz_g_c, dbz_s_c,                        &
+                             dbz_i_c,   dbz_l_c, dbz_r_c  )
+
+          casdiags % dbz_tot(i,j, ks:ke) = dbz_tot_c(:)
+          casdiags % dbz_g(i,j,   ks:ke) = dbz_g_c(:)
+          casdiags % dbz_s(i,j,   ks:ke) = dbz_s_c(:)
+          casdiags % dbz_i(i,j,   ks:ke) = dbz_i_c(:)
+          casdiags % dbz_l(i,j,   ks:ke) = dbz_l_c(:)
+          casdiags % dbz_r(i,j,   ks:ke) = dbz_r_c(:)
+
+        end if ! casdiags % l_radar
+
+        !if ( casdiags % l_process_rates ) then
+
+        !  call gather_process_diagnostics(i, j, ks, ke)
+
+        !end if
+
+        if ( casdiags % l_tendency_dg ) then
+           DO k = ks, ke
+              kc = k - ks + 1
+              casdiags % dth_cond_evap(i,j,k) = procs(kc,i_cond%id)%source(cloud_params%i_1m) * &
+                   Lv/cp * rexner(kc)
+              casdiags % dqv_cond_evap(i,j,k) = -(procs(kc,i_cond%id)%source(cloud_params%i_1m))
+              casdiags % dth_total(i,j,k) = tend(kc,i_th)
+              casdiags % dqv_total(i,j,k) = tend(kc,i_qv)
+              casdiags % dqc(i,j,k) = tend(kc,i_ql)
+              casdiags % dqr(i,j,k) = tend(kc,i_qr)
+              
+              if (.not. l_warm) then
+                 casdiags % dqi(i,j,k) = tend(kc,i_qi)
+                 casdiags % dqs(i,j,k) = tend(kc,i_qs)
+                 casdiags % dqg(i,j,k) = tend(kc,i_qg)
+              endif
+           enddo
+
+           
+
+        endif
+     end do ! i
+  end do   ! j
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
   end subroutine shipway_microphysics
 
-  subroutine microphysics_common(dt, kl, ku, qfields, dqfields, tend, procs, precip &
+  subroutine microphysics_common(dt, kl, ku, ix, jy, qfields, dqfields, tend, procs, precip &
        , precip_r, precip_s, precip_g                                         &
        , aerophys, aerochem, aeroact                                          &
        , dustphys, dustchem, dustact                                          &
@@ -590,8 +702,14 @@ contains
        , aerofields, daerofields, aerosol_tend, aerosol_procs                 &
        , rhcrit_1d)
 
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
+    implicit none
+
     real(wp), intent(in) :: dt  ! timestep from parent model
-    integer, intent(in) :: kl, ku
+    integer, intent(in) :: kl, ku, ix, jy 
     real(wp), intent(in) :: rhcrit_1d(:)
     real(wp), intent(inout) :: qfields(:,:), dqfields(:,:), tend(:,:)
     type(process_rate), intent(inout) :: procs(:,:)
@@ -629,6 +747,17 @@ contains
     real(wp) :: precip_i_w ! Ice precip
     real(wp) :: precip_g_w ! Graupel precip
     real(wp) :: precip_s_w ! Snow precip
+
+    character(len=*), parameter :: RoutineName='MICROPHYSICS_COMMON'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     qfields_in=qfields ! Initial values of q
     qfields_mod=qfields ! Modified initial values of q (may be modified if bad values sent in)
@@ -1020,6 +1149,9 @@ contains
       precip_g_w = 0.0
       precip_s_w = 0.0
 
+      if ( casdiags % l_process_rates ) then
+         call gather_process_diagnostics(ix, jy, ks, ke,ncall=0)
+      end if
       if (l_sed) then
         do nsed=1,nsubseds
 
@@ -1028,6 +1160,9 @@ contains
             ! Reset process rates if they
             ! are to be re-used
             !-------------------------------
+            if ( casdiags % l_process_rates ) then
+              call gather_process_diagnostics(ix, jy, ks, ke,ncall=1)
+            end if
             call zero_procs(procs)
             if (l_process) call zero_procs(aerosol_procs)
             !---------------------------------------------------------------
@@ -1211,9 +1346,18 @@ contains
         end if
       end if
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine microphysics_common
 
   subroutine update_q(qfields_in, qfields, tend, l_aerosol, l_fixneg)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
+    implicit none
+
     real(wp), intent(in) :: qfields_in(:,:)
     real(wp), intent(inout) :: qfields(:,:)
     real(wp), intent(in) :: tend(:,:)
@@ -1221,6 +1365,17 @@ contains
     logical, intent(in), optional :: l_fixneg  ! Flag to use cludge to bypass negative/zero numbers
     integer :: k, iqx
     logical :: l_fix
+
+    character(len=*), parameter :: RoutineName='UPDATE_Q'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     l_fix=.false.
     if (present(l_fixneg)) l_fix=l_fixneg
@@ -1256,9 +1411,18 @@ contains
         end if
       end do
     end do
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine update_q
 
   subroutine update_tend(dt, qfields, dqfields, tend)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
+    implicit none
+
     real(wp) :: dt
     real(wp), intent(in) :: qfields(:,:)
     real(wp), intent(in) :: dqfields(:,:)
@@ -1267,6 +1431,17 @@ contains
     real(wp), allocatable :: tmp(:,:)
 
     integer :: k, iqx
+
+    character(len=*), parameter :: RoutineName='UPDATE_TEND'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     ! Using tmp for premultiplication seems to optimize
     ! the loop much better for some compilers
@@ -1279,5 +1454,493 @@ contains
       end do
     end do
     deallocate(tmp)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine update_tend
+
+  subroutine gather_process_diagnostics(i, j, ks, ke,ncall)
+
+    ! Gathers all process rate diagnostics if in use and outputs them to the
+    ! CASIM generic diagnostic fields, ready for use in any model.
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
+    implicit none
+
+    ! Indices of this particular grid square
+    integer, intent(in) :: i, j,ncall
+    integer, intent(in) :: ks, ke ! Start/end points of grid
+
+    ! Local variables
+
+    character(len=*), parameter :: RoutineName='GATHER_PROCESS_DIAGNOSTICS'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    INTEGER :: kc ! Casim Z-level
+    INTEGER :: k  ! Loop counter in z-direction
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+    ! Based on code from RGS: fill in process rates:
+
+    if (ncall==0) THEN
+    IF (casdiags % l_phomc) THEN
+      IF (pswitch%l_phomc) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % phomc(i,j,k) = procs(kc,i_homc%id)%source(ice_params%i_1m)
+        END DO
+      ELSE
+        casdiags % phomc(i,j,:) = ZERO_REAL_WP
+      END IF
+    END iF ! casdiags % l_phomc
+
+    IF (casdiags % l_nhomc) THEN
+      IF ((pswitch%l_phomc) .and. (ice_params%l_2m)) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % nhomc(i,j,k) = procs(kc,i_homc%id)%source(ice_params%i_2m)
+        END DO
+      ELSE
+        casdiags % nhomc(i,j,:) = ZERO_REAL_WP
+      END IF
+    END iF ! casdiags % l_phomc
+
+    IF (casdiags % l_pinuc) THEN
+      IF (pswitch%l_pinuc) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % pinuc(i,j,k) = procs(kc,i_inuc%id)%source(ice_params%i_1m)
+        END DO
+      ELSE
+        casdiags % pinuc(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! casdiags % l_pinuc
+
+    IF (casdiags % l_ninuc) THEN
+      IF ((pswitch%l_pinuc) .and. (ice_params%l_2m)) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % ninuc(i,j,k) = procs(kc,i_inuc%id)%source(ice_params%i_2m)
+        END DO
+      ELSE
+        casdiags % ninuc (i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! casdiags % l_pinuc
+
+    IF (casdiags % l_pidep) THEN
+      IF (pswitch%l_pidep) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % pidep(i,j,k) = procs(kc,i_idep%id)%source(ice_params%i_1m)
+        END DO
+      ELSE
+        casdiags % pidep(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_psdep) THEN
+      IF (pswitch%l_psdep) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % psdep(i,j,k) = procs(kc,i_sdep%id)%source(snow_params%i_1m)
+        END DO
+      ELSE
+        casdiags % psdep(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+   
+    IF (casdiags % l_piacw) THEN
+      IF (pswitch%l_piacw) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % piacw(i,j,k) = procs(kc,i_iacw%id)%source(ice_params%i_1m)
+        END DO
+      ELSE
+        casdiags % piacw(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_psacw) THEN
+      IF (pswitch%l_psacw) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % psacw(i,j,k) = procs(kc,i_sacw%id)%source(snow_params%i_1m)
+        END DO
+      ELSE
+        casdiags % psacw(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_psacr) THEN
+      IF (pswitch%l_psacr) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % psacr(i,j,k) = procs(kc,i_sacr%id)%source(snow_params%i_1m)
+        END DO
+      ELSE
+        casdiags % psacr(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_pisub) THEN
+      IF (pswitch%l_pisub) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % pisub(i,j,k) = procs(kc,i_isub%id)%source(ice_params%i_1m)
+        END DO
+      ELSE
+        casdiags % pisub(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+       
+    IF (casdiags % l_pssub) THEN
+      IF (pswitch%l_pssub) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % pssub(i,j,k) = procs(kc,i_ssub%id)%source(snow_params%i_1m)
+        END DO
+      ELSE
+        casdiags % pssub(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+ 
+ 
+    IF (casdiags % l_pimlt) THEN
+      IF (pswitch%l_pimlt) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % pimlt(i,j,k) = procs(kc,i_imlt%id)%source(ice_params%i_1m)
+        END DO
+      ELSE
+        casdiags % pimlt(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_psmlt) THEN
+      IF (pswitch%l_psmlt) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % psmlt(i,j,k) = procs(kc,i_smlt%id)%source(snow_params%i_1m)
+        END DO
+      ELSE
+        casdiags % psmlt(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+      
+    IF (casdiags % l_psaut) THEN
+      IF (pswitch%l_psaut) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % psaut(i,j,k) = procs(kc,i_saut%id)%source(snow_params%i_1m)
+        END DO
+      ELSE
+        casdiags % psaut(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_psaci) THEN
+      IF (pswitch%l_psaci) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % psaci(i,j,k) = procs(kc,i_saci%id)%source(snow_params%i_1m)
+        END DO
+      ELSE
+        casdiags % psaci(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_praut) THEN
+      IF (pswitch%l_praut) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % praut(i,j,k) = procs(kc,i_praut%id)%source(rain_params%i_1m)
+        END DO
+      ELSE
+        casdiags % praut(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_pracw) THEN
+      IF (pswitch%l_pracw) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % pracw(i,j,k) = procs(kc,i_pracw%id)%source(rain_params%i_1m)
+        END DO
+      ELSE
+        casdiags % pracw(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_prevp) THEN
+      IF (pswitch%l_prevp) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % prevp(i,j,k) = procs(kc,i_prevp%id)%source(rain_params%i_1m)
+        END DO
+      ELSE
+        casdiags % prevp(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_pgacw) THEN
+      IF (pswitch%l_pgacw) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % pgacw(i,j,k) = procs(kc,i_gacw%id)%source(graupel_params%i_1m)
+        END DO
+      ELSE
+        casdiags % pgacw(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+    
+    IF (casdiags % l_pgacs) THEN
+      IF (pswitch%l_pgacs) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % pgacs(i,j,k) = procs(kc,i_gacs%id)%source(graupel_params%i_1m)
+        END DO
+      ELSE
+        casdiags % pgacs(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_pgmlt) THEN
+      IF (pswitch%l_pgmlt) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % pgmlt(i,j,k) = procs(kc,i_gmlt%id)%source(graupel_params%i_1m)
+        END DO
+      ELSE
+        casdiags % pgmlt(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_pgsub) THEN
+      IF (pswitch%l_pgsub) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % pgsub(i,j,k) = procs(kc,i_gsub%id)%source(graupel_params%i_1m)
+        END DO
+      ELSE
+        casdiags % pgsub(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_psedi) THEN
+      IF (pswitch%l_psedi) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % psedi(i,j,k) = procs(kc,i_psedi%id)%source(ice_params%i_1m)
+        END DO
+      ELSE
+        casdiags % psedi(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_nsedi) THEN
+      IF ((pswitch%l_psedi) .and. (snow_params%l_2m)) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % nsedi(i,j,k) = procs(kc,i_psedi%id)%source(ice_params%i_2m)
+        END DO
+      ELSE
+        casdiags % nsedi(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_pseds) THEN
+      IF (pswitch%l_pseds) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % pseds(i,j,k) = procs(kc,i_pseds%id)%source(snow_params%i_1m)
+        END DO
+      ELSE
+        casdiags % pseds(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_nseds) THEN
+      IF ((pswitch%l_pseds) .and. (snow_params%l_2m)) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % nseds(i,j,k) = procs(kc,i_pseds%id)%source(snow_params%i_2m)
+        END DO
+      ELSE
+        casdiags % nseds(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_psedr) THEN
+      IF (pswitch%l_psedr) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % psedr(i,j,k) = procs(kc,i_psedr%id)%source(rain_params%i_1m)
+        END DO
+      ELSE
+        casdiags % psedr(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_psedg) THEN
+      IF (pswitch%l_psedg) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % psedg(i,j,k) = procs(kc,i_psedg%id)%source(graupel_params%i_1m)
+        END DO
+      ELSE
+        casdiags % psedg(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_nsedg) THEN
+      IF ((pswitch%l_psedg) .and. (graupel_params%l_2m)) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % nsedg(i,j,k) = procs(kc,i_psedg%id)%source(graupel_params%i_2m)
+        END DO
+      ELSE
+        casdiags % nsedg(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_psedl) THEN
+      IF (pswitch%l_psedl) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % psedl(i,j,k) = procs(kc,i_psedl%id)%source(cloud_params%i_1m)
+        END DO
+      ELSE
+        casdiags % psedl(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    ! UM STASH item 270, Droplet Settle Evap Rate
+    ! Why should evaporation of settling droplets be treated differently than
+    ! evaporation of other cloud droplets? I am taking this to be the cloud
+    ! droplet evaporation rate.
+    ! Technically, the output rate below gives the balance of condensation
+    ! and evaporation, because that's what CASIM stores.
+    IF (casdiags % l_pcond) THEN
+      IF (pswitch%l_pcond) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % pcond(i,j,k) = procs(kc,i_cond%id)%source(cloud_params%i_1m)
+        END DO
+      ELSE
+        casdiags % pcond(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+    
+    IF (casdiags % l_nihal) THEN
+      IF ((pswitch%l_pihal) .and. (ice_params%l_2m)) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % nihal(i,j,k) = procs(kc,i_ihal%id)%source(ice_params%i_2m)
+        END DO
+      ELSE
+        casdiags % nihal(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_nhomr) THEN
+      IF ((pswitch%l_phomr) .and. (ice_params%l_2m)) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % nhomr(i,j,k) = procs(kc,i_homr%id)%source(graupel_params%i_2m)
+        END DO
+      ELSE
+        casdiags % nhomr(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    else !ncall > 0
+
+    IF (casdiags % l_psedi) THEN
+      IF (pswitch%l_psedi) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % psedi(i,j,k) = casdiags % psedi(i,j,k)+procs(kc,i_psedi%id)%source(ice_params%i_1m)
+        END DO
+      END IF
+    END IF
+
+    IF (casdiags % l_nsedi) THEN
+      IF ((pswitch%l_psedi) .and. (snow_params%l_2m)) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % nsedi(i,j,k) = casdiags % nsedi(i,j,k)+procs(kc,i_psedi%id)%source(ice_params%i_2m)
+        END DO
+      END IF
+    END IF
+
+    IF (casdiags % l_pseds) THEN
+      IF (pswitch%l_pseds) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % pseds(i,j,k) = casdiags % pseds(i,j,k)+procs(kc,i_pseds%id)%source(snow_params%i_1m)
+        END DO
+      END IF
+    END IF
+
+    IF (casdiags % l_nseds) THEN
+      IF ((pswitch%l_pseds) .and. (snow_params%l_2m)) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % nseds(i,j,k) = casdiags % nseds(i,j,k)+procs(kc,i_pseds%id)%source(snow_params%i_2m)
+        END DO
+      END IF
+    END IF
+
+    IF (casdiags % l_psedr) THEN
+      IF (pswitch%l_psedr) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % psedr(i,j,k) = casdiags % psedr(i,j,k)+procs(kc,i_psedr%id)%source(rain_params%i_1m)
+        END DO
+      END IF
+    END IF
+
+    IF (casdiags % l_psedg) THEN
+      IF (pswitch%l_psedg) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % psedg(i,j,k) = casdiags % psedg(i,j,k)+procs(kc,i_psedg%id)%source(graupel_params%i_1m)
+        END DO
+      END IF
+    END IF
+
+    IF (casdiags % l_nsedg) THEN
+      IF ((pswitch%l_psedg) .and. (graupel_params%l_2m)) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % nsedg(i,j,k) = casdiags % nsedg(i,j,k)+procs(kc,i_psedg%id)%source(graupel_params%i_2m)
+        END DO
+      END IF
+    END IF
+
+    IF (casdiags % l_psedl) THEN
+      IF (pswitch%l_psedl) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % psedl(i,j,k) = casdiags % psedl(i,j,k)+procs(kc,i_psedl%id)%source(cloud_params%i_1m)
+        END DO
+      END IF
+    END IF
+
+    ! UM STASH item 270, Droplet Settle Evap Rate
+    ! Why should evaporation of settling droplets be treated differently than
+    end if ! ncall
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
+  end subroutine gather_process_diagnostics
 end module micro_main

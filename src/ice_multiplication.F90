@@ -27,10 +27,12 @@ contains
   !> OPTIMISATION POSSIBILITIES:
   subroutine hallet_mossop(dt, k, qfields, procs, aerophys, aerochem, aeroact , aerosol_procs)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='HALLET_MOSSOP'
-
+    ! Subroutine arguments
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
     real(wp), intent(in), target :: qfields(:,:)
@@ -44,6 +46,8 @@ contains
     ! optional aerosol fields to be processed
     type(process_rate), intent(inout), optional :: aerosol_procs(:,:)
 
+
+    ! Local variables
     real(wp) :: dnumber, dm1, dm2, dm3
     real(wp) :: number, mass, m1, m2, m3
     real(wp) :: gacw, sacw  ! accretion process rates
@@ -55,7 +59,21 @@ contains
     type(process_rate), pointer :: this_proc
     type(process_name) :: iproc ! processes selected depending on which species we're modifying
 
-    if (.not. ice_params%l_2m) return
+    character(len=*), parameter :: RoutineName='HALLET_MOSSOP'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+    if (.not. ice_params%l_2m) then
+      IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+      return
+    end if
 
     Eff=1.0 - abs(TdegC(k) + 5.0)/2.5 ! linear increase between -2.5/-7.5 and -5C
 
@@ -106,5 +124,8 @@ contains
       end if
       nullify(this_proc)
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine hallet_mossop
 end module ice_multiplication

@@ -38,10 +38,12 @@ contains
   !< when undergoing deposition, but there is a sink when sublimating.
   subroutine idep(dt, k, params, qfields, procs, dustact, aeroice, aerosol_procs)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='IDEP'
-
+    ! Subroutine arguments
     real(wp), intent(IN) :: dt
     integer, intent(IN) :: k
     type(hydro_params), intent(IN) :: params
@@ -54,6 +56,8 @@ contains
     ! optional aerosol fields to be processed
     type(process_rate), intent(INOUT), target :: aerosol_procs(:,:)
 
+
+    ! Local Variables
     type(process_name) :: iproc, iaproc  ! processes selected depending on
     ! which species we're depositing on.
 
@@ -72,6 +76,17 @@ contains
     real(wp) :: frac ! fraction of ice below a threshold
 
     logical :: l_suball
+
+    character(len=*), parameter :: RoutineName='IDEP'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     l_suball=.false. ! do we want to sublimate everything?
 
@@ -208,5 +223,8 @@ contains
       end if
       nullify(this_proc)
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine idep
 end module ice_deposition

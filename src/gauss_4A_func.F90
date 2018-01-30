@@ -23,16 +23,29 @@ contains
 
   subroutine gaussfunclookup(iq, value, a, b, init)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='GAUSSFUNCLOOKUP'
-
+    ! Subroutine arguments
     integer, intent(in) :: iq !< parameter index relating to variable we're considering
     real(wp), intent(out) :: value !< returned value
     real(wp), intent(in), optional :: a, b  !< Value of a and b to use. Only required if initializing
     logical, intent(in), optional :: init !< if present and true then initialize values otherwise use precalculated values
 
+    ! Local variables
+    character(len=*), parameter :: RoutineName='GAUSSFUNCLOOKUP'
     logical :: vinit
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     vinit=.false.
     if (present(init) .and. present(a) .and. present(b)) vinit=init
@@ -42,19 +55,36 @@ contains
     else
       value=gaussfunc_save(iq)
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine gaussfunclookup
 
   subroutine gaussfunclookup_2d(iq, value, a, b)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='GAUSSFUNCLOOKUP_2D'
-
+    ! Subroutine arguments
     integer, intent(in) :: iq !< parameter index relating to variable we're considering
     real(wp), intent(out) :: value !< returned value
     real(wp), intent(in) :: a, b  !< Value of a and b to use.  (a is mu, b is b_x)
 
+    ! Local variables
     integer :: ibin ! mu(a) bin in which we sit
+
+    character(len=*), parameter :: RoutineName='GAUSSFUNCLOOKUP_2D'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     ibin=int((a/max_mu)*(nbins_a-1))+1
     if (.not. l_save_2D(ibin,iq)) then
@@ -64,20 +94,37 @@ contains
     else
       value=gaussfunc_save_2d(ibin,iq)
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine gaussfunclookup_2d
 
   function gauss_casim_func(a, b)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='GAUSS_CASIM_FUNC'
-
+    ! Subroutine arguments
     real(wp), intent(in) :: a, b !< function arguments
 
+    ! Local variables
     real(wp), parameter ::   tmax = 18.0    !< Limit of integration
     real(wp), parameter ::   dt   = 0.08   !< step size
     real(wp) :: sum, t1, t2
     real(wp) :: Gauss_casim_Func
+
+    character(len=*), parameter :: RoutineName='GAUSS_CASIM_FUNC'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     sum=0.0
     t1=0.5*dt
@@ -90,5 +137,8 @@ contains
       t1=t1+dt
     end do Gaus_t1
     Gauss_casim_Func=sum*dt*dt
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end function Gauss_casim_Func
 end module gauss_casim_micro

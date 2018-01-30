@@ -3,13 +3,18 @@ module activation
   use mphys_constants, only: fixed_cloud_number
   use mphys_parameters, only: C1, K1
   use mphys_switches, only: iopt_act, aero_index,   &
-       i_am2, i_an2, i_am4, i_am1, i_an1, i_am3, i_an3, i_am5, i_am6, i_an6, i_am7, l_warm
+       i_am2, i_an2, i_am4, i_am1, i_an1, i_am3, i_an3, &
+       i_am5, i_am6, i_an6, i_am7, l_warm, iopt_shipway_act
   use aerosol_routines, only: aerosol_active, aerosol_phys, aerosol_chem, &
        abdulRazzakGhan2000, invert_partial_moment, upperpartial_moment_logn, &
        invert_partial_moment_approx, invert_partial_moment_betterapprox, &
        AbdulRazzakGhan2000_dust
-  use special, only: erfinv, erf, pi
+  use special, only: erfinv, pi
   use thresholds, only: w_small, nl_tidy, ccn_tidy
+  Use shipway_parameters, only: max_nmodes, nmodes, Ndi, &
+     rdi, sigmad, bi, betai, use_mode, nd_min
+  use shipway_constants, only: Mw, rhow
+  use shipway_activation_mod, only: solve_nccn_household, solve_nccn_brent
 
   implicit none
 
@@ -18,15 +23,28 @@ module activation
   private
 
   public activate
+
+  ! Variables used in the call to the Shipway (2015) activation scheme
+  
+  real(wp) :: ent_fraction=0.
+  integer  :: order=2
+  integer  :: niter=8
+  real(wp) :: smax0=0.001
+  real(wp) :: alpha_c=0.05 !kinetic parameter
+  real(wp) :: nccni(max_nmodes) ! maximumg number of modes that can be used (usually=3)
+
 contains
 
   subroutine activate(dt, cloud_mass, cloud_number, w, rho, dnumber, dmac, T, p, &
        aerophys, aerochem, aeroact, dustphys, dustchem, dustliq, dnccn_all, dmac_all, &
        dnumber_d, dmass_d, dnccnd_all, dmad_all)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='ACTIVATE'
+    ! Subroutine arguments
 
     real(wp), intent(in) :: dt
     real(wp), intent(in) :: cloud_mass, cloud_number, w, rho, T, p
@@ -40,12 +58,31 @@ contains
     real(wp), intent(out) :: dnccn_all(:),dmac_all(:)
     real(wp), intent(out) :: dnccnd_all(:),dmad_all(:)
     real(wp), intent(out) :: dnumber_d, dmass_d ! activated dust number and mass
+
+    ! Local Variables
+
     real(wp) :: active, nccn, Smax, rcrit, nccn_active, dactive,nccn_dactive
     real(wp) :: Nd, rm, sigma, density
 
     real :: work, dmac_i, diff
     integer :: imode
     logical :: l_useactive
+
+    integer, parameter :: solve_household = 1
+    integer, parameter :: solve_brent = 2
+    
+    integer :: solve_select
+
+    character(len=*), parameter :: RoutineName='ACTIVATE'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     l_useactive=.false.
     dmac=0.0
@@ -55,6 +92,7 @@ contains
     dmac=0.0
     dmac_all=0.0
     dnccn_all=0.0
+    solve_select = solve_brent
 
     select case(iopt_act)
     case default
@@ -104,13 +142,43 @@ contains
         dactive=0.0
       end if
 
+    case(iopt_shipway_act)
+      ! Use scheme of Shipway 2015
+      ! This is a bit clunk and could be harmonized
+      nmodes=aero_index%nccn
+      do imode=1,aero_index%nccn
+        bi(imode) =aerochem%vantHoff(imode)*aerochem%epsv(imode)* &
+           aerochem%density(imode)*Mw/(rhow*aerochem%massMole(imode)) 
+        Ndi(imode)=aerophys%N(imode)
+        rdi(imode)=aerophys%rd(imode)
+        sigmad(imode)=aerophys%sigma(imode)
+        betai(imode)=aerochem%beta(imode)
+        ! only use the mode if there's significant number
+        use_mode(imode) = aerophys%N(imode) > Nd_min 
+      end do
+      
+      if (any(use_mode) .and. cloud_number < sum(Ndi))then
+
+        select case (solve_select)
+          case (solve_household)
+            call solve_nccn_household( order, niter, smax0, w, T, p, alpha_c, &
+                                       ent_fraction, smax, active, nccni     )
+          case (solve_brent)
+            call solve_nccn_brent(smax0, w, T, p, alpha_c, ent_fraction,      &
+                                  smax, active, nccni)
+        end select
+
+        dnccn_all(1:aero_index%nccn) = nccni(1:aero_index%nccn)
+      else
+        active=0.0
+      end if
     end select
 
     select case(iopt_act)
     case default
       ! fixed number, so no need to calculate aerosol changes
       dnumber=max(0.0_wp,(active-cloud_number))
-    case (1:4)
+    case (1:5)
       if (active > nl_tidy) then
         if (l_useactive) then
           dnumber=active
@@ -167,6 +235,8 @@ contains
     dmad_all = dmad_all/dt
     dnccnd_all=dnccnd_all/dt
     dnumber_d=dnumber_d/dt
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
   end subroutine activate
 end module activation

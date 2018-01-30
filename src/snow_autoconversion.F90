@@ -28,6 +28,9 @@ contains
 
   subroutine saut(dt, k, qfields, aerofields, procs, aerosol_procs)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
     character(len=*), parameter :: RoutineName='SAUT'
@@ -54,6 +57,15 @@ contains
     integer :: i
 
     logical :: l_condition ! logical condition to switch on process
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     l_condition=.true.
     lami_min=0.0
@@ -144,5 +156,8 @@ contains
       !==============================
       nullify(this_proc)
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine saut
 end module snow_autoconversion

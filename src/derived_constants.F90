@@ -1,8 +1,9 @@
 module derived_constants
-  use variable_precision, only: wp
   use special, only: pi
-  use mphys_parameters, only: p1, p2, p3, sp1, sp2, sp3, rain_params, a_r, b_r, f_r, &
-       a2_r, b2_r, f2_r, ice_params, nucleated_ice_radius, nucleated_ice_mass, cloud_params, snow_params, graupel_params
+  use mphys_parameters, only: rain_params, a_r, b_r, f_r,               &
+                              a2_r, b2_r, f2_r, ice_params,             &
+                              nucleated_ice_radius, nucleated_ice_mass
+
   use mphys_switches, only: l_abelshipway
 
   implicit none
@@ -20,46 +21,25 @@ contains
   ! but sp1,sp2,sp3 etc need not be the same
   subroutine set_constants()
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
+    ! Local variables
     character(len=*), parameter :: RoutineName='SET_CONSTANTS'
 
-    cloud_params%p1=p1
-    cloud_params%sp1=sp1
-    cloud_params%p2=p2
-    cloud_params%sp2=sp2
-    cloud_params%p3=p3
-    cloud_params%sp3=sp3
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
 
-    rain_params%p1=p1
-    rain_params%sp1=sp1
-    rain_params%p2=p2
-    rain_params%sp2=sp2
-    rain_params%p3=p3
-    rain_params%sp3=sp3
-
-    ice_params%p1=p1
-    ice_params%sp1=sp1
-    ice_params%p2=p2
-    ice_params%sp2=sp2
-    ice_params%p3=p3
-    ice_params%sp3=sp3
-
-    snow_params%p1=p1
-    snow_params%sp1=sp1
-    snow_params%p2=p2
-    snow_params%sp2=sp2
-    snow_params%p3=p3
-    snow_params%sp3=sp3
-
-    graupel_params%p1=p1
-    graupel_params%sp1=sp1
-    graupel_params%p2=p2
-    graupel_params%sp2=sp2
-    graupel_params%p3=p3
-    graupel_params%sp3=sp3
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     if (l_abelshipway) then ! override any other fallspeed settings
+
       rain_params%a_x=4854.1
       rain_params%b_x=1.0
       rain_params%f_x=195.0
@@ -73,8 +53,13 @@ contains
       a2_r=-446.009
       b2_r=0.782127
       f2_r=4085.35
+
     end if
-    nucleated_ice_radius=10.0e-6
-    nucleated_ice_mass=4.0/3.0*pi*ice_params%density*(nucleated_ice_radius)**3
+
+    nucleated_ice_radius = 10.0e-6
+    nucleated_ice_mass   =  4.0/3.0*pi*ice_params%density*(nucleated_ice_radius)**3
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine set_constants
 end module derived_constants

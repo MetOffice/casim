@@ -19,7 +19,8 @@ module mphys_die
 
   character(len=std_msg_len) :: std_msg = ''
 
-  public throw_mphys_error, incorrect_opt, bad_values, warn, std_msg
+  public throw_mphys_error, incorrect_opt, bad_values, warn, std_msg, mphys_message
+  
 contains
 
   subroutine throw_mphys_error(itype, routine, info)

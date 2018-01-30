@@ -33,10 +33,12 @@ contains
     !
     !< CODE TIDYING: Move efficiencies into parameters
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='IACC'
-
+    ! Subroutine arguments
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
     type(hydro_params), intent(in) :: params_X !< parameters for species which does the collecting
@@ -52,6 +54,7 @@ contains
     ! optional aerosol fields to be processed
     type(process_rate), intent(inout), target :: aerosol_procs(:,:)
 
+    ! Local variables
     type(process_name) :: iproc, iaproc  ! processes selected depending on
     ! which species we're depositing on.
 
@@ -71,6 +74,17 @@ contains
     logical :: l_condition, l_alternate_Z, l_freezeall_X, l_freezeall_y
     logical :: l_slow ! fall speed is slow compared to interactive species
     logical :: l_aero ! If true then this process will modify aerosol
+
+    character(len=*), parameter :: RoutineName='IACC'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     mass_Y=qfields(k, params_Y%i_1m)
     mass_X=qfields(k, params_X%i_1m)
@@ -276,5 +290,8 @@ contains
       end if
       nullify(this_proc)
     end if
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine iacc
 end module ice_accretion

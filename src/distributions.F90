@@ -24,32 +24,63 @@ contains
 
   subroutine initialise_distributions(nz, nspecies)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='INITIALISE_DISTRIBUTIONS'
-
+    ! Subroutine arguments
     integer, intent(in) :: nz, nspecies
     
+    ! Local variables
+    character(len=*), parameter :: RoutineName='INITIALISE_DISTRIBUTIONS'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
     allocate(dist_lambda(nz,nspecies), dist_mu(nz,nspecies), dist_n0(nz,nspecies), m1(nz), m2(nz), m3(nz), m3_old(nz))
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
   end subroutine initialise_distributions  
 
   ! Any changes in number should be applied to the prognostic variable
   ! rather than just these parameters.  Currently this is not done.
   subroutine query_distributions(params, qfields, icall)
 
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
     implicit none
 
-    character(len=*), parameter :: RoutineName='QUERY_DISTRIBUTIONS'
-
+    ! Subroutine arguments
     type(hydro_params), intent(in) :: params !< species parameters
     real(wp), intent(inout) :: qfields(:,:)
     integer, intent(in), optional :: icall
 
+    ! Local variables
     integer :: k    
     integer(wp) :: i1,i2,i3,ispec 
     real(wp) :: n0_old, mu_old, lam_old, alpha, D0, mu_pass=1.0, k1,k2,k3, mu_maxes_calc
 
     character(2) :: chcall
+
+    character(len=*), parameter :: RoutineName='QUERY_DISTRIBUTIONS'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     ! Some diagnostic strings
     if (present(icall)) then
@@ -242,6 +273,8 @@ contains
       end if ! m1(k) > 0
 
     end do ! k
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
   end subroutine query_distributions
 end module distributions
