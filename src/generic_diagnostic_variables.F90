@@ -59,6 +59,7 @@ TYPE diaglist
   LOGICAL :: l_psedg          = .FALSE.
   LOGICAL :: l_psedl          = .FALSE.
   LOGICAL :: l_pcond          = .FALSE.
+  LOGICAL :: l_phomr          = .FALSE.
   LOGICAL :: l_nhomc          = .FALSE.
   LOGICAL :: l_nhomr          = .FALSE.
   LOGICAL :: l_nihal          = .FALSE.
@@ -135,6 +136,7 @@ TYPE diaglist
   REAL, ALLOCATABLE :: psedg(:,:,:)
   REAL, ALLOCATABLE :: psedl(:,:,:)
   REAL, ALLOCATABLE :: pcond(:,:,:)
+  REAL, ALLOCATABLE :: phomr(:,:,:)
   REAL, ALLOCATABLE :: nhomc(:,:,:)
   REAL, ALLOCATABLE :: nhomr(:,:,:)
   REAL, ALLOCATABLE :: nihal(:,:,:)
@@ -432,6 +434,12 @@ IF (casdiags % l_pcond) THEN
   casdiags % l_process_rates = .TRUE.
 END IF
 
+IF (casdiags % l_phomr) THEN
+  ALLOCATE ( casdiags % phomr(is:ie, js:je, ks:ke) )
+  casdiags % phomr(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
 IF (casdiags % l_nhomr) THEN
   ALLOCATE ( casdiags % nhomr(is:ie, js:je, ks:ke) )
   casdiags % nhomr(:,:,:) = zero_real_wp
@@ -523,6 +531,10 @@ END IF
 
 IF ( ALLOCATED ( casdiags % nhomr ) ) THEN
   DEALLOCATE ( casdiags % nhomr )
+END IF
+
+IF ( ALLOCATED ( casdiags % phomr ) ) THEN
+  DEALLOCATE ( casdiags % phomr )
 END IF
 
 IF ( ALLOCATED ( casdiags % pcond ) ) THEN
@@ -733,8 +745,10 @@ IF ( ALLOCATED ( casdiags %  dqg )) THEN
   DEALLOCATE ( casdiags % dqg )
 END IF
 
+! Set to False all switches which affect groups of more than one diagnostic
 casdiags % l_process_rates = .FALSE.
-casdiags % l_tendency_dg = .FALSE.
+casdiags % l_tendency_dg   = .FALSE.
+casdiags % l_radar         = .FALSE.
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 

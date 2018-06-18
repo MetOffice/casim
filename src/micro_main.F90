@@ -660,12 +660,6 @@ contains
 
         end if ! casdiags % l_radar
 
-        !if ( casdiags % l_process_rates ) then
-
-        !  call gather_process_diagnostics(i, j, ks, ke)
-
-        !end if
-
         if ( casdiags % l_tendency_dg ) then
            DO k = ks, ke
               kc = k - ks + 1
@@ -1042,7 +1036,7 @@ contains
 
           end if
 
-      end do
+      end do ! loop over model levels, k. 
       !-------------------------------
       ! Collect terms we have so far
       !-------------------------------
@@ -1595,7 +1589,7 @@ contains
       IF (pswitch%l_pisub) THEN
         DO k = ks, ke
           kc = k - ks + 1
-          casdiags % pisub(i,j,k) = procs(kc,i_isub%id)%source(ice_params%i_1m)
+          casdiags % pisub(i,j,k) = -1.0 * procs(kc,i_isub%id)%source(ice_params%i_1m)
         END DO
       ELSE
         casdiags % pisub(i,j,:) = ZERO_REAL_WP
@@ -1606,7 +1600,7 @@ contains
       IF (pswitch%l_pssub) THEN
         DO k = ks, ke
           kc = k - ks + 1
-          casdiags % pssub(i,j,k) = procs(kc,i_ssub%id)%source(snow_params%i_1m)
+          casdiags % pssub(i,j,k) = -1.0 * procs(kc,i_ssub%id)%source(snow_params%i_1m)
         END DO
       ELSE
         casdiags % pssub(i,j,:) = ZERO_REAL_WP
@@ -1618,7 +1612,7 @@ contains
       IF (pswitch%l_pimlt) THEN
         DO k = ks, ke
           kc = k - ks + 1
-          casdiags % pimlt(i,j,k) = procs(kc,i_imlt%id)%source(ice_params%i_1m)
+          casdiags % pimlt(i,j,k) = procs(kc,i_imlt%id)%source(rain_params%i_1m)
         END DO
       ELSE
         casdiags % pimlt(i,j,:) = ZERO_REAL_WP
@@ -1629,7 +1623,7 @@ contains
       IF (pswitch%l_psmlt) THEN
         DO k = ks, ke
           kc = k - ks + 1
-          casdiags % psmlt(i,j,k) = procs(kc,i_smlt%id)%source(snow_params%i_1m)
+          casdiags % psmlt(i,j,k) = procs(kc,i_smlt%id)%source(rain_params%i_1m)
         END DO
       ELSE
         casdiags % psmlt(i,j,:) = ZERO_REAL_WP
@@ -1684,7 +1678,7 @@ contains
       IF (pswitch%l_prevp) THEN
         DO k = ks, ke
           kc = k - ks + 1
-          casdiags % prevp(i,j,k) = procs(kc,i_prevp%id)%source(rain_params%i_1m)
+          casdiags % prevp(i,j,k) = -1.0 * procs(kc,i_prevp%id)%source(rain_params%i_1m)
         END DO
       ELSE
         casdiags % prevp(i,j,:) = ZERO_REAL_WP
@@ -1717,7 +1711,7 @@ contains
       IF (pswitch%l_pgmlt) THEN
         DO k = ks, ke
           kc = k - ks + 1
-          casdiags % pgmlt(i,j,k) = procs(kc,i_gmlt%id)%source(graupel_params%i_1m)
+          casdiags % pgmlt(i,j,k) = procs(kc,i_gmlt%id)%source(rain_params%i_1m)
         END DO
       ELSE
         casdiags % pgmlt(i,j,:) = ZERO_REAL_WP
@@ -1728,7 +1722,7 @@ contains
       IF (pswitch%l_pgsub) THEN
         DO k = ks, ke
           kc = k - ks + 1
-          casdiags % pgsub(i,j,k) = procs(kc,i_gsub%id)%source(graupel_params%i_1m)
+          casdiags % pgsub(i,j,k) = -1.0 * procs(kc,i_gsub%id)%source(graupel_params%i_1m)
         END DO
       ELSE
         casdiags % pgsub(i,j,:) = ZERO_REAL_WP
@@ -1823,12 +1817,6 @@ contains
       END IF
     END IF
 
-    ! UM STASH item 270, Droplet Settle Evap Rate
-    ! Why should evaporation of settling droplets be treated differently than
-    ! evaporation of other cloud droplets? I am taking this to be the cloud
-    ! droplet evaporation rate.
-    ! Technically, the output rate below gives the balance of condensation
-    ! and evaporation, because that's what CASIM stores.
     IF (casdiags % l_pcond) THEN
       IF (pswitch%l_pcond) THEN
         DO k = ks, ke
@@ -1839,6 +1827,18 @@ contains
         casdiags % pcond(i,j,:) = ZERO_REAL_WP
       END IF
     END IF
+
+    IF (casdiags % l_phomr) THEN
+      IF (pswitch%l_phomr) THEN
+        DO k = ks, ke
+          kc = k - ks + 1
+          casdiags % phomr(i,j,k) = procs(kc,i_homr%id)%source(graupel_params%i_1m)
+        END DO
+      ELSE
+        casdiags % phomr(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
     
     IF (casdiags % l_nihal) THEN
       IF ((pswitch%l_pihal) .and. (ice_params%l_2m)) THEN
@@ -1936,8 +1936,6 @@ contains
       END IF
     END IF
 
-    ! UM STASH item 270, Droplet Settle Evap Rate
-    ! Why should evaporation of settling droplets be treated differently than
     end if ! ncall
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
