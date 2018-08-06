@@ -443,6 +443,11 @@ contains
     real(wp) :: precip_s
     real(wp) :: precip_g
 
+    real(wp) :: precip_r1d(ks:ke)
+    real(wp) :: precip_s1d(ks:ke)
+    real(wp) :: precip_so1d(ks:ke)
+    real(wp) :: precip_g1d(ks:ke)
+
     real(wp) :: dbz_tot_c(ks:ke), dbz_g_c(ks:ke), dbz_i_c(ks:ke), &
                 dbz_s_c(ks:ke),   dbz_l_c(ks:ke), dbz_r_c(ks:ke) 
 
@@ -467,6 +472,11 @@ contains
         precip_r = 0.0
         precip_s = 0.0
         precip_g = 0.0
+
+        precip_r1d(:)  = 0.0
+        precip_s1d(:)  = 0.0
+        precip_g1d(:)  = 0.0
+        precip_so1d(:) = 0.0
 
         tend=ZERO_REAL_WP
         call zero_procs(procs)
@@ -560,7 +570,7 @@ contains
         ! Do the business...
         !--------------------------------------------------
         call microphysics_common(dt, ks, ke, i , j, qfields, dqfields, tend, procs, precip(i,j) &
-             , precip_r, precip_s, precip_g                                        &
+             , precip_r, precip_s, precip_g, precip_r1d, precip_s1d, precip_so1d, precip_g1d    &
              , aerophys, aerochem, aeroact                                         &
              , dustphys, dustchem, dustact                                         &
              , aeroice, dustliq                                                    &
@@ -637,12 +647,23 @@ contains
           if ( casdiags % l_surface_snow ) casdiags % SurfaceSnowR(i,j)  = 0.0
           if ( casdiags % l_surface_graup) casdiags % SurfaceGraupR(i,j) = 0.0
 
+          if ( casdiags % l_rainfall_3d ) casdiags % rainfall_3d(i,j,:)  = precip_r1d(:)
+          if ( casdiags % l_snowfall_3d ) casdiags % snowfall_3d(i,j,:)  = 0.0
+          if ( casdiags % l_snowonly_3d ) casdiags % snowonly_3d(i,j,:)  = 0.0
+          if ( casdiags % l_graupfall_3d) casdiags % graupfall_3d(i,j,:) = 0.0
+
+
         else ! l_warm 
 
           if ( casdiags % l_surface_rain ) casdiags % SurfaceRainR(i,j)  = precip_r
           if ( casdiags % l_surface_snow ) casdiags % SurfaceSnowR(i,j)  = precip_s
           if ( casdiags % l_surface_graup) casdiags % SurfaceGraupR(i,j) = precip_g
 
+          if ( casdiags % l_rainfall_3d ) casdiags % rainfall_3d(i,j,:)  = precip_r1d(:)
+          if ( casdiags % l_snowfall_3d ) casdiags % snowfall_3d(i,j,:)  = precip_s1d(:)
+          if ( casdiags % l_snowonly_3d ) casdiags % snowonly_3d(i,j,:)  = precip_so1d(:)
+          if ( casdiags % l_graupfall_3d) casdiags % graupfall_3d(i,j,:) = precip_g1d(:)
+         
         end if ! l_warm
 
         if ( casdiags % l_radar ) then
@@ -689,7 +710,7 @@ contains
   end subroutine shipway_microphysics
 
   subroutine microphysics_common(dt, kl, ku, ix, jy, qfields, dqfields, tend, procs, precip &
-       , precip_r, precip_s, precip_g                                         &
+       , precip_r, precip_s, precip_g, precip_r1d, precip_s1d, precip_so1d, precip_g1d      &
        , aerophys, aerochem, aeroact                                          &
        , dustphys, dustchem, dustact                                          &
        , aeroice, dustliq                                                     &
@@ -712,6 +733,11 @@ contains
     real(wp), INTENT(INOUT) :: precip_s
     real(wp), intent(inout) :: precip_g
 
+    real(wp), INTENT(INOUT) :: precip_r1d(kl:ku)
+    real(wp), INTENT(INOUT) :: precip_s1d(kl:ku)
+    real(wp), INTENT(INOUT) :: precip_so1d(kl:ku)
+    real(wp), INTENT(INOUT) :: precip_g1d(kl:ku)
+
     ! Aerosol fields
     type(aerosol_phys), intent(inout)   :: aerophys(:)
     type(aerosol_chem), intent(in)      :: aerochem(:)
@@ -732,8 +758,9 @@ contains
 
     logical :: l_Twarm   ! temperature above freezing
     logical :: l_Tcold   ! temperature below freezing, i.e. .not. l_Twarm
-
     logical :: l_sigevap ! Is there significant evaporation of rain
+
+    integer, parameter :: level1 = 1
 
     ! Local working precipitation rates
     real(wp) :: precip_l_w ! Liquid cloud precip
@@ -741,6 +768,13 @@ contains
     real(wp) :: precip_i_w ! Ice precip
     real(wp) :: precip_g_w ! Graupel precip
     real(wp) :: precip_s_w ! Snow precip
+
+    real(wp) :: precip1d(kl:ku) ! local working precip rate
+    real(wp) :: precip_l_w1d(kl:ku) ! Liquid cloud precip 1D
+    real(wp) :: precip_r_w1d(kl:ku) ! Rain precip 1D
+    real(wp) :: precip_i_w1d(kl:ku) ! Ice precip 1D
+    real(wp) :: precip_g_w1d(kl:ku) ! Graupel precip 1D
+    real(wp) :: precip_s_w1d(kl:ku) ! Snow precip
 
     character(len=*), parameter :: RoutineName='MICROPHYSICS_COMMON'
 
@@ -807,6 +841,13 @@ contains
     do n=1,nsubsteps
 
       call preconditioner(qfields)
+
+      if ( casdiags % l_mphys_pts ) then
+        ! Set microphysics points flag based on precondition
+        do k = 1, nz
+          casdiags % mphys_pts(ix, jy, k) = precondition(k)
+        end do
+      end if ! casdiags % l_mphys_pts
 
       !------------------------------------------------------
       ! Early exit if we will have nothing to do.
@@ -1143,6 +1184,14 @@ contains
       precip_g_w = 0.0
       precip_s_w = 0.0
 
+      do k = 1, nz
+        precip_l_w1d(k) = 0.0
+        precip_r_w1d(k) = 0.0
+        precip_i_w1d(k) = 0.0
+        precip_g_w1d(k) = 0.0
+        precip_s_w1d(k) = 0.0
+      end do
+
       if ( casdiags % l_process_rates ) then
          call gather_process_diagnostics(ix, jy, ks, ke,ncall=0)
       end if
@@ -1180,18 +1229,26 @@ contains
 
           if (pswitch%l_psedl) then
             call sedr(sed_length, qfields, aerofields, aeroact, dustliq, tend, cloud_params, &
-                 procs, aerosol_procs, precip, l_process)
+                 procs, aerosol_procs, precip1d, l_process)
             
-            precip_l_w = precip_l_w + precip 
+            precip_l_w = precip_l_w + precip1d(level1)
+
+            do k = 1, nz
+              precip_l_w1d(k) = precip_l_w1d(k) + precip1d(k)
+            end do
 
             call sum_procs(sed_length, procs, tend, (/i_psedl/), hydro_names, qfields=qfields)
           end if
 
           if (pswitch%l_psedr) then
             call sedr(sed_length, qfields, aerofields, aeroact, dustliq, tend, rain_params, &
-                 procs, aerosol_procs, precip, l_process)
+                 procs, aerosol_procs, precip1d, l_process)
 
-            precip_r_w = precip_r_w + precip
+            precip_r_w = precip_r_w + precip1d(level1)
+
+            do k = 1, nz
+              precip_r_w1d(k) = precip_r_w1d(k) + precip1d(k)
+            end do
 
             call sum_procs(sed_length, procs, tend, (/i_psedr/), hydro_names, qfields=qfields)
           end if
@@ -1200,22 +1257,36 @@ contains
 
             if (pswitch%l_psedi) then
               call sedr(sed_length, qfields, aerofields, aeroice, dustact, tend, ice_params, &
-                   procs, aerosol_procs, precip, l_process)
+                   procs, aerosol_procs, precip1d, l_process)
                
-              precip_i_w = precip_i_w + precip
+              precip_i_w = precip_i_w + precip1d(level1)
+
+              do k = 1, nz
+                precip_i_w1d(k) = precip_i_w1d(k) + precip1d(k)
+              end do
 
             end if
             if (pswitch%l_pseds) then
               call sedr(sed_length, qfields, aerofields, aeroice, dustact, tend, snow_params, &
-                   procs, aerosol_procs, precip, l_process)
+                   procs, aerosol_procs, precip1d, l_process)
 
-              precip_s_w = precip_s_w + precip
+              precip_s_w = precip_s_w + precip1d(level1)
+
+              do k = 1, nz
+                precip_s_w1d(k) = precip_s_w1d(k) + precip1d(k)
+              end do
+
             end if
             if (pswitch%l_psedg) then
               call sedr(sed_length, qfields, aerofields, aeroice, dustact, tend, graupel_params, &
-                   procs, aerosol_procs, precip, l_process)
+                   procs, aerosol_procs, precip1d, l_process)
               
-              precip_g_w = precip_g_w + precip 
+              precip_g_w = precip_g_w + precip1d(level1)
+
+              do k = 1, nz
+                precip_g_w1d(k) = precip_g_w1d(k) + precip1d(k)
+              end do
+
             end if
 
             call sum_procs(sed_length, procs, tend, (/i_psedi, i_pseds, i_psedg/), hydro_names, qfields=qfields)
@@ -1253,6 +1324,13 @@ contains
       ! For the UM, graupel rate is just itself
       precip_g = precip_g_w
 
+      do k = 1, nz
+        precip_r1d(k)  = precip_r1d(k)  + precip_l_w1d(k) + precip_r_w1d(k)
+        precip_g1d(k)  = precip_g1d(k)  + precip_g_w1d(k)
+        precip_s1d(k)  = precip_s1d(k)  + precip_s_w1d(k) + precip_i_w1d(k) + precip_g_w1d(k)
+        precip_so1d(k) = precip_so1d(k) + precip_s_w1d(k) + precip_i_w1d(k)
+      end do
+
       if (nsubsteps>1)then
         !-------------------------------
         ! Reset process rates if they
@@ -1279,10 +1357,17 @@ contains
     precip_s = precip_s * inv_allsubs
     precip_g = precip_g * inv_allsubs
 
+    do k = 1, nz
+      precip_r1d(k)  = precip_r1d(k)  * inv_allsubs
+      precip_s1d(k)  = precip_s1d(k)  * inv_allsubs
+      precip_so1d(k) = precip_so1d(k) * inv_allsubs
+      precip_g1d(k)  = precip_g1d(k)  * inv_allsubs
+    end do ! k
+
     ! Precip is a sum of everything, so just add rain and snow together which
     ! has all components added.
     ! Do not add precip_g, otherwise graupel contributions will be double-counted
-    precip   = precip_r   + precip_s
+    precip = precip_r   + precip_s
 
     !--------------------------------------------------
     ! Tidy up any small/negative numbers
@@ -1310,7 +1395,7 @@ contains
     ! Add on initial adjustments that may have been made
     !
 
-    if (l_tendency_loc) then! Convert back from cummulative value to tendency
+    if (l_tendency_loc) then! Convert back from cumulative value to tendency
       tend=tend+qfields_mod-qfields_in-dqfields*dt
       tend=tend/dt
     else
@@ -1326,7 +1411,7 @@ contains
     if (aerosol_option > 0) then
       ! processing
       if (l_process) then
-        if (l_tendency_loc) then! Convert back from cummulative value to tendency
+        if (l_tendency_loc) then! Convert back from cumulative value to tendency
           aerosol_tend=aerosol_tend+aerofields_mod-aerofields_in-daerofields*dt
           aerosol_tend=aerosol_tend/dt
         else

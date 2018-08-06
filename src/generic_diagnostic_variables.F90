@@ -67,6 +67,11 @@ TYPE diaglist
   LOGICAL :: l_nsedi          = .FALSE.
   LOGICAL :: l_nseds          = .FALSE.
   LOGICAL :: l_nsedg          = .FALSE.
+  LOGICAL :: l_rainfall_3d    = .FALSE.
+  LOGICAL :: l_snowfall_3d    = .FALSE.
+  LOGICAL :: l_snowonly_3d    = .FALSE.
+  LOGICAL :: l_graupfall_3d   = .FALSE.
+  LOGICAL :: l_mphys_pts      = .FALSE.
 
   !---------------------------------
   ! logical flags for theta tendencies
@@ -166,6 +171,19 @@ TYPE diaglist
   REAL, ALLOCATABLE :: dqi(:,:,:)
   REAL, ALLOCATABLE :: dqs(:,:,:)
   REAL, ALLOCATABLE :: dqg(:,:,:)
+
+  !---------------------------------
+  ! 3D rainfall and snowfall rates
+  !---------------------------------
+  REAL, ALLOCATABLE :: rainfall_3d(:,:,:)
+  REAL, ALLOCATABLE :: snowfall_3d(:,:,:)
+  REAL, ALLOCATABLE :: snowonly_3d(:,:,:)
+  REAL, ALLOCATABLE :: graupfall_3d(:,:,:)
+
+  !---------------------------------
+  ! Points on which we do microphysics
+  !---------------------------------
+  LOGICAL, ALLOCATABLE :: mphys_pts(:,:,:)
 
 END TYPE diaglist
 
@@ -499,6 +517,31 @@ IF (casdiags % l_dqg) THEN
   casdiags % l_tendency_dg = .TRUE.
 END IF
 
+IF (casdiags % l_rainfall_3d) THEN
+  ALLOCATE ( casdiags % rainfall_3d(is:ie, js:je, ks:ke) )
+  casdiags % rainfall_3d(:,:,:) = zero_real_wp
+END IF
+
+IF (casdiags % l_snowfall_3d) THEN
+  ALLOCATE ( casdiags % snowfall_3d(is:ie, js:je, ks:ke) )
+  casdiags % snowfall_3d(:,:,:) = zero_real_wp
+END IF
+
+IF (casdiags % l_snowonly_3d) THEN
+  ALLOCATE ( casdiags % snowonly_3d(is:ie, js:je, ks:ke) )
+  casdiags % snowonly_3d(:,:,:) = zero_real_wp
+END IF
+
+IF (casdiags % l_graupfall_3d) THEN
+  ALLOCATE ( casdiags % graupfall_3d(is:ie, js:je, ks:ke) )
+  casdiags % graupfall_3d(:,:,:) = zero_real_wp
+END IF
+
+IF (casdiags % l_mphys_pts) THEN
+  ALLOCATE ( casdiags % mphys_pts(is:ie, js:je, ks:ke) )
+  casdiags % mphys_pts(:,:,:) = .FALSE.
+END IF
+
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
 END SUBROUTINE allocate_diagnostic_space
@@ -524,6 +567,26 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 ! Remember to deallocate all memory in the reverse order that it was
 ! allocated.
+
+IF ( ALLOCATED ( casdiags % mphys_pts ) ) THEN
+  DEALLOCATE ( casdiags % mphys_pts )
+END IF
+
+IF ( ALLOCATED ( casdiags % graupfall_3d ) ) THEN
+  DEALLOCATE ( casdiags % graupfall_3d )
+END IF
+
+IF ( ALLOCATED ( casdiags % snowonly_3d ) ) THEN
+  DEALLOCATE ( casdiags % snowonly_3d )
+END IF
+
+IF ( ALLOCATED ( casdiags % snowfall_3d ) ) THEN
+  DEALLOCATE ( casdiags % snowfall_3d )
+END IF
+
+IF ( ALLOCATED ( casdiags % rainfall_3d ) ) THEN
+  DEALLOCATE ( casdiags % rainfall_3d )
+END IF
 
 IF ( ALLOCATED ( casdiags % nihal ) ) THEN
   DEALLOCATE ( casdiags % nihal )
