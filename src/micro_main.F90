@@ -443,13 +443,13 @@ contains
     real(wp) :: precip_s
     real(wp) :: precip_g
 
-    real(wp) :: precip_r1d(ks:ke)
-    real(wp) :: precip_s1d(ks:ke)
-    real(wp) :: precip_so1d(ks:ke)
-    real(wp) :: precip_g1d(ks:ke)
+    real(wp) :: precip_r1d(nz)
+    real(wp) :: precip_s1d(nz)
+    real(wp) :: precip_so1d(nz)
+    real(wp) :: precip_g1d(nz)
 
-    real(wp) :: dbz_tot_c(ks:ke), dbz_g_c(ks:ke), dbz_i_c(ks:ke), &
-                dbz_s_c(ks:ke),   dbz_l_c(ks:ke), dbz_r_c(ks:ke) 
+    real(wp) :: dbz_tot_c(nz), dbz_g_c(nz), dbz_i_c(nz), &
+                dbz_s_c(nz),   dbz_l_c(nz), dbz_r_c(nz) 
 
     INTEGER :: kc ! Casim Z-level
        
@@ -647,10 +647,10 @@ contains
           if ( casdiags % l_surface_snow ) casdiags % SurfaceSnowR(i,j)  = 0.0
           if ( casdiags % l_surface_graup) casdiags % SurfaceGraupR(i,j) = 0.0
 
-          if ( casdiags % l_rainfall_3d ) casdiags % rainfall_3d(i,j,:)  = precip_r1d(:)
-          if ( casdiags % l_snowfall_3d ) casdiags % snowfall_3d(i,j,:)  = 0.0
-          if ( casdiags % l_snowonly_3d ) casdiags % snowonly_3d(i,j,:)  = 0.0
-          if ( casdiags % l_graupfall_3d) casdiags % graupfall_3d(i,j,:) = 0.0
+          if ( casdiags % l_rainfall_3d ) casdiags % rainfall_3d(i,j,ks:ke)  = precip_r1d(:)
+          if ( casdiags % l_snowfall_3d ) casdiags % snowfall_3d(i,j,ks:ke)  = 0.0
+          if ( casdiags % l_snowonly_3d ) casdiags % snowonly_3d(i,j,ks:ke)  = 0.0
+          if ( casdiags % l_graupfall_3d) casdiags % graupfall_3d(i,j,ks:ke) = 0.0
 
 
         else ! l_warm 
@@ -659,10 +659,10 @@ contains
           if ( casdiags % l_surface_snow ) casdiags % SurfaceSnowR(i,j)  = precip_s
           if ( casdiags % l_surface_graup) casdiags % SurfaceGraupR(i,j) = precip_g
 
-          if ( casdiags % l_rainfall_3d ) casdiags % rainfall_3d(i,j,:)  = precip_r1d(:)
-          if ( casdiags % l_snowfall_3d ) casdiags % snowfall_3d(i,j,:)  = precip_s1d(:)
-          if ( casdiags % l_snowonly_3d ) casdiags % snowonly_3d(i,j,:)  = precip_so1d(:)
-          if ( casdiags % l_graupfall_3d) casdiags % graupfall_3d(i,j,:) = precip_g1d(:)
+          if ( casdiags % l_rainfall_3d ) casdiags % rainfall_3d(i,j,ks:ke)  = precip_r1d(:)
+          if ( casdiags % l_snowfall_3d ) casdiags % snowfall_3d(i,j,ks:ke)  = precip_s1d(:)
+          if ( casdiags % l_snowonly_3d ) casdiags % snowonly_3d(i,j,ks:ke)  = precip_so1d(:)
+          if ( casdiags % l_graupfall_3d) casdiags % graupfall_3d(i,j,ks:ke) = precip_g1d(:)
          
         end if ! l_warm
 
@@ -733,10 +733,10 @@ contains
     real(wp), INTENT(INOUT) :: precip_s
     real(wp), intent(inout) :: precip_g
 
-    real(wp), INTENT(INOUT) :: precip_r1d(kl:ku)
-    real(wp), INTENT(INOUT) :: precip_s1d(kl:ku)
-    real(wp), INTENT(INOUT) :: precip_so1d(kl:ku)
-    real(wp), INTENT(INOUT) :: precip_g1d(kl:ku)
+    real(wp), INTENT(INOUT) :: precip_r1d(:)
+    real(wp), INTENT(INOUT) :: precip_s1d(:)
+    real(wp), INTENT(INOUT) :: precip_so1d(:)
+    real(wp), INTENT(INOUT) :: precip_g1d(:)
 
     ! Aerosol fields
     type(aerosol_phys), intent(inout)   :: aerophys(:)
@@ -769,12 +769,14 @@ contains
     real(wp) :: precip_g_w ! Graupel precip
     real(wp) :: precip_s_w ! Snow precip
 
-    real(wp) :: precip1d(kl:ku) ! local working precip rate
-    real(wp) :: precip_l_w1d(kl:ku) ! Liquid cloud precip 1D
-    real(wp) :: precip_r_w1d(kl:ku) ! Rain precip 1D
-    real(wp) :: precip_i_w1d(kl:ku) ! Ice precip 1D
-    real(wp) :: precip_g_w1d(kl:ku) ! Graupel precip 1D
-    real(wp) :: precip_s_w1d(kl:ku) ! Snow precip
+    !AH - note that nz is derived in mphys_init and accounts for the lowest level 
+    !     not equal to 1
+    real(wp) :: precip1d(nz) ! local working precip rate
+    real(wp) :: precip_l_w1d(nz) ! Liquid cloud precip 1D
+    real(wp) :: precip_r_w1d(nz) ! Rain precip 1D
+    real(wp) :: precip_i_w1d(nz) ! Ice precip 1D
+    real(wp) :: precip_g_w1d(nz) ! Graupel precip 1D
+    real(wp) :: precip_s_w1d(nz) ! Snow precip
 
     character(len=*), parameter :: RoutineName='MICROPHYSICS_COMMON'
 
