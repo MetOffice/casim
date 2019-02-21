@@ -2,7 +2,7 @@
 ! re-evaporated (or potentially any other) aerosol
 module which_mode_to_use
   use variable_precision, only: wp
-  use mphys_switches, only: l_ukca_casim, l_aeroproc_midway
+  use mphys_switches, only: l_aeroproc_midway
   use lognormal_funcs, only: MNtoRm
 
   implicit none
@@ -73,8 +73,9 @@ contains
     dm2=0.0
     dn1=0.0
     dn2=0.0
-
-    if (l_ukca_casim) imethod=iukca_method
+! Don't think there is a need for a separate UKCA method. Which_mode_to_use
+! can either partition between UKCA accumulation and coarse, or tracer
+! accumulation and coarse
     if (dm*dn > 0.0) then 
       ! dm and dn should be positive and of the same sign
       r1=min(max_accumulation_mean_radius, r1_in)
@@ -98,8 +99,6 @@ contains
       end if
 
       select case(imethod)
-      case (iukca_method)
-        ! Call ukca subroutine, or add UKCA code here?
       case default
         if (rm > r_thresh) then
           dm1=0.0

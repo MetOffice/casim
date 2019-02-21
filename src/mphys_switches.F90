@@ -56,7 +56,7 @@ module mphys_switches
 
   logical :: l_ukca_casim = .false. ! CASIM is coupled to UKCA. 
   ! This is set to false, but needs setting to .true. if l_ukca
-  ! is true in the UM.
+  ! is true in the UM. This is done in init_casim_run_mod.F90
 
   character(10), allocatable :: hydro_names(:)
   character(20), allocatable :: aero_names(:)
@@ -64,6 +64,7 @@ module mphys_switches
   ! index to determine if something is a mass or a number
   integer :: inumber=1
   integer :: imass=2
+  integer :: ihyg=3
   ! index to determine if something is a soluble(ccn) or insoluble(IN) (NB currently can't be both)
   integer :: isol=1
   integer :: iinsol=2
@@ -145,6 +146,11 @@ module mphys_switches
   integer :: i_an11 = 0    ! soluble
   integer :: i_an12 = 0    ! insoluble
 
+  ! aerosol indices (hygroscopicity of soluble modes)
+  integer :: i_ak1 = 0 ! Aitken
+  integer :: i_ak2 = 0 ! accumulation
+  integer :: i_ak3 = 0 ! coarse
+
   type :: complexity
      integer :: nspecies
      integer, pointer :: nmoments(:)
@@ -158,6 +164,7 @@ module mphys_switches
      integer :: nin             = 0  !< How many aerosol act as in
      integer :: ccn_m(maxmodes) = 0  !< list of ccn mass indices
      integer :: ccn_n(maxmodes) = 0  !< list of ccn number indices
+     integer :: ccn_k(maxmodes) = 0  !< list of ccn hygroscopicity indices
      integer :: in_m(maxmodes)  = 0  !< list of in mass indices
      integer :: in_n(maxmodes)  = 0  !< list of in number indices
      ! Some useful indices for the different modes
@@ -702,7 +709,9 @@ contains
 
       nactivea=count(active_cloud(isol:isol))+count(active_ice(isol:isol))+count(active_rain)+count(active_number(isol:isol))
       nactived=count(active_cloud(iinsol:iinsol))+count(active_ice(iinsol:iinsol))+count(active_number(iinsol:iinsol))
-      ntotala=sum(soluble_modes)+sum(insoluble_modes)+count(active_cloud)+&
+      ! Increase ntotala by sum(soluble_modes) in Jan 2019 to make space for
+      ! hygroscopicity properties from UKCA
+      ntotala=2*sum(soluble_modes)+sum(insoluble_modes)+count(active_cloud)+&
            count(active_ice)+count(active_rain)+count(active_number)
       allocate(aero_names(ntotala))
 
@@ -727,6 +736,12 @@ contains
       if (insoluble_modes(1) > 0) call alloca(i_an10,iq,aero_names, 'AccumInsolNumber', aero_index, i_in=inumber)
       if (active_number(isol)) call alloca(i_an11,iq,aero_names, 'ActiveSolNumber', aero_index)
       if (active_number(iinsol)) call alloca(i_an12,iq,aero_names, 'ActiveInsolNumber', aero_index)
+      ! The order of these matters, safest to add new ones at the
+      ! end. This doesn't do anything except assign numbers to
+      ! ak, and the numbers should be 18,19,20
+      if (soluble_modes(1) > 0) call alloca(i_ak1,iq,aero_names,'AitkenSolBk',aero_index,i_ccn=ihyg)
+      if (soluble_modes(2) > 0) call alloca(i_ak2,iq,aero_names,'AccumSolBk', aero_index,i_ccn=ihyg)
+      if (soluble_modes(3) > 0) call alloca(i_ak3,iq,aero_names,'CoarseSolBk',aero_index,i_ccn=ihyg)
 
       aero_complexity%nspecies=count(soluble_modes > 0)+count(insoluble_modes > 0)+count(active_cloud)&
            +count(active_ice)+count(active_rain)+count(active_number)
@@ -949,7 +964,7 @@ contains
     character(20), intent(inout) :: names(:)
     character(*), intent(in) :: name
     type(aerosol_index), intent(inout) :: aero_index
-    ! if present and >0 should be set to imass or inumber
+    ! if present and >0 should be set to imass or inumber or ihyg
     integer, optional, intent(in) :: i_ccn, i_in
 
     integer :: is_ccn, is_in, nin, nccn
@@ -980,6 +995,10 @@ contains
       ! represents number of aerosol which can act as ccn
       nccn=count(aero_index%ccn_n > 0)+1
       aero_index%ccn_n(nccn)=iq
+      aero_index%nccn=nccn
+    else if (is_ccn == ihyg) then
+      nccn=count(aero_index%ccn_k > 0)+1
+      aero_index%ccn_k(nccn)=iq
       aero_index%nccn=nccn
     end if
     if (is_in == imass) then

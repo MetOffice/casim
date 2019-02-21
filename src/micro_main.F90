@@ -14,7 +14,8 @@ module micro_main
        deallocate_aerosol
   use mphys_switches, only: hydro_complexity, aero_complexity, i_qv, i_ql, i_nl, i_qr, i_nr, i_m3r, i_th, i_qi, &
        i_qs, i_qg, i_ni, i_ns, i_ng, i_m3s, i_m3g, i_am1, i_an1, i_am2, i_an2, i_am3, i_an3, i_am4, i_am5, i_am6, &
-       i_an6, i_am7, i_am8 , i_am9, i_am10, i_an10, i_an11, i_an12, hydro_names, aero_names,  aerosol_option, l_warm, &
+       i_an6, i_am7, i_am8 , i_am9, i_am10, i_an10, i_an11, i_an12, i_ak1, i_ak2, i_ak3, &
+       hydro_names, aero_names,  aerosol_option, l_warm, &
        l_inuc, l_sed, l_condensation, l_iaut, l_imelt, l_iacw, l_idep, aero_index, nq_l, nq_r, nq_i, nq_s, nq_g, &
        l_sg, l_g, l_process, l_halletmossop, max_sed_length, max_step_length, l_harrington, l_passive, ntotala, ntotalq, &
        active_number, isol, iinsol, l_raci_g, l_onlycollect, l_pracr, pswitch, l_isub, l_pos1, l_pos2, l_pos3, l_pos4, &
@@ -338,7 +339,7 @@ contains
   subroutine shipway_microphysics(il, iu, jl, ju, kl, ku, dt,               &
        qv, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12, q13,          &
        theta, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13,       &
-       a14, a15, a16, a17,                                                  &
+       a14, a15, a16, a17, a18, a19, a20,                                   &
        exner, pressure, rho, w, tke, z_half, z_centre, dz,                  &
        dqv, dq1, dq2, dq3, dq4, dq5, dq6, dq7, dq8, dq9, dq10, dq11, dq12,  &
        dq13, dth, da1, da2, da3, da4, da5, da6, da7, da8, da9, da10, da11,  &
@@ -385,7 +386,8 @@ contains
          , a6( kl:ku, il:iu, jl:ju ), a7( kl:ku, il:iu, jl:ju ), a8( kl:ku, il:iu, jl:ju ) &
          , a9( kl:ku, il:iu, jl:ju ), a10( kl:ku, il:iu, jl:ju ), a11(kl:ku, il:iu, jl:ju ) &
          , a12( kl:ku, il:iu, jl:ju ), a13( kl:ku, il:iu, jl:ju ), a14( kl:ku, il:iu, jl:ju ) &
-         , a15( kl:ku, il:iu, jl:ju ), a16( kl:ku, il:iu, jl:ju ), a17( kl:ku, il:iu, jl:ju )
+         , a15( kl:ku, il:iu, jl:ju ), a16( kl:ku, il:iu, jl:ju ), a17(kl:ku,il:iu, jl:ju )  &
+         , a18( kl:ku, il:iu, jl:ju ), a19( kl:ku, il:iu, jl:ju ), a20( kl:ku,il:iu, jl:ju )
 
     ! hydro tendencies in:  from parent model forcing i.e. advection
     ! hydro tendencies out: from microphysics only...
@@ -537,7 +539,10 @@ contains
           if (i_an10 >0) aerofields(:, i_an10)=a15(ks:ke,i,j)
           if (i_an11 >0) aerofields(:, i_an11)=a16(ks:ke,i,j)
           if (i_an12 >0) aerofields(:, i_an12)=a17(ks:ke,i,j)
-
+          if (i_ak1 >0) aerofields(:, i_ak1)=a18(ks:ke,i,j)
+          if (i_ak2 >0) aerofields(:, i_ak2)=a19(ks:ke,i,j)
+          if (i_ak3 >0) aerofields(:, i_ak3)=a20(ks:ke,i,j)
+ 
           if (i_am1 >0) daerofields(:, i_am1)=da1(ks:ke,i,j)
           if (i_an1 >0) daerofields(:, i_an1)=da2(ks:ke,i,j)
           if (i_am2 >0) daerofields(:, i_am2)=da3(ks:ke,i,j)

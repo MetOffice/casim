@@ -42,6 +42,7 @@ module type_aerosol
      real(wp), pointer :: density(:)   ! density of aerosol
      real(wp), pointer :: epsv(:)      ! volume fraction
      real(wp), pointer :: beta(:)      ! parameter describing distribution
+     real(wp), pointer :: bk(:) ! combined parameter for volume-weighted hygroscopicity
      ! of soluble fraction of aerosol
      ! within particle volume
      ! (see Shipway and Abel 2010 for details)

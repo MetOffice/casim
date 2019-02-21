@@ -4,7 +4,8 @@ module activation
   use mphys_parameters, only: C1, K1
   use mphys_switches, only: iopt_act, aero_index,   &
        i_am2, i_an2, i_am4, i_am1, i_an1, i_am3, i_an3, &
-       i_am5, i_am6, i_an6, i_am7, l_warm, iopt_shipway_act
+       i_am5, i_am6, i_an6, i_am7, l_warm,              &
+       iopt_shipway_act,l_ukca_casim
   use aerosol_routines, only: aerosol_active, aerosol_phys, aerosol_chem, &
        abdulRazzakGhan2000, invert_partial_moment, upperpartial_moment_logn, &
        invert_partial_moment_approx, invert_partial_moment_betterapprox, &
@@ -15,7 +16,7 @@ module activation
      rdi, sigmad, bi, betai, use_mode, nd_min
   use shipway_constants, only: Mw, rhow
   use shipway_activation_mod, only: solve_nccn_household, solve_nccn_brent
-
+  
   implicit none
 
   character(len=*), parameter, private :: ModuleName='ACTIVATION'
@@ -147,8 +148,12 @@ contains
       ! This is a bit clunk and could be harmonized
       nmodes=aero_index%nccn
       do imode=1,aero_index%nccn
-        bi(imode) =aerochem%vantHoff(imode)*aerochem%epsv(imode)* &
-           aerochem%density(imode)*Mw/(rhow*aerochem%massMole(imode)) 
+        if(l_ukca_casim) then
+          bi(imode) =aerochem%bk(imode)*aerochem%epsv(imode)
+        else
+          bi(imode) =aerochem%vantHoff(imode)*aerochem%epsv(imode)* &
+             aerochem%density(imode)*Mw/(rhow*aerochem%massMole(imode)) 
+        endif
         Ndi(imode)=aerophys%N(imode)
         rdi(imode)=aerophys%rd(imode)
         sigmad(imode)=aerophys%sigma(imode)

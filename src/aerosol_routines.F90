@@ -6,8 +6,9 @@ module aerosol_routines
   use special, only: erfc, erfinv
   use mphys_switches, only: i_am2, i_an2, i_am4, i_nl, i_nr, i_am1, i_an1, i_am3, i_an3, &
        i_am5, i_am6, i_an6, i_am7, i_am8, i_am9, i_an11, i_an12, i_ni, i_ns, i_ng, i_ql, &
-       i_qr, i_qi, i_qs, i_qg, l_active_inarg2000, aero_index, l_warm, active_cloud, active_rain, &
-       active_ice, isol, iinsol, l_process, l_passivenumbers, l_passivenumbers_ice, l_separate_rain
+       i_qr, i_qi, i_qs, i_qg, l_active_inarg2000, aero_index, l_warm, active_cloud,    &
+       active_rain, active_ice, isol, iinsol, l_process, l_passivenumbers,              &
+       l_passivenumbers_ice, l_separate_rain, l_ukca_casim                      
   use thresholds, only: nr_tidy, nl_tidy, ni_tidy, ccn_tidy, qr_tidy, aeromass_small, aeronumber_small
   use mphys_parameters, only: sigma_arc, nz
   use lognormal_funcs, only: MNtoRm ! DPG - added this for MNtoRm since was 
@@ -80,6 +81,7 @@ contains
       allocate(aerochem(k)%density(max(1,nmodes)))
       allocate(aerochem(k)%epsv(max(1,nmodes)))
       allocate(aerochem(k)%beta(max(1,nmodes)))
+      allocate(aerochem(k)%bk(max(1,nmodes)))
 
       if (present(initphys)) aerochem(k)=initchem
     end do
@@ -138,6 +140,7 @@ contains
       deallocate(aerochem(k)%density)
       deallocate(aerochem(k)%epsv)
       deallocate(aerochem(k)%beta)
+      deallocate(aerochem(k)%bk)
     end do
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
@@ -195,7 +198,7 @@ contains
     real(wp) :: ratio_dil, ratio_dli, ratio_ali, ratio_ail
 
     integer :: imode
-    real(wp) :: mode_N, mode_M
+    real(wp) :: mode_N, mode_M, mode_K
     real(wp) :: nitot, ntot, nhtot, mitot
     real(wp) :: mact, rcrit2
     real(wp) :: foo
@@ -230,14 +233,17 @@ contains
         do imode=1, aero_index%nccn
           mode_N=aerofields(k,aero_index%ccn_n(imode))
           mode_M=aerofields(k,aero_index%ccn_m(imode))
+          mode_K=aerofields(k,aero_index%ccn_k(imode))
           if (mode_N > ccn_tidy .and. mode_M > ccn_tidy*1e-18) then ! FiX This
             aerophys(k)%N(imode)=mode_N
             aerophys(k)%M(imode)=mode_M
             aerophys(k)%rd(imode)=MNtoRm(mode_M,mode_N,density,aerophys(k)%sigma(imode))
+            aerochem(k)%bk(imode)=mode_K
           else
             aerophys(k)%N(imode)=0.0
             aerophys(k)%M(imode)=0.0
             aerophys(k)%rd(imode)=0.0
+            aerochem(k)%bk(imode)=0.0
           end if
         end do
 
@@ -696,7 +702,11 @@ contains
     bigG=1.0/(rhow*(Rv*T/(es*Dv)+Lv*(Lv/(Rv*T)-1)/(ka*T)))
 
     do i=1, 1!phys%nmodes
-      Bk=chem%vantHoff(i)*Mw*chem%density(i)/(chem%massMole(i)*rhow)
+      if(l_ukca_casim) then
+        Bk =chem%bk(i)
+      else
+        Bk=chem%vantHoff(i)*Mw*chem%density(i)/(chem%massMole(i)*rhow)
+      endif
       s_cr(i)=(2.0/sqrt(Bk))*(Ak/(3.0*phys%rd(i)))**1.5
       eta=(w*alpha/BigG)**1.5/(2.0*pi*rhow*gamma*phys%N(i))
       zeta=(2.0/3.0)*Ak*(w*alpha/BigG)**0.5
@@ -784,7 +794,11 @@ contains
 
     do i=1, phys%nmodes
       if (phys%N(i) > ccn_tidy) then
-        Bk=chem%vantHoff(i)*Mw*chem%density(i)/(chem%massMole(i)*rhow)
+        if(l_ukca_casim) then
+          Bk =chem%bk(i)
+        else
+          Bk=chem%vantHoff(i)*Mw*chem%density(i)/(chem%massMole(i)*rhow)
+        endif
         s_cr(i)=(2.0/sqrt(Bk))*(Ak/(3.0*phys%rd(i)))**1.5
         eta=(w*alpha/BigG)**1.5/(2.0*pi*rhow*gamma*phys%N(i))
         f1=0.5*exp(2.5*(log(phys%sigma(i)))**2)
@@ -796,7 +810,11 @@ contains
     if (l_useactive) then  ! We should include all the activated aerosol
       if (active_phys%nact > ccn_tidy) then
         i=aero_index%i_accum ! use accumulation mode chem (should do this properly)
-        Bk=chem%vantHoff(i)*Mw*chem%density(i)/(chem%massMole(i)*rhow)
+        if(l_ukca_casim) then
+          Bk =chem%bk(i)
+        else
+          Bk=chem%vantHoff(i)*Mw*chem%density(i)/(chem%massMole(i)*rhow)
+        endif
         s_cr_active=(2.0/sqrt(Bk))*(Ak/(3.0*active_phys%rd))**1.5
         eta=(w*alpha/BigG)**1.5/(2.0*pi*rhow*gamma*active_phys%nact)
         f1=0.5*exp(2.5*(log(active_phys%sigma))**2)
@@ -903,7 +921,11 @@ contains
 
     do i=1, phys%nmodes
       if (phys%N(i) > ccn_tidy) then
-        Bk=chem%vantHoff(i)*Mw*chem%density(i)/(chem%massMole(i)*rhow)
+        if(l_ukca_casim) then
+          Bk =chem%bk(i)
+        else
+          Bk=chem%vantHoff(i)*Mw*chem%density(i)/(chem%massMole(i)*rhow)
+        endif
         s_cr(i)=(2.0/sqrt(Bk))*(Ak/(3.0*phys%rd(i)))**1.5
         eta=(w*alpha/BigG)**1.5/(2.0*pi*rhow*gamma*phys%N(i))
         f1=0.5*exp(2.5*(log(phys%sigma(i)))**2)
@@ -927,7 +949,11 @@ contains
     if (l_useactive) then  ! We should include all the activated aerosol
       if (active_phys%nact > ccn_tidy) then
         i=aero_index%i_accum ! use accumulation mode chem (should do this properly)
-        Bk=chem%vantHoff(i)*Mw*chem%density(i)/(chem%massMole(i)*rhow)
+        if(l_ukca_casim) then
+          Bk =chem%bk(i)
+        else
+          Bk=chem%vantHoff(i)*Mw*chem%density(i)/(chem%massMole(i)*rhow)
+        endif
         s_cr_active=(2.0/sqrt(Bk))*(Ak/(3.0*active_phys%rd))**1.5
         eta=(w*alpha/BigG)**1.5/(2.0*pi*rhow*gamma*active_phys%nact)
         f1=0.5*exp(2.5*(log(active_phys%sigma))**2)
