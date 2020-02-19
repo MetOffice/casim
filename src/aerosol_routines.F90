@@ -3,16 +3,16 @@ module aerosol_routines
   use type_aerosol, only: aerosol_type, aerosol_phys, aerosol_chem, aerosol_active
   use variable_precision, only: wp
   use mphys_constants, only: Mw, zetasa, Ru, rhow, g, Lv, mp_eps, cp, Rd, Rv, ka, Dv, pi
-  use special, only: erfc, erfinv
+  use special, only: casim_erfc, erfinv
   use mphys_switches, only: i_am2, i_an2, i_am4, i_nl, i_nr, i_am1, i_an1, i_am3, i_an3, &
        i_am5, i_am6, i_an6, i_am7, i_am8, i_am9, i_an11, i_an12, i_ni, i_ns, i_ng, i_ql, &
        i_qr, i_qi, i_qs, i_qg, l_active_inarg2000, aero_index, l_warm, active_cloud,    &
        active_rain, active_ice, isol, iinsol, l_process, l_passivenumbers,              &
-       l_passivenumbers_ice, l_separate_rain, l_ukca_casim                      
+       l_passivenumbers_ice, l_separate_rain, l_ukca_casim
   use thresholds, only: nr_tidy, nl_tidy, ni_tidy, ccn_tidy, qr_tidy, aeromass_small, aeronumber_small
   use mphys_parameters, only: sigma_arc, nz
-  use lognormal_funcs, only: MNtoRm ! DPG - added this for MNtoRm since was 
-                                    ! causing circular conflicts as wanted 
+  use lognormal_funcs, only: MNtoRm ! DPG - added this for MNtoRm since was
+                                    ! causing circular conflicts as wanted
                                     ! to use it in which_mode_to_use.F90
 
   implicit none
@@ -99,7 +99,7 @@ contains
     USE parkind1, ONLY: jprb, jpim
 
     implicit none
-    
+
 
     ! Subroutine arguments
 
@@ -193,7 +193,7 @@ contains
 
     real(wp) :: mtot, tmp, m_ratio, n_ratio, dcloud_number, rm_arc
     character(2) :: chcall, chmode
-    real(wp) :: ratio_l, ratio_r, nratio_l, nratio_r, mratio_l, mratio_r
+    real(wp) :: ratio_l, ratio_r, nratio_l, nratio_r
     real(wp) :: ratio_i, ratio_s, ratio_g, nratio_i, nratio_s, nratio_g, mratio_i, mratio_s, mratio_g
     real(wp) :: ratio_dil, ratio_dli, ratio_ali, ratio_ail
 
@@ -389,9 +389,9 @@ contains
 
             write(std_msg,*)   'Problem! Using pragmatic hack to continue.  '//       &
                                'If you see this message, report it to Ben Shipway!!!'
-                                
+
             call throw_mphys_error(warn, ModuleName//':'//RoutineName, std_msg)
-            
+
             if (mode_m < 0) mode_m=aeromass_small
             if (mode_n < 0) mode_n=aeronumber_small
           end if
@@ -576,8 +576,6 @@ contains
 
             nratio_l=cloud_number/(cloud_number+rain_number+tiny(cloud_number))
             nratio_r=rain_number/(cloud_number+rain_number+tiny(cloud_number))
-            mratio_l=cloud_mass/(cloud_mass+rain_mass+tiny(cloud_number))
-            mratio_r=rain_mass/(cloud_mass+rain_mass+tiny(cloud_number))
 
             ! Use nratios...
             ratio_l=nratio_l
@@ -960,7 +958,7 @@ contains
         f2=1.0+0.25*log(active_phys%sigma)
         rsmax2=rsmax2+(f1*(zeta/eta)**1.5+f2*(s_cr_active*s_cr_active/(eta+3.0*zeta))**.75)/(s_cr_active*s_cr_active)
       end if
- 
+
       if (active_dphys%nact > ni_tidy) then
         i = aero_index%i_coarse_dust
         Bk = dchem%vantHoff(i)*Mw*dchem%density(i)/(dchem%massMole(i)*rhow)
@@ -981,8 +979,8 @@ contains
         error_func=1.0-erf(2.0*log(s_cr_active/smax)/(3.0*sqrt(2.0)*log(active_phys%sigma)))
         nccn_active=0.5*active_phys%nact*error_func
       end if
-     
-      if (active_dphys%nact > ni_tidy) then 
+
+      if (active_dphys%nact > ni_tidy) then
         error_func = 1.0-erf(2.0*LOG(s_cr_active_d/smax)/(3.0*SQRT(2.0)*LOG(active_dphys%sigma)))
         nccn_dactive = 0.5*active_dphys%nact*error_func
       end if
@@ -1021,7 +1019,7 @@ contains
       !nccn(1) = max(0.0, nccn(1) - diff)
       !nccn(2) = min(nccn(2), max(0.0, nccn(2) + nccn(1) - diff))
       !nccn(3) = min(nccn(3), max(0.0, nccn(3) + nccn(2) + nccn(1) - diff))
-     
+
       diff = active_dphys%nact - nccn_dactive
       sum = 0.0
       do i=1,SIZE(dnccn)
@@ -1033,7 +1031,7 @@ contains
     dnccn=.99*dnccn
     deallocate(s_cr)
   end subroutine AbdulRazzakGhan2000_dust
-  
+
   !
   ! Calculate the moments of a lognormal distribution
   !
@@ -1125,7 +1123,7 @@ contains
       upperpartial_moment_logn=moment_logn(N, rm, sigma, p)
     else
       upperpartial_moment_logn=N*rm**p*exp(.5*p*p*log(sigma)**2)     &
-           * .5*erfc((log(rcrit/rm)/log(sigma) - p*log(sigma))/sqrt(2.0))
+           * .5*casim_erfc((log(rcrit/rm)/log(sigma) - p*log(sigma))/sqrt(2.0))
     end if
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
@@ -1207,7 +1205,7 @@ contains
     ! Subroutine arguments
 
     real(wp), intent(in) :: mup, rm, sigma, p ! pth moment
-    
+
     ! Local variables
     real(wp) :: invert_partial_moment_approx
     real(wp) :: beta, c, lsig, mbeta

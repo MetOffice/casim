@@ -55,7 +55,7 @@ contains
 
     real(wp) :: qv
     real(wp) :: dmass, dnumber, dm1, dm2, dm3
-    real(wp) :: number, mass, m1, m2, m3
+    real(wp) :: mass, m1, m2, m3
     real(wp) :: gacw, gacr, gaci, gacs  ! graupel accretion process rates
     real(wp) :: dnumber_s, dnumber_g  ! number conversion rate from snow/graupel
     real(wp) :: dmass_s, dmass_g      ! mass conversion rate from snow/graupel
@@ -104,7 +104,6 @@ contains
       if (pgacsum > thresh_small(graupel_params%i_1m)) then
         qv=qfields(k, i_qv)
         mass=qfields(k, graupel_params%i_1m)
-        if (graupel_params%l_2m) number=qfields(k, graupel_params%i_2m)
 
         n0=dist_n0(k,graupel_params%id)
         mu=dist_mu(k,graupel_params%id)
@@ -161,7 +160,7 @@ contains
       nullify(this_proc)
 
     end if
-  
+
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
   end subroutine wetgrowth

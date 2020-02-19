@@ -39,9 +39,9 @@ contains
     ! Local variables
     type(process_name) :: iproc ! processes selected depending on which species we're modifying
     real(wp) :: dnumber, dm1, dm2, dm3
-    real(wp) :: number, mass, m1, m2, m3
+    real(wp) :: number, mass, m1, m2
     type(process_rate), pointer :: this_proc
-    real(wp) :: n0, lam, mu
+    real(wp) :: lam, mu
     real(wp) :: Dm ! Mass-weighted mean diameter
 
     character(len=*), parameter :: RoutineName='ICE_BREAKUP'
@@ -65,8 +65,6 @@ contains
     if (mass > thresh_small(params%i_1m) .and. params%l_2m) then ! if no existing ice, we don't bother
       this_proc=>procs(k, iproc%id)
       number=qfields(k, params%i_2m)
-      if (params%l_3m) m3=qfields(k, params%i_3m)
-      n0=dist_n0(k,params%id)
       mu=dist_mu(k,params%id)
       lam=dist_lambda(k,params%id)
       Dm=(1.0 + params%d_x + mu)/lam

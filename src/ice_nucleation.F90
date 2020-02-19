@@ -63,7 +63,7 @@ contains
     real(wp) :: qv
     real(wp) :: ice_number
     real(wp) :: cloud_number, cloud_mass
-    real(wp) :: qs, qis, Si, Sw, limit, dN_imm, dN_contact, ql
+    real(wp) :: qs, qis, Si, Sw, limit, dN_imm, dN_contact
 
     ! parameters for Meyers et al (1992)
     ! Meyers MP, DeMott PJ, Cotton WR (1992) New primary ice-nucleation
@@ -73,7 +73,7 @@ contains
 
     ! parameters for Tobo et al. (2013)
     real(wp) :: a_tobo, b_tobo, c_tobo, d_tobo
-  
+
     ! variables for surface site based parameterisations
     real(wp) :: n_sites, surf_area
 
@@ -98,7 +98,6 @@ contains
     qv=qfields(k, i_qv)
     th=qfields(k, i_th)
 
-    ql=qfields(k, i_ql)
     Tk=th*exner(k)
     qs=qsaturation(Tk, pressure(k)/100.0)
     qis=qisaturation(Tk, pressure(k)/100.0)
@@ -110,7 +109,7 @@ contains
     end if
 
     if (qs==0.0 .or. qis==0.0) then
-      write(std_msg, '(A)') 'Error in saturation calculation - qs or qis is zero' 
+      write(std_msg, '(A)') 'Error in saturation calculation - qs or qis is zero'
       call throw_mphys_error(bad_values,  ModuleName//':'//RoutineName, std_msg)
     end if
 
@@ -126,7 +125,7 @@ contains
     select case(iopt_inuc)
     case default
       l_condition=(( Sw >= -0.001 .and. Tc < -8 .and. Tc > -38) .or. Si >= 0.08)
-    case (2) 
+    case (2)
       ! Meyers, same condition as DeMott
       l_condition=( cloud_number >= nl_tidy .and. Tc < 0)
     case (4)
@@ -142,7 +141,7 @@ contains
       l_condition=( cloud_number >= nl_tidy .and. Tc < 0)
     case (10)
       l_condition=( cloud_number >= nl_tidy .and. Tc < 0)
-      
+
     end select
 
     if (l_condition) then
@@ -212,7 +211,7 @@ contains
         d_demott = -11.6
         cf = 1.0
         Tp01 = 0.01 - Tc
-    
+
         if (dustphys(k)%N(1) > ni_tidy) then
           dN_contact=1.0e3/rho(k)*cf*                                                        &
                  (rho(k)*m3_to_cm3*contact_efficiency*dustphys(k)%N(1))**(a_demott*(273.16-Tk)+b_demott)*  &
@@ -227,7 +226,7 @@ contains
           dN_imm=MAX(dN_imm-ice_number,0.0)
           dN_imm=MIN(dustliq(k)%nact1, dN_imm)
         end if
-   
+
       case (7)
         ! Niemand et al. (2012) - using only insoluble in liquid!
         ! 'A particle-surface-area-based parameterization of immersion freezing on desert dust particles',
@@ -249,7 +248,7 @@ contains
         ! Nature, 498, 355-358, doi:10.1038/nature12278
         if (dustliq(k)%nact1 > ni_tidy) then
           surf_area=0.35*4*pi*dustliq(k)%nact1*rho(k)*(dustphys(k)%rd(aero_index%i_coarse_dust))**2* &
-                    EXP(2*dustphys(k)%sigma(aero_index%i_coarse_dust)**2) ! cm2/m3 
+                    EXP(2*dustphys(k)%sigma(aero_index%i_coarse_dust)**2) ! cm2/m3
           ! AKM: assuming fraction of K-feldspar in insoluble dust is 0.35
           n_sites = EXP(-1.038*Tk+275.26) !1/cm2
           dN_imm = n_sites*surf_area/rho(k)      ! 1/kg
@@ -282,7 +281,7 @@ contains
         c_demott = 0.0264
         d_demott = 0.0033
         Tp01 = 0.01 - Tc
-    
+
         if ((dustliq(k)%nact1 > ni_tidy) .or. (dustphys(k)%N(1) > ni_tidy)) then
           dN_imm=1.0e3/rho(k)*a_demott*(Tp01)**b_demott*                               &
                  (rho(k)*m3_to_cm3*(dustliq(k)%nact1+dustphys(k)%N(1)))**(c_demott*Tp01+d_demott)
@@ -290,8 +289,8 @@ contains
           ! distribute INP between interstital and activated dust (for budgeting
           ! simulations with l_process > 0)
           if ((dustliq(k)%nact1 > ni_tidy) .and. (dustphys(k)%N(1) > ni_tidy)) then
-             dN_contact = dN_imm - dustliq(k)%nact1 
-             dN_imm = dN_imm - dN_contact 
+             dN_contact = dN_imm - dustliq(k)%nact1
+             dN_imm = dN_imm - dN_contact
              dN_contact=MIN(0.9*dustphys(k)%N(1), dN_contact)
           else if (dustliq(k)%nact1 > ni_tidy) then
              dN_imm=MIN(dustliq(k)%nact1, dN_imm)

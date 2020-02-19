@@ -29,7 +29,7 @@ module special
   real(wp) :: gammalookup_xmin, gammalookup_xmax, gammalookup_dx
   logical :: l_gammalookup_set=.false.
   
-  public pi, Gammafunc, erfc, erfinv
+  public pi, Gammafunc, casim_erfc, erfinv
 contains
   ! NB The following should provide sufficient range
   ! and density of points for linear interpolation
@@ -220,18 +220,18 @@ contains
 
   end function erfg
 
-  function erfc(x)
+  function casim_erfc(x)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
-    character(len=*), parameter :: RoutineName='ERFC'
+    character(len=*), parameter :: RoutineName='CASIM_ERFC'
 
     real(wp), intent(in) :: x
     integer, parameter :: c=1
-    real(wp) :: erfc
+    real(wp) :: casim_erfc
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -242,11 +242,11 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-    erfc=erfg(x,c)
+    casim_erfc=erfg(x,c)
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
-  end function erfc
+  end function casim_erfc
 
   ! Inverse of error function
   !

@@ -44,7 +44,7 @@ contains
     logical :: l_beheng=.true.
 
     character(len=*), parameter :: RoutineName='RACR'
-    
+
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
     REAL(KIND=jprb)               :: zhook_handle
@@ -118,7 +118,7 @@ contains
     type(process_name) :: iproc ! processes selected depending on which species we're modifying
     real(wp) :: dnumber, dm1, dm2, dm3
     real(wp) :: Eff ! collection efficiencies need to re-evaluate these and put them in properly to mphys_parameters
-    real(wp) :: number, mass, m1, m2, m3, gaussterm
+    real(wp) :: mass, m1, m2, gaussterm
     type(process_rate), pointer :: this_proc
     real(wp) :: n0, lam, mu
 
@@ -147,8 +147,6 @@ contains
 
     if (mass > thresh_small(params%i_1m) .and. params%l_2m) then ! if no significant ice, we don't bother
       this_proc=>procs(k, iproc%id)
-      if (params%l_2m) number=qfields(k, params%i_2m)
-      if (params%l_3m) m3=qfields(k, params%i_3m)
 
       n0=dist_n0(k,params%id)
       mu=dist_mu(k,params%id)

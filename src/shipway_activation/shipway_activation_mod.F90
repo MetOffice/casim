@@ -2,15 +2,15 @@ module shipway_activation_mod
   use variable_precision, only: wp
 
   ! A revised activation scheme
-  ! See Shipway, B. J.: Revisiting Twomey's approximation for peak supersaturation, 
-  ! Atmos. Chem. Phys., 15, 3803-3814, doi:10.5194/acp-15-3803-2015, 2015. 
+  ! See Shipway, B. J.: Revisiting Twomey's approximation for peak supersaturation,
+  ! Atmos. Chem. Phys., 15, 3803-3814, doi:10.5194/acp-15-3803-2015, 2015.
 
   Use shipway_parameters
   Use shipway_constants
   Use shipway_lookup, only: lookup_I, xmax, ymax, xmin, ymin
   Use mphys_die, only: throw_mphys_error, incorrect_opt, mphys_message
 
-  Implicit None 
+  Implicit None
   private
 
   character(len=*), parameter, private :: ModuleName='SHIPWAY_ACTIVATION_MOD'
@@ -18,11 +18,11 @@ module shipway_activation_mod
   real(wp) :: dv_flag=0 ! Determines method for calculating Dv
   real(wp) :: est_smax_time
   real(wp) :: psi1 ! placed here so it can be used for estimating smax time
-  real(wp) :: C1=1.058, C2=1.904 ! See Korolev et al. paper 
+  real(wp) :: C1=1.058, C2=1.904 ! See Korolev et al. paper
 
   real(wp) :: wdiag, Tdiag, Ndiag, rddiag
   integer :: counter=0
-    
+
   real(wp) :: cumulative_xmin=1.e10
   real(wp) :: cumulative_xmax=0.0
   integer :: cumulative_brent=0
@@ -71,7 +71,7 @@ contains
     nmodes=nmode_in
 
     ! only use the mode if there's significant number
-    use_mode(nmode_in) = Ndi_in > Nd_min 
+    use_mode(nmode_in) = Ndi_in > Nd_min
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
@@ -108,9 +108,9 @@ contains
     do i=1,nmodes
       if (use_mode(i)) then
         erfarg=log(smax/s0i(i))/(sqrt(2.)*log(sigmas(i)))
-        nccni = 0.5*Ndi(i)*(1.0+erf(erfarg))      
+        nccni = 0.5*Ndi(i)*(1.0+erf(erfarg))
 
-        nccn=nccn+nccni 
+        nccn=nccn+nccni
         nccni_dg(i)=nccni
       end if
     end do
@@ -172,10 +172,10 @@ contains
     else
        Dv_here=dv_flag
     end if
-    
+
     G = 1/(rhow*(Rv*T/(es*Dv_here)+LvT*(LvT/(Rv*T)-1)/(ka*T)))
 
-    LHS = sqrt(2.0*pi)*rho*(psi1*w)**1.5/(4*pi*rhow*psi2*G**1.5)  
+    LHS = sqrt(2.0*pi)*rho*(psi1*w)**1.5/(4*pi*rhow*psi2*G**1.5)
 
     LHSout=LHS
 
@@ -196,7 +196,7 @@ contains
 
     ! Local variables
     logical :: adjust
-    real(wp) :: diff, s0ratioi_p, s0ratioi_m
+    real(wp) :: s0ratioi_p, s0ratioi_m
     integer :: i
 
     character(len=*), parameter :: RoutineName='SET_INPUTS'
@@ -209,8 +209,6 @@ contains
     ! End of header, no more declarations beyond here
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
-
-    diff = s - sprev
 
     ds=min(0.001, .5*abs(s))
     sp = s + ds
@@ -259,8 +257,8 @@ contains
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
   end subroutine set_inputs
-        
-  
+
+
   subroutine set_inputs_safe(sp,sm)
 
     USE yomhook, ONLY: lhook, dr_hook
@@ -272,7 +270,6 @@ contains
     real(wp), intent(inout) :: sp, sm
 
     ! Local variables
-    real(wp) :: s0ratioi_p, s0ratioi_m
     logical :: adjust
     integer :: i
 
@@ -292,8 +289,6 @@ contains
     sp=HUGE(sp)
     do i=1,nmodes
       if (use_mode(i)) then
-        s0ratioi_p = sp/s0i(i)
-        s0ratioi_m = sm/s0i(i)
         sm = max(xmin*s0i(i)*1.01, sm)
         sp = min(xmax*s0i(i)*0.99, sp)
       end if
@@ -357,7 +352,7 @@ contains
 
     real(wp) :: s0ratioi
     integer :: i
-        
+
     real(wp) :: I1, dI1, J1
 
     character(len=*), parameter :: RoutineName='CALC_RHS'
@@ -391,7 +386,7 @@ contains
     end do
 
    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-      
+
   end subroutine calc_RHS
 
   subroutine calc_KC(T)
@@ -428,9 +423,9 @@ contains
        logsigmas(i) = log(sigmas(i))
      end if
     end do
- 
+
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
- 
+
   end subroutine calc_KC
 
   subroutine solve_nccn_household(order,niter,sa_in,  &
@@ -441,7 +436,7 @@ contains
     USE parkind1, ONLY: jprb, jpim
 
     implicit none
-    ! Use householders methods (e.g. Newton, Halley) to find roots. 
+    ! Use householders methods (e.g. Newton, Halley) to find roots.
 
     integer, intent(in) :: order, niter
     real(wp), intent(in)    :: sa_in
@@ -483,7 +478,7 @@ contains
 
     !toly=LHS*.1 ! 10 percent error
     toly=LHS*1e5 ! Essentially not used
-    
+
     sa = sa_in
     sa_tm1=sa
 
@@ -509,7 +504,7 @@ contains
           d2F=(RHSout_p1-2*RHSout + RHSout_m1)/(ds*ds)
           diff=-2.*F*dF/(2.*dF*dF-F*d2F)
         end select
-        sa = sa + diff   
+        sa = sa + diff
 
       end do
 
@@ -518,11 +513,11 @@ contains
 
     smax=sa
     est_smax_time=1./((psi1*w*C1/C2)/smax)
-    
+
     call calc_nccn(smax, nccn, nccni)
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
- 
+
     end subroutine solve_nccn_household
 
   subroutine solve_nccn_brent(sa_in,  &
@@ -580,7 +575,7 @@ contains
 
     call set_inputs_safe(sa_p1, sa_m1)
     sa = sa_m1
-    sb = sa_p1 
+    sb = sa_p1
 
     call brent(smax_eq, sa, sb, smax, iflag, ibrent &
        ,tolx, tolf, verbose,iquad, isecant, imidpoint)
@@ -594,7 +589,7 @@ contains
           if (use_mode(i)) then
 !            call lookup_I(xmax, logsigmas(i), J1)
 !            RHS = RHS + (ai(i)/s0i(i)/s0i(i))*(J1/xmax/xmax)
-            ! NB I've left this in a long form for comparison with 
+            ! NB I've left this in a long form for comparison with
             ! the integral form, but this simplifies considerable
             ! to give smax ~ w^3/4 N^-1/2
             RHS = RHS + (ai(i)/s0i(i)/s0i(i))*2*sqrt(pi)*logsigmas(i)
@@ -645,7 +640,7 @@ contains
     call calc_nccn(smax, nccn, nccni)
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
- 
+
   end subroutine solve_nccn_brent
 
   function smax_eq(sa)
@@ -672,11 +667,11 @@ contains
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     call calc_RHS(sa,RHSout)
-    
+
     smax_eq = RHSout - LHS_hold
 
    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
- 
+
   end function smax_eq
 
 
@@ -696,18 +691,18 @@ contains
                   ! =0 if successful
          , ibrent ! number of calls to function f (this does not
                   ! include calls made for verbose output.)
-    
+
     real(wp), intent(inout) :: tolx,tolf
     logical, intent(inout) :: verbose
     integer, optional :: iquad, isecant, imidpoint
-    
+
     real(wp) :: c, d, tmp, s
     logical :: mflag
     integer :: icount
     integer, parameter :: icountmax=50
-    
+
     real(wp) :: pfs, fa, fs, fb, fc
-    
+
     external:: f
 
     character(len=*), parameter :: RoutineName='BRENT'
@@ -731,35 +726,35 @@ contains
     ibrent=ibrent+1
     fb=f(b)
     ibrent=ibrent+1
-    
+
     if (verbose)then
        write (std_msg, *) 'a = ', a, ', b = ', b
        call mphys_message(ModuleName//':'//RoutineName, std_msg)
        write (std_msg, *) 'F(a) = ', fa, ', F(b) = ', fb
        call mphys_message(ModuleName//':'//RoutineName, std_msg)
     end if
-    
+
     if (fa == 0)then
        x=a
        iflag=0
        IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
        return
     end if
-    
+
     if (fb == 0)then
        x=b
        iflag=0
        IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
        return
     end if
-    
+
     if ( fa*fb > 0 )then
        x=-999
        iflag=-1
        IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
        return
     end if
-    
+
     if (abs(fa) < abs(fb))then
        c=b
        fc=fb
@@ -771,11 +766,11 @@ contains
        c=a
        fc=fa
     end if
-    
+
     mflag=.true.
     d=0
     fs=tolf+1.
-    
+
     icount=0
     do while (fb /=0 .and. abs(b-a) > tolx .and. abs(fs) > tolf &
          .and. icount < icountmax )
@@ -828,8 +823,8 @@ contains
           a=s
           fa=fs
        end if
-       
-       
+
+
        if (abs(fa) < abs(fb))then
           tmp=b
           b=a
@@ -838,14 +833,14 @@ contains
           fb=fa
           fa=tmp
        end if
-       
+
        if (verbose)then
          write (std_msg, *) '|a-b|=',abs(a-b)
          call mphys_message(ModuleName//':'//RoutineName, std_msg)
        end if
     end do
-    
-    
+
+
     if (icount==icountmax)then
        x=-999
        iflag=-2
@@ -853,7 +848,7 @@ contains
        x=b
        iflag=0
     end if
-    
+
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
     return

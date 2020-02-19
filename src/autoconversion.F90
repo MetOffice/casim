@@ -35,13 +35,10 @@ contains
 
     ! Local variables
     real(wp) :: dmass, dnumber1, dnumber2, damass
-    real(wp) :: m1, m2, m3, dm1,dm2,dm3
+    real(wp) :: dm1,dm2,dm3
     real(wp) :: n0, lam, mu
     real(wp) :: cloud_mass
     real(wp) :: cloud_number
-    real(wp) :: rain_mass
-    real(wp) :: rain_number
-    real(wp) :: rain_m3
     type(process_rate), pointer :: this_proc
     real(wp) :: p1, p2, p3
     real(wp) :: k1, k2, k3
@@ -66,10 +63,6 @@ contains
       cloud_number=fixed_cloud_number
     end if
 
-    rain_mass=qfields(k, i_qr)
-    if (l_2mr) rain_number=qfields(k, i_nr)
-    if (l_3mr) rain_m3=qfields(k, i_m3r)
-
     if (cloud_mass > ql_small .and. cloud_number > nl_small) then
       this_proc=>procs(k, i_praut%id)
       dmass=1350.0*cloud_mass**2.47*(cloud_number/1.0e6*rho(k))**(-1.79)
@@ -85,9 +78,6 @@ contains
         p1=rain_params%p1
         p2=rain_params%p2
         p3=rain_params%p3
-        m1=rain_mass/rain_params%c_x
-        m2=rain_number
-        m3=rain_m3
         call m3_inc_type3(p1, p2, p3, dm1, dm2, dm3, mu_aut)
         dm3=dm3/dt
       end if

@@ -159,7 +159,7 @@ contains
     p1=params%p1
     p2=params%p2
     p3=params%p3
-    
+
     if (params%l_3m) then
       if (l_passive3m) then
         m2=number
@@ -205,7 +205,7 @@ contains
     real(wp) :: G
     real(wp) :: muG(nmu), muI(nmu)
     integer  :: i
-    real(wp) :: k1, k2, k3, pos
+    real(wp) :: k1, k2, pos
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -226,7 +226,6 @@ contains
 
     k1=p3-p2
     k2=p1-p3
-    k3=p2-p1
 
     pos=sign(1.0_wp,k1*k2) ! scaling to +-1 preserves precision for < condition
 
@@ -260,7 +259,7 @@ contains
     implicit none
 
     character(len=*), parameter :: RoutineName='GET_LAM_N0_3M'
-    
+
     real(wp), intent(in) :: m1, m2, m3, mu
     real(wp), intent(in) :: p1, p2, p3
     real(wp), intent(out) :: lam, n0
@@ -305,7 +304,7 @@ contains
     implicit none
 
     character(len=*), parameter :: RoutineName='GET_LAM_N0_2M'
-    
+
     real(wp), intent(in) :: m1, m2, mu
     real(wp), intent(in) :: p1, p2
     real(wp), intent(out) :: lam, n0
@@ -344,7 +343,7 @@ contains
     implicit none
 
     character(len=*), parameter :: RoutineName='GET_LAM_N0_1M'
-    
+
     real(wp), intent(in) :: m1, mu, n0
     real(wp), intent(in) :: p1
     real(wp), intent(out) :: lam
@@ -358,7 +357,7 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-    ! 
+    !
     ! Fixing Nx is equivalent to having n0=na*lam**(1+mu)
     ! (c.f. LEM formulation, na, nb)
     ! if we want to fix na and nb, we can do this and lambda is
@@ -381,7 +380,7 @@ contains
     implicit none
 
     character(len=*), parameter :: RoutineName='GET_N0'
-    
+
     real(wp), intent(in) :: m, mu, lam
     real(wp), intent(in) :: p
     real(wp), intent(out) :: n0
@@ -409,7 +408,7 @@ contains
     implicit none
 
     character(len=*), parameter :: RoutineName='MOMENT'
-  
+
     real(wp), intent(in) :: n0, lam, mu, p
     real(wp) :: moment
 

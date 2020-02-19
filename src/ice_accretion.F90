@@ -61,8 +61,8 @@ contains
     real(wp) :: dmass_Y, dnumber_Y, dmac, dmad
     real(wp) :: dmass_X, dmass_Z, dnumber_X, dnumber_Z
 
-    real(wp) :: number_X, mass_X, m3_X, m1, m2, m3
-    real(wp) :: mass_Y, number_Y, m3_Y
+    real(wp) :: number_X, mass_X, m1, m2, m3
+    real(wp) :: mass_Y, number_Y
     type(process_rate), pointer :: this_proc, aero_proc
 
     real(wp) :: n0_X, lam_X, mu_X
@@ -71,7 +71,7 @@ contains
 
     real(wp) :: Eff ! collection efficiencies need to re-evaluate these and put them in properly to mphys_parameters
 
-    logical :: l_condition, l_alternate_Z, l_freezeall_X, l_freezeall_y
+    logical :: l_condition, l_alternate_Z
     logical :: l_slow ! fall speed is slow compared to interactive species
     logical :: l_aero ! If true then this process will modify aerosol
 
@@ -90,13 +90,10 @@ contains
     mass_X=qfields(k, params_X%i_1m)
 
     l_condition=mass_X > thresh_small(params_X%i_1m) .and. mass_Y > thresh_small(params_Y%i_1m)
-    l_freezeall_X=.false.
-    l_freezeall_Y=.false.
 
     if (l_condition) then
       ! initialize variables which may not have been set
       number_X=0.0
-      m3_X=0.0
       dnumber_Y=0.0
 
       l_alternate_Z=params_X%id /= params_Z%id
@@ -166,7 +163,6 @@ contains
       this_proc=>procs(k, iproc%id)
 
       if (params_X%l_2m) number_X=qfields(k, params_X%i_2m)
-      if (params_X%l_3m) m3_X=qfields(k, params_X%i_3m)
 
       n0_X=dist_n0(k,params_X%id)
       mu_X=dist_mu(k,params_X%id)
@@ -197,7 +193,6 @@ contains
         if (params_Y%l_2m) then
           number_Y=qfields(k, params_Y%i_2m)
         end if
-        if (params_Y%l_3m) m3_Y=qfields(k, params_Y%i_3m)
 
         n0_Y=dist_n0(k,params_Y%id)
         mu_Y=dist_mu(k,params_Y%id)
@@ -224,13 +219,11 @@ contains
       if (-dmass_Y*dt >0.95*mass_Y .or. (params_Y%l_2m .and. -dnumber_Y*dt > 0.95*number_Y)) then
         dmass_Y=-mass_Y/dt
         dnumber_Y=-number_Y/dt
-        l_freezeall_Y=.true.
       end if
       ! If most of the collecting particles are to be removed then remove all of them
       if (l_alternate_Z .and. (-dmass_X*dt >0.95*mass_X .or. (params_X%l_2m .and. -dnumber_X*dt > 0.95*number_X))) then
         dmass_X=-mass_X/dt
         dnumber_X=-number_X/dt
-        l_freezeall_X=.true.
         dmass_Z = -1.0*( dmass_X + dmass_Y )
         dnumber_Z = -1.0*dnumber_X
       end if

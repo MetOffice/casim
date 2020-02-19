@@ -110,7 +110,7 @@ contains
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
-  end subroutine recompute_qin_constants  
+  end subroutine recompute_qin_constants
 
   subroutine recompute_constants(l_negonly)
 
@@ -122,7 +122,7 @@ contains
     character(len=*), parameter :: RoutineName='RECOMPUTE_CONSTANTS'
 
     logical, intent(in) :: l_negonly
-   
+
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
     REAL(KIND=jprb)               :: zhook_handle
@@ -167,7 +167,7 @@ contains
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
-  end subroutine finalise_mphystidy  
+  end subroutine finalise_mphystidy
 
   subroutine qtidy(dt, k, qfields, procs, aerofields, aeroact, dustact, aeroice, dustliq, &
        aeroprocs, i_proc, i_aproc, l_negonly)
@@ -192,9 +192,8 @@ contains
     logical :: qi_reset, ni_reset, qs_reset, ns_reset, m3s_reset
     logical :: qg_reset, ng_reset, m3g_reset
     logical :: am4_reset, am5_reset, am7_reset, am8_reset, am9_reset
-    logical :: an11_reset, an12_reset
 
-    real(wp) :: dmass, dnumber    
+    real(wp) :: dmass, dnumber
 
     integer :: iq
 
@@ -227,9 +226,6 @@ contains
     am8_reset=.false.
     am9_reset=.false.
 
-    an11_reset=.false. !? What to do with these???
-    an12_reset=.false. !? What to do with these???
-
     if (present(l_negonly)) then
       if (l_negonly .neqv. current_l_negonly) then
         current_l_negonly=l_negonly
@@ -237,30 +233,30 @@ contains
       end if
     else if (current_l_negonly) then
       current_l_negonly=.false.
-      call recompute_constants(.false.)  
+      call recompute_constants(.false.)
     end if
-    
+
     do iq=1, ntotalq
       l_qsig(iq)=qfields(k, iq) > thresh(iq)
     end do
-    
+
     do iq=1, ntotalq
       l_qpos(iq)=qfields(k, iq) > 0.0
     end do
-    
+
     do iq=1,ntotalq
       l_qsmall(iq) = (.not. l_qsig(iq)) .and. l_qpos(iq)
     end do
-    
+
     do iq=1, ntotalq
       l_qsneg(iq)=qfields(k, iq) < 0.0 .or. l_qsmall(iq)
     end do
-    
+
     do iq=1, ntotalq
       l_qpresent(iq)=l_qpos(iq) .or. l_qsneg(iq)
     end do
 
-    if (l_process) then      
+    if (l_process) then
       athresh=thresh_atidy
       if (present(l_negonly)) then
         if (l_negonly) athresh=0.0
@@ -289,7 +285,7 @@ contains
 
     l_qliquid=l_qsig(i_ql) .or. l_qsig(i_qr)
     l_qice=l_qsig(i_qi) .or. l_qsig(i_qs) .or. l_qsig(i_qg)
-          
+
     ! Tidying of small and negative numbers and/or incompatible numbers (e.g.nl>0 and ql=0)
     ! - Mass and energy conserving...
     !==============================
@@ -628,7 +624,7 @@ contains
     logical :: ql_reset, nl_reset, qr_reset, nr_reset, m3r_reset
     logical :: qi_reset, ni_reset, qs_reset, ns_reset, m3s_reset
     logical :: qg_reset, ng_reset, m3g_reset
-    integer :: k    
+    integer :: k
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -928,7 +924,7 @@ contains
           end if
           do iproc=1, size(iprocs_scalable)
             if (iprocs_scalable(iproc)%on) then
-              id=iprocs_scalable(iproc)%id              
+              id=iprocs_scalable(iproc)%id
             end if
           end do
 
@@ -939,10 +935,10 @@ contains
           end do
           do iproc=1, size(iprocs_nonscalable)
             if (iprocs_nonscalable(iproc)%on) then
-              id=iprocs_nonscalable(iproc)%id              
+              id=iprocs_nonscalable(iproc)%id
             end if
           end do
-          
+
           write(std_msg, '(A, F7.4)') 'Problem with ratio > 1.0: ratio = ', ratio
           ! Tell mphys_error that this is due to bad values
           call throw_mphys_error(bad_values, ModuleName//':'//RoutineName, std_msg)
@@ -1060,13 +1056,13 @@ contains
                 if (present(iprocs_nonscalable)) then
                   do iproc=1, size(iprocs_nonscalable)
                     if (iprocs_nonscalable(iproc)%on) then
-                      id=iprocs_nonscalable(iproc)%id                      
+                      id=iprocs_nonscalable(iproc)%id
                     end if
                   end do
                 end if
                 do iproc=1, size(iprocs_scalable)
                   if (iprocs_scalable(iproc)%on) then
-                    id=iprocs_scalable(iproc)%id                    
+                    id=iprocs_scalable(iproc)%id
                   end if
                 end do
               end if
@@ -1075,7 +1071,7 @@ contains
               if (ratio==0.0_wp) then
                 if (present(iprocs_nonscalable)) then
                   do iproc=1, size(iprocs_nonscalable)
-                    if (iprocs_nonscalable(iproc)%on) id=iprocs_nonscalable(iproc)%id                      
+                    if (iprocs_nonscalable(iproc)%on) id=iprocs_nonscalable(iproc)%id
                   end do
                 end if
                 do iproc=1, size(iprocs_scalable)
@@ -1099,13 +1095,13 @@ contains
                 if (present(iprocs_nonscalable)) then
                   do iproc=1, size(iprocs_nonscalable)
                     if (iprocs_nonscalable(iproc)%on) then
-                      id=iprocs_nonscalable(iproc)%id                      
+                      id=iprocs_nonscalable(iproc)%id
                     end if
                   end do
                 end if
                 do iproc=1, size(iprocs_scalable)
                   if (iprocs_scalable(iproc)%on) then
-                    id=iprocs_scalable(iproc)%id                    
+                    id=iprocs_scalable(iproc)%id
                   end if
                 end do
               end if
@@ -1212,7 +1208,7 @@ contains
 
     integer :: iproc, id
     real(wp) :: delta_scalable, ratio, delta_sat
-    real(wp) :: th, qv, qis
+    real(wp) :: th, qis
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -1234,7 +1230,6 @@ contains
     delta_scalable=abs(delta_scalable)
 
     if (delta_scalable > spacing(delta_scalable)) then
-      qv=qfields(k, i_qv)
       th=qfields(k, i_th)
 
       qis=qisaturation(th*exner(k), pressure(k)/100.0)

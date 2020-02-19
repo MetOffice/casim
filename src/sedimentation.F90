@@ -80,7 +80,7 @@ contains
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
-  end subroutine finalise_sedr  
+  end subroutine finalise_sedr
 
   subroutine sedr(step_length, qfields, aerofields, aeroact, dustact,   &
        tend, params, procs, aerosol_procs, precip1d, l_doaerosol)
@@ -111,10 +111,9 @@ contains
     real(wp) :: udp ! bulk fallspeed for mass (for precip diag)
     integer :: k
 
-    integer :: i_1m, i_2m, i_3m
     real(wp) :: p1, p2, p3
     real(wp) :: sp1, sp2, sp3
-    real(wp) :: a_x, b_x, f_x, g_x, c_x, d_x
+    real(wp) :: a_x, b_x, f_x, c_x
     real(wp) :: a2_x, b2_x, f2_x
     logical :: l_2m, l_3m
     logical :: l_fluxin, l_fluxout
@@ -122,7 +121,7 @@ contains
     type(process_name) :: iproc, iaproc  ! processes selected depending on
     ! which species we're depositing on.
 
-    real(wp) :: mint, dmint, scal
+    real(wp) :: mint, scal
     real(wp) :: dmac, mac_mean_min=1.0e-20
     real(wp) :: dmad
     real(wp) :: dnumber_a, dnumber_d
@@ -150,11 +149,8 @@ contains
     m1=0.0
     m2=0.0
     m3=0.0
-    
+
     flux_n1=0.0
-    i_1m=params%i_1m
-    i_2m=params%i_2m
-    i_3m=params%i_3m
     p1=params%p1
     p2=params%p2
     p3=params%p3
@@ -182,17 +178,14 @@ contains
     a_x=params%a_x
     b_x=params%b_x
     f_x=params%f_x
-    g_x=params%g_x
     c_x=params%c_x
-    d_x=params%d_x
     a2_x=params%a2_x
     b2_x=params%b2_x
     f2_x=params%f2_x
 
-    if (params%l_2m) flux_n2=0.0     
-    if (params%l_3m) flux_n3=0.0      
+    if (params%l_2m) flux_n2=0.0
+    if (params%l_3m) flux_n3=0.0
 
-    dmint=0.0
     select case (params%id)
     case (1_iwp) !cloud
       iproc=i_psedl
@@ -312,7 +305,7 @@ contains
 
         precip1d(k) = flux_n1(k)*c_x
         ! diagnostic for precip
-        
+
       end if
 
       dmac=0.0

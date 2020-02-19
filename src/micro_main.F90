@@ -68,7 +68,7 @@ module micro_main
 
   integer :: is, ie ! upper and lower i levels which are to be used
   integer :: js, je ! upper and lower j levels
-  integer :: ks, ke ! upper and lower k levels    
+  integer :: ks, ke ! upper and lower k levels
 
   real(wp), allocatable, save :: precip(:,:) ! diagnostic for surface precip rate
   real(wp), allocatable :: dqfields(:,:), qfields(:,:), tend(:,:)
@@ -98,7 +98,7 @@ module micro_main
   public initialise_micromain, finalise_micromain, shipway_microphysics, DTPUD
 contains
 
-  subroutine initialise_micromain(il, iu, jl, ju, kl, ku,                 &       
+  subroutine initialise_micromain(il, iu, jl, ju, kl, ku,                 &
        is_in, ie_in, js_in, je_in, ks_in, ke_in, l_tendency)
 
     USE yomhook, ONLY: lhook, dr_hook
@@ -124,7 +124,7 @@ contains
     ! Local variables
     real(wp) :: p1, p2, p3
 
-    integer :: n, k, i, j, nxny, imode
+    integer :: n, k, i, j, imode
 
     integer :: NTHREADS, TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM
 
@@ -166,16 +166,15 @@ contains
     ke=ke_in
 
     allocate(rhcrit_1d(kl:ku))
-    ! Set RHCrit to 1.0 as default; parent model can then overwrite 
+    ! Set RHCrit to 1.0 as default; parent model can then overwrite
     ! this if needed
     rhcrit_1d(:) = 1.0
-    
-    l_tendency_loc = l_tendency     
+
+    l_tendency_loc = l_tendency
 
     nq=sum(hydro_complexity%nmoments)+2 ! also includes vapour and theta
     nz=ke-ks+1
     nprocs = hydro_complexity%nprocesses
-    nxny=(ie-is+1)*(je-js+1)
 
     allocate(precondition(nz))
     precondition=.true. ! Assume all points need to be considered
@@ -216,7 +215,7 @@ contains
     allocate(aeroice(nz))
     allocate(dustliq(nz))
 
-    
+
     ! Preserve initial values for non-Shipway activation
     if ( iopt_act == iopt_shipway_act ) then
       beta_init = 0.5
@@ -267,7 +266,7 @@ contains
     if ( iopt_act == iopt_shipway_act ) then
       call generate_tables()
     end if
-    
+
     call setup_reflec_constants()
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
@@ -334,7 +333,7 @@ contains
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
-  end subroutine finalise_micromain  
+  end subroutine finalise_micromain
 
   subroutine shipway_microphysics(il, iu, jl, ju, kl, ku, dt,               &
        qv, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12, q13,          &
@@ -423,7 +422,7 @@ contains
 
     real(wp) :: p1, p2, p3
 
-    integer :: n, k, i, j, nxny, imode
+    integer :: n, k, i, j, imode
 
     integer :: NTHREADS, TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM
 
@@ -451,10 +450,10 @@ contains
     real(wp) :: precip_g1d(nz)
 
     real(wp) :: dbz_tot_c(nz), dbz_g_c(nz), dbz_i_c(nz), &
-                dbz_s_c(nz),   dbz_l_c(nz), dbz_r_c(nz) 
+                dbz_s_c(nz),   dbz_l_c(nz), dbz_r_c(nz)
 
     INTEGER :: kc ! Casim Z-level
-       
+
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
     REAL(KIND=jprb)               :: zhook_handle
@@ -542,7 +541,7 @@ contains
           if (i_ak1 >0) aerofields(:, i_ak1)=a18(ks:ke,i,j)
           if (i_ak2 >0) aerofields(:, i_ak2)=a19(ks:ke,i,j)
           if (i_ak3 >0) aerofields(:, i_ak3)=a20(ks:ke,i,j)
- 
+
           if (i_am1 >0) daerofields(:, i_am1)=da1(ks:ke,i,j)
           if (i_an1 >0) daerofields(:, i_an1)=da2(ks:ke,i,j)
           if (i_am2 >0) daerofields(:, i_am2)=da3(ks:ke,i,j)
@@ -570,7 +569,7 @@ contains
              pressure(ks:ke,i,j), exner(ks:ke,i,j),            &
              z_half(ks-1:ke,i,j), z_centre(ks:ke,i,j), dz(ks:ke,i,j),     &
              w(ks:ke,i,j), tke(ks:ke,i,j), qfields)
-        
+
         !--------------------------------------------------
         ! Do the business...
         !--------------------------------------------------
@@ -658,7 +657,7 @@ contains
           if ( casdiags % l_graupfall_3d) casdiags % graupfall_3d(i,j,ks:ke) = 0.0
 
 
-        else ! l_warm 
+        else ! l_warm
 
           if ( casdiags % l_surface_rain ) casdiags % SurfaceRainR(i,j)  = precip_r
           if ( casdiags % l_surface_snow ) casdiags % SurfaceSnowR(i,j)  = precip_s
@@ -668,7 +667,7 @@ contains
           if ( casdiags % l_snowfall_3d ) casdiags % snowfall_3d(i,j,ks:ke)  = precip_s1d(:)
           if ( casdiags % l_snowonly_3d ) casdiags % snowonly_3d(i,j,ks:ke)  = precip_so1d(:)
           if ( casdiags % l_graupfall_3d) casdiags % graupfall_3d(i,j,ks:ke) = precip_g1d(:)
-         
+
         end if ! l_warm
 
         if ( casdiags % l_radar ) then
@@ -696,7 +695,7 @@ contains
               casdiags % dqv_total(i,j,k) = tend(kc,i_qv)
               casdiags % dqc(i,j,k) = tend(kc,i_ql)
               casdiags % dqr(i,j,k) = tend(kc,i_qr)
-              
+
               if (.not. l_warm) then
                  casdiags % dqi(i,j,k) = tend(kc,i_qi)
                  casdiags % dqs(i,j,k) = tend(kc,i_qs)
@@ -704,7 +703,7 @@ contains
               endif
            enddo
 
-           
+
 
         endif
      end do ! i
@@ -729,7 +728,7 @@ contains
     implicit none
 
     real(wp), intent(in) :: dt  ! timestep from parent model
-    integer, intent(in) :: kl, ku, ix, jy 
+    integer, intent(in) :: kl, ku, ix, jy
     real(wp), intent(in) :: rhcrit_1d(:)
     real(wp), intent(inout) :: qfields(:,:), dqfields(:,:), tend(:,:)
     type(process_rate), intent(inout) :: procs(:,:)
@@ -774,7 +773,7 @@ contains
     real(wp) :: precip_g_w ! Graupel precip
     real(wp) :: precip_s_w ! Snow precip
 
-    !AH - note that nz is derived in mphys_init and accounts for the lowest level 
+    !AH - note that nz is derived in mphys_init and accounts for the lowest level
     !     not equal to 1
     real(wp) :: precip1d(nz) ! local working precip rate
     real(wp) :: precip_l_w1d(nz) ! Liquid cloud precip 1D
@@ -806,7 +805,7 @@ contains
     inv_nsubseds = 1.0 / real(nsubseds)
 
     inv_allsubs = 1.0 / real( nsubseds * nsubsteps)
- 
+
     if (l_tendency_loc) then! Parent model uses tendencies
       qfields_mod=qfields_in+dt*dqfields
     else! Parent model uses increments
@@ -830,7 +829,7 @@ contains
 
     qfields=qfields_mod
 
-    if (aerosol_option > 0) then      
+    if (aerosol_option > 0) then
       aerofields_in=aerofields ! Initial values of aerosol
       aerofields_mod=aerofields ! Modified initial values  (may be modified if bad values sent in)
 
@@ -1084,7 +1083,7 @@ contains
 
           end if
 
-      end do ! loop over model levels, k. 
+      end do ! loop over model levels, k.
       !-------------------------------
       ! Collect terms we have so far
       !-------------------------------
@@ -1237,7 +1236,7 @@ contains
           if (pswitch%l_psedl) then
             call sedr(sed_length, qfields, aerofields, aeroact, dustliq, tend, cloud_params, &
                  procs, aerosol_procs, precip1d, l_process)
-            
+
             precip_l_w = precip_l_w + precip1d(level1)
 
             do k = 1, nz
@@ -1265,7 +1264,7 @@ contains
             if (pswitch%l_psedi) then
               call sedr(sed_length, qfields, aerofields, aeroice, dustact, tend, ice_params, &
                    procs, aerosol_procs, precip1d, l_process)
-               
+
               precip_i_w = precip_i_w + precip1d(level1)
 
               do k = 1, nz
@@ -1287,7 +1286,7 @@ contains
             if (pswitch%l_psedg) then
               call sedr(sed_length, qfields, aerofields, aeroice, dustact, tend, graupel_params, &
                    procs, aerosol_procs, precip1d, l_process)
-              
+
               precip_g_w = precip_g_w + precip1d(level1)
 
               do k = 1, nz
@@ -1321,11 +1320,11 @@ contains
 
       ! For diagnostic purposes, set precip_r, precip_s and precip to pass out
       ! For the UM, rainfall rate is assumed as sum of all liquid components
-      ! (so includes sedimentation of rain and liquid cloud) 
+      ! (so includes sedimentation of rain and liquid cloud)
       precip_r = precip_r + precip_l_w + precip_r_w
 
       ! For the UM, snowfall rate is assumed to be a sum of all solid components
-      ! (so includes ice, snow and graupel) 
+      ! (so includes ice, snow and graupel)
       precip_s = precip_s + precip_s_w + precip_i_w + precip_g_w
 
       ! For the UM, graupel rate is just itself
@@ -1643,7 +1642,7 @@ contains
         casdiags % psdep(i,j,:) = ZERO_REAL_WP
       END IF
     END IF
-   
+
     IF (casdiags % l_piacw) THEN
       IF (pswitch%l_piacw) THEN
         DO k = ks, ke
@@ -1687,7 +1686,7 @@ contains
         casdiags % pisub(i,j,:) = ZERO_REAL_WP
       END IF
     END IF
-       
+
     IF (casdiags % l_pssub) THEN
       IF (pswitch%l_pssub) THEN
         DO k = ks, ke
@@ -1698,8 +1697,8 @@ contains
         casdiags % pssub(i,j,:) = ZERO_REAL_WP
       END IF
     END IF
- 
- 
+
+
     IF (casdiags % l_pimlt) THEN
       IF (pswitch%l_pimlt) THEN
         DO k = ks, ke
@@ -1721,7 +1720,7 @@ contains
         casdiags % psmlt(i,j,:) = ZERO_REAL_WP
       END IF
     END IF
-      
+
     IF (casdiags % l_psaut) THEN
       IF (pswitch%l_psaut) THEN
         DO k = ks, ke
@@ -1787,7 +1786,7 @@ contains
         casdiags % pgacw(i,j,:) = ZERO_REAL_WP
       END IF
     END IF
-    
+
     IF (casdiags % l_pgacs) THEN
       IF (pswitch%l_pgacs) THEN
         DO k = ks, ke
@@ -1931,7 +1930,7 @@ contains
       END IF
     END IF
 
-    
+
     IF (casdiags % l_nihal) THEN
       IF ((pswitch%l_pihal) .and. (ice_params%l_2m)) THEN
         DO k = ks, ke

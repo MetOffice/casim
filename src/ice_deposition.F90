@@ -66,7 +66,7 @@ contains
 
     real(wp) :: th
     real(wp) :: qv, qh
-    real(wp) :: number, mass, m1,m2, m3, dm1,dm2,dm3
+    real(wp) :: number, mass, m1,m2, dm1,dm2,dm3
     type(process_rate), pointer :: this_proc
     type(process_rate), pointer :: aero_proc
 
@@ -74,8 +74,6 @@ contains
     real(wp) :: n0, lam, mu
     real(wp) :: V_x, AB
     real(wp) :: frac ! fraction of ice below a threshold
-
-    logical :: l_suball
 
     character(len=*), parameter :: RoutineName='IDEP'
 
@@ -87,8 +85,6 @@ contains
     ! End of header, no more declarations beyond here
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
-
-    l_suball=.false. ! do we want to sublimate everything?
 
     mass=qfields(k, params%i_1m)
 
@@ -139,7 +135,6 @@ contains
 
       this_proc=>procs(k, iproc%id)
       if (params%l_2m) number=qfields(k, params%i_2m)
-      if (params%l_3m) m3=qfields(k, params%i_3m)
 
       n0=dist_n0(k,params%id)
       mu=dist_mu(k,params%id)
@@ -173,7 +168,6 @@ contains
       end if
 
       if (-dmass*dt >0.98*mass .or. (params%l_2m .and. -dnumber*dt > 0.98*number)) then
-        l_suball=.true.
         dmass=-mass/dt
         dnumber=-number/dt
       end if

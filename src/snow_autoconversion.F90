@@ -43,12 +43,9 @@ contains
 
     real(wp) :: dmass, dnumber
     real(wp) :: m1, m2, m3, dm1,dm2,dm3
-    real(wp) :: ice_n0, ice_lam, ice_mu
+    real(wp) :: ice_lam, ice_mu
     real(wp) :: ice_mass
     real(wp) :: ice_number
-    real(wp) :: snow_mass
-    real(wp) :: snow_number
-    real(wp) :: snow_m3
     real(wp) :: th
     real(wp) :: qv
     type(process_rate), pointer :: this_proc
@@ -80,7 +77,6 @@ contains
     if (ice_mass < thresh_small(i_qi) .or. ice_number < thresh_small(i_ni)) then
       l_condition=.false.
     else
-      ice_n0=dist_n0(k,ice_params%id)
       ice_mu=dist_mu(k,ice_params%id)
       ice_lam=dist_lambda(k,ice_params%id)
 
@@ -105,10 +101,6 @@ contains
       p1=snow_params%p1
       p2=snow_params%p2
       p3=snow_params%p3
-
-      snow_mass=qfields(k, i_qs)
-      if (snow_params%l_2m) snow_number = qfields(k, i_ns)
-      if (snow_params%l_3m) snow_m3 = qfields(k, i_m3s)
 
       if (l_harrington) then
         !< AB This is used elsewhere, so we should do it more efficiently.

@@ -166,7 +166,6 @@ contains
 
     real(wp), intent(in) :: x, y
     integer, intent(in) :: nterms
-    real(wp) :: lb, ub
     character(len=*), parameter :: RoutineName='J1'
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
@@ -200,7 +199,7 @@ contains
     real(wp), intent(in) :: x, y
     real(wp), intent(out) :: J1
     integer :: m(1)
-    integer :: ix, iy, j
+    integer :: ix, iy
     real(wp) :: dx1, dy1, dx2, dy2
 
     character(len=*), parameter :: RoutineName='LOOKUP_I'
