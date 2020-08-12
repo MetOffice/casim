@@ -22,8 +22,6 @@ module special
      !     module procedure intrinsic_gamma
   end interface gammafunc
 
-  real(wp) :: set_a ! value to use for inversion of f(x)=a
-
   real(wp), allocatable :: gammalookup_arg(:)
   real(wp), allocatable :: gammalookup_val(:)
   real(wp) :: gammalookup_xmin, gammalookup_xmax, gammalookup_dx
@@ -377,30 +375,4 @@ contains
 
   end function erfinv3
 
-  function erf_a(x)
-
-    USE yomhook, ONLY: lhook, dr_hook
-    USE parkind1, ONLY: jprb, jpim
-
-    implicit none
-
-    character(len=*), parameter :: RoutineName='ERF_A'
-
-    real(wp), intent(in) :: x
-    real(wp) :: erf_a
-
-    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-    REAL(KIND=jprb)               :: zhook_handle
-
-    !--------------------------------------------------------------------------
-    ! End of header, no more declarations beyond here
-    !--------------------------------------------------------------------------
-    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
-
-    erf_a=erf(x)-set_a
-
-    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-
-  end function erf_a
 end module special

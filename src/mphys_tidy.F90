@@ -26,7 +26,7 @@ module mphys_tidy
 
   character(len=*), parameter, private :: ModuleName='MPHYS_TIDY'
 
-  logical :: l_rescale_on_number
+  logical, parameter :: l_rescale_on_number = .false.
   logical :: l_tidym3 = .false.  ! Don't tidy based on m3 values
 
   real(wp), allocatable :: thresh(:), athresh(:), qin_thresh(:)
