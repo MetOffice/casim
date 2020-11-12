@@ -27,9 +27,10 @@ module mphys_constants
   real :: cp = 1005.0
 
   !< Some of these should really be functions of temperature...
+  !  AH - constants set to match UM.
   real(wp) :: visair = 1.44E-5  ! kinematic viscosity of air
-  real(wp) :: Cwater = 4187.0  ! specific heat capacity of liquid water
-  real(wp) :: Cice = 2093.0    ! specific heat capacity of ice
+  real(wp) :: Cwater = 4180.0  ! specific heat capacity of liquid water
+  real(wp) :: Cice = 2100.0    ! specific heat capacity of ice
 
   real(wp) :: Mw = 0.18015e-1 ! Molecular weight of water  [kg mol-1].
   real(wp) :: zetasa = 0.8e-1 ! Surface tension at solution-air
@@ -42,7 +43,7 @@ module mphys_constants
   real(wp) :: repsilon = 0.622 ! 1.0 / mp_eps
   real(wp) :: Dv = 0.226e-4   ! diffusivity of water vapour in air
   real(wp), parameter :: Lv = 0.2501e7   ! Latent heat of vapourization
-  real(wp), parameter :: Ls = 0.2834e7   ! Latent heat of sublimation
+  real(wp), parameter :: Ls = 0.2835e7   ! Latent heat of sublimation
   real(wp), parameter :: Lf = Ls - Lv    ! Latent heat of fusion
   real(wp) :: ka = 0.243e-1   ! thermal conductivity of air
   real(wp) :: g = 9.8         ! gravitational acceleration ms-2

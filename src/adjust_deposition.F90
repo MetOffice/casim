@@ -39,7 +39,7 @@ contains
 
     ! local variables
 
-    type(process_rate), pointer :: ice_dep, snow_dep, ice_aut
+    !type(process_rate), pointer :: ice_dep, snow_dep, ice_aut
     real(wp) :: lam, frac, dmass
     integer :: i_pqi, i_pqai, i_pqs, i_pns, i_pm3s
     real(wp) :: m1,m2,m3,dm1,dm2,dm3
@@ -55,22 +55,15 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-    ice_dep=>procs(k, i_idep%id)
-    snow_dep=>procs(k, i_sdep%id)
-    ice_aut=>procs(k, i_saut%id)
 
-    if (ice_aut%source(ice_params%i_1m) > 0) then
+    if (procs(ice_params%i_1m, i_saut%id)%column_data(k) > 0) then
       lam=dist_lambda(k,ice_params%id)
       frac=1.0-exp(-lam*DImax)*(1.0+lam*DImax)
-      dmass=frac*ice_dep%source(ice_params%i_1m)
+      dmass=frac*procs(ice_params%i_1m, i_idep%id)%column_data(k)
 
-      ice_dep%source(ice_params%i_1m)=ice_dep%source(ice_params%i_1m)-dmass
-      snow_dep%source(snow_params%i_1m)=snow_dep%source(snow_params%i_1m)+dmass
+      procs(ice_params%i_1m, i_idep%id)%column_data(k)=procs(ice_params%i_1m, i_idep%id)%column_data(k)-dmass
+      procs(snow_params%i_1m,i_sdep%id)%column_data(k)=procs(snow_params%i_1m,i_sdep%id)%column_data(k)+dmass
     end if
-
-    nullify(ice_dep)
-    nullify(ice_aut)
-    nullify(snow_dep)
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 

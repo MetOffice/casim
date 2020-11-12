@@ -1,12 +1,13 @@
 module autoconversion
   use variable_precision, only: wp
-  use passive_fields, only: rho
+  use passive_fields, only: rho, cfliq
   use mphys_switches, only: i_ql, i_qr, i_nl, i_nr, i_m3r, hydro_complexity, l_2mc, &
-       l_2mr, l_3mr, l_aaut, i_am4, i_am5, cloud_params, rain_params, l_process, l_separate_rain, l_preventsmall
+       l_2mr, l_3mr, l_aaut, i_am4, i_am5, cloud_params, rain_params, l_process, &
+       l_separate_rain, l_preventsmall, l_prf_cfrac
   use mphys_constants, only: rhow, fixed_cloud_number
   use mphys_parameters, only: mu_aut, rain_params
   use process_routines, only: process_rate, i_praut, i_aaut
-  use thresholds, only: ql_small, nl_small, qr_small, qr_sig
+  use thresholds, only: ql_small, nl_small, qr_small, qr_sig, cfliq_small
   use special, only: pi
   use m3_incs, only: m3_inc_type2, m3_inc_type3
 
@@ -19,7 +20,7 @@ module autoconversion
   public raut
 contains
 
-  subroutine raut(dt, k, qfields, aerofields, procs, aerosol_procs)
+  subroutine raut(dt, qfields, aerofields, procs, aerosol_procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -28,7 +29,6 @@ contains
 
     ! Subroutine arguments
     real(wp), intent(in) :: dt
-    integer,  intent(in) :: k
     real(wp), intent(in) :: qfields(:,:), aerofields(:,:)
     type(process_rate), intent(inout), target :: procs(:,:)
     type(process_rate), intent(inout), target :: aerosol_procs(:,:)
@@ -39,12 +39,12 @@ contains
     real(wp) :: n0, lam, mu
     real(wp) :: cloud_mass
     real(wp) :: cloud_number
-    type(process_rate), pointer :: this_proc
     real(wp) :: p1, p2, p3
     real(wp) :: k1, k2, k3
     real(wp) :: mu_qc ! < cloud shape parameter (currently only used diagnostically here)
+    real(wp) :: cf_liquid
 
-    integer :: i
+    integer :: i, k
     character(len=*), parameter :: RoutineName='RAUT'
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
@@ -56,15 +56,30 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-    cloud_mass=qfields(k, i_ql)
+   do k = 1, ubound(qfields,1)
+   if (l_prf_cfrac) then
+
+      if (cfliq(k) .gt. cfliq_small) then  !only doing liquid cloud fraction at the moment
+        cf_liquid=cfliq(k)
+      else
+        cf_liquid=cfliq_small !nonzero value - maybe move cf test higher up
+      endif
+
+    else ! l_prf_cfrac
+
+      cf_liquid = 1.0
+
+    end if
+
+    cloud_mass=qfields(k, i_ql)/cf_liquid
+
     if (l_2mc) then
-      cloud_number=qfields(k, i_nl)
+      cloud_number=qfields(k, i_nl)/cf_liquid
     else
       cloud_number=fixed_cloud_number
     end if
 
     if (cloud_mass > ql_small .and. cloud_number > nl_small) then
-      this_proc=>procs(k, i_praut%id)
       dmass=1350.0*cloud_mass**2.47*(cloud_number/1.0e6*rho(k))**(-1.79)
       dmass=min(.25*cloud_mass/dt, dmass)
       if (l_preventsmall .and. dmass < qr_small) dmass=0.0
@@ -72,38 +87,53 @@ contains
       mu_qc=min(15.0_wp, (1000.0E6/cloud_number + 2.0))
       if (l_2mr) dnumber2=dmass/(rain_params%c_x*(mu_qc/3.0)*(50.0E-6)**3)
 
-      if (l_3mr) then
-        dm1=dt*dmass/rain_params%c_x
-        dm2=dt*dnumber2
-        p1=rain_params%p1
-        p2=rain_params%p2
-        p3=rain_params%p3
-        call m3_inc_type3(p1, p2, p3, dm1, dm2, dm3, mu_aut)
-        dm3=dm3/dt
-      end if
-      this_proc%source(i_ql)=-dmass
-      this_proc%source(i_qr)=dmass
+          ! AH - found that at the cloud edges rain number produced 
+          !      by autoconversion can be larger than cloud number removed. This
+          !      is not physically possible, so limit the dnumber2 to be the 
+          !      same as dnumber1
+          if (dnumber2 > dnumber1) Then
+             dnumber2 = dnumber1
+          endif
 
-      if (cloud_params%l_2m) then
-        this_proc%source(i_nl)=-dnumber1
-      end if
-      if (rain_params%l_2m) then
-        this_proc%source(i_nr)=dnumber2
-      end if
-      if (rain_params%l_3m) then
-        this_proc%source(i_m3r)=dm3
-      end if
+!!$          if (l_3mr) then
+!!$             dm1=dt*dmass/rain_params%c_x
+!!$             dm2=dt*dnumber2
+!!$             p1=rain_params%p1
+!!$             p2=rain_params%p2
+!!$             p3=rain_params%p3
+!!$             call m3_inc_type3(p1, p2, p3, dm1, dm2, dm3, mu_aut)
+!!$             dm3=dm3/dt
+!!$          end if
 
-      if (l_separate_rain) then
-        if (l_aaut .and. l_process) then
-          ! Standard Single soluble mode, 2 activated species
-          damass=dmass/cloud_mass*aerofields(k,i_am4)
-          aerosol_procs(k, i_aaut%id)%source(i_am4)=-damass
-          aerosol_procs(k, i_aaut%id)%source(i_am5)=damass
-        end if
-      end if
-      nullify(this_proc)
-    end if
+!convert back to grid mean
+      dmass=dmass*cf_liquid
+      dnumber1=dnumber1*cf_liquid
+      dnumber2=dnumber2*cf_liquid
+      cloud_mass=cloud_mass*cf_liquid !for aerosol processing below
+!!
+          procs(i_ql, i_praut%id)%column_data(k)=-dmass
+          procs(i_qr, i_praut%id)%column_data(k)=dmass
+
+          if (cloud_params%l_2m) then
+             procs(i_nl, i_praut%id)%column_data(k)=-dnumber1
+          end if
+          if (rain_params%l_2m) then
+             procs(i_nr, i_praut%id)%column_data(k)=dnumber2
+          end if
+!!$          if (rain_params%l_3m) then
+!!$             procs(k, i_praut%id)%source(i_m3r)=dm3
+!!$          end if
+          
+          if (l_separate_rain) then
+             if (l_aaut .and. l_process) then
+                ! Standard Single soluble mode, 2 activated species
+                damass=dmass/cloud_mass*aerofields(k,i_am4)
+                aerosol_procs(i_am4, i_aaut%id)%column_data(k)=-damass
+                aerosol_procs(i_am5, i_aaut%id)%column_data(k)=damass
+             end if
+          end if
+       end if
+    enddo
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 

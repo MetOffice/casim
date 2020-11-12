@@ -5,7 +5,8 @@ module initialize
   use derived_constants, only: set_constants
   use mphys_parameters, only: p1, p2, p3, sp1, sp2, sp3, nprocs, naeroprocs, snow_params
   use mphys_switches, only: option, aerosol_option, l_warm, hydro_complexity, aero_complexity, cloud_params, &
-       rain_params, ice_params, snow_params, graupel_params, iopt_act, l_g, l_sg, l_override_checks, i_am10, i_an10, &
+       rain_params, ice_params, snow_params, graupel_params,&
+       iopt_act, l_g, l_sg, l_override_checks, i_am10, i_an10, &
        isol, iinsol, active_rain, active_cloud, aero_index, active_number, process_level, iopt_act, l_process
   use gauss_casim_micro, only: gaussfunclookup
   use micro_main, only : DTPUD, initialise_micromain, finalise_micromain
@@ -106,6 +107,9 @@ contains
     call initialise_lookup_tables()
     !Gaussfunc
     call gaussfunclookup(snow_params%id, tmp, a=snow_params%fix_mu, b=snow_params%d_x, init=.true.)
+
+    !Initialise the gamma function so not calced on every timestep
+    call gamma_initialize()
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
@@ -262,13 +266,15 @@ contains
       end if
 
       ! Aerosol consistency
-      if (aero_index%i_accum_dust == 0 .and. aero_index%nin /= 1 .and. &
-          active_number(iinsol))                                  then
-        write(std_msg, '(A)') 'Dust modes must only be accumulation mode '//&
-                              'with insoluble active_number'
-        call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
-                               std_msg)
-      end if
+      if (aero_index%nin > 0) then 
+         if (aero_index%i_accum_dust == 0 .and. aero_index%nin /= 1 .and. &
+              active_number(iinsol))                                  then
+            write(std_msg, '(A)') 'Dust modes must only be accumulation mode '//&
+                 'with insoluble active_number'
+            call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
+                 std_msg)
+         end if
+      endif
 
       ! Aerosol processing consistency
       if (process_level > 0 .and. iopt_act < 3) then
@@ -282,4 +288,247 @@ contains
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
   end subroutine check_options
+  
+  subroutine gamma_initialize()
+    ! Purpose: When CASIM is used in 1M or 2M mode with a fixed shape parameter, 
+    !          all the gamma functions can be calculated at the beginning of the job.
+    !          This routine does this calculation so that results can be used in 
+    !          sedimentation, lookup...
+    
+    !use mphys_parameters, only: cloud_params, rain_params, ice_params, snow_params, &
+    !     graupel_params
+    use special, only: Gammafunc
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='GAMMA_INITIALIZE'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+    ! moment gamma functions
+
+    ! Cloud
+    ! gamma function constants (used in Lookup, get_lam_n0_1M and 2M)
+    cloud_params%gam_1_mu_p1 = GammaFunc(1.0_wp+cloud_params%fix_mu+cloud_params%p1)
+    cloud_params%gam_1_mu_p2 = GammaFunc(1.0_wp+cloud_params%fix_mu+cloud_params%p2)
+    cloud_params%gam_1_mu = GammaFunc(1.0_wp+cloud_params%fix_mu)
+    ! Moment exponent for lamba
+    cloud_params%inv_p1_p2 = (1.0_wp)/(cloud_params%p1 - cloud_params%p2)
+    cloud_params%inv_p1 = (1.0_wp)/(cloud_params%p1)
+
+    ! Rain
+    ! gamma function constants (used in Lookup, get_lam_n0_1M and 2M)
+    rain_params%gam_1_mu_p1 = GammaFunc(1.0_wp+rain_params%fix_mu+rain_params%p1)
+    rain_params%gam_1_mu_p2 = GammaFunc(1.0_wp+rain_params%fix_mu+rain_params%p2)
+    rain_params%gam_1_mu = GammaFunc(1.+rain_params%fix_mu)
+    ! Moment exponent for lamba
+    rain_params%inv_p1_p2 = (1.0_wp)/(rain_params%p1 - rain_params%p2)
+    rain_params%inv_p1 = (1.0_wp)/(rain_params%p1)
+
+    ! Ice
+    ! gamma function constants (used in Lookup, get_lam_n0_1M and 2M)
+    ice_params%gam_1_mu_p1 = GammaFunc(1.0_wp+ice_params%fix_mu+ice_params%p1)
+    ice_params%gam_1_mu_p2 = GammaFunc(1.0_wp+ice_params%fix_mu+ice_params%p2)
+    ice_params%gam_1_mu = GammaFunc(1.0_wp+ice_params%fix_mu)
+    ! Moment exponent for lamba
+    ice_params%inv_p1_p2 = (1.0_wp)/(ice_params%p1 - ice_params%p2)
+    ice_params%inv_p1 = (1.0_wp)/(ice_params%p1)
+
+    ! Snow
+    ! gamma function constants (used in Lookup, get_lam_n0_1M and 2M)
+    snow_params%gam_1_mu_p1 = GammaFunc(1.0_wp+snow_params%fix_mu+snow_params%p1)
+    snow_params%gam_1_mu_p2 = GammaFunc(1.0_wp+snow_params%fix_mu+snow_params%p2)
+    snow_params%gam_1_mu = GammaFunc(1.0_wp+snow_params%fix_mu)
+    ! Moment exponent for lamba
+    snow_params%inv_p1_p2 = (1.0_wp)/(snow_params%p1 - snow_params%p2)
+    snow_params%inv_p1 = (1.0_wp)/(snow_params%p1)
+
+    ! Graupel
+    ! gamma function constants (used in Lookup, get_lam_n0_1M and 2M)
+    graupel_params%gam_1_mu_p1 = GammaFunc(1.0_wp+graupel_params%fix_mu+graupel_params%p1)
+    graupel_params%gam_1_mu_p2 = GammaFunc(1.0_wp+graupel_params%fix_mu+graupel_params%p2)
+    graupel_params%gam_1_mu = GammaFunc(1.0_wp+graupel_params%fix_mu)
+    ! Moment exponent for lamba
+    graupel_params%inv_p1_p2 = (1.0_wp)/(graupel_params%p1 - graupel_params%p2)
+    graupel_params%inv_p1 = (1.0_wp)/(graupel_params%p1)   
+
+    ! gamma functions for sedimentation moments and ventilation
+    
+    ! Cloud
+    ! gamma function constants (used in sedimentation)
+    cloud_params%gam_1_mu_sp1 = Gammafunc(1.0_wp+cloud_params%fix_mu+cloud_params%sp1)
+    cloud_params%gam_1_mu_sp1_bx = & 
+         Gammafunc(1.0_wp+cloud_params%fix_mu+cloud_params%sp1+cloud_params%b_x)
+    cloud_params%gam_1_mu_sp2 = Gammafunc(1.0_wp+cloud_params%fix_mu+cloud_params%sp2)
+    cloud_params%gam_1_mu_sp2_bx = & 
+         Gammafunc(1.0_wp+cloud_params%fix_mu+cloud_params%sp2+cloud_params%b_x)
+    ! exponent of lambda for sedimentation
+    cloud_params%exp_1_mu_sp1 = 1.0+cloud_params%fix_mu+cloud_params%sp1
+    cloud_params%exp_1_mu_sp1_bx = 1.0 + cloud_params%fix_mu + cloud_params%sp1 + cloud_params%b_x
+    cloud_params%exp_1_mu_sp2 = 1.0+cloud_params%fix_mu+cloud_params%sp2
+    cloud_params%exp_1_mu_sp2_bx = 1.0 + cloud_params%fix_mu + cloud_params%sp2 + cloud_params%b_x
+    ! gamma function used in ventilation (not really needed for cloud, just added for completeness)
+    cloud_params%gam_0p5bx_mu_2p5 = GammaFunc(.5*cloud_params%b_x+cloud_params%fix_mu+2.5)
+
+    ! Rain
+    ! gamma function constants (used in sedimentation)
+    rain_params%gam_1_mu_sp1 = Gammafunc(1.0_wp+rain_params%fix_mu+rain_params%sp1)
+    rain_params%gam_1_mu_sp1_bx = & 
+         Gammafunc(1.0_wp+rain_params%fix_mu+rain_params%sp1+rain_params%b_x)
+    rain_params%gam_1_mu_sp2 = Gammafunc(1.0_wp+rain_params%fix_mu+rain_params%sp2)
+    rain_params%gam_1_mu_sp2_bx = & 
+         Gammafunc(1.0_wp+rain_params%fix_mu+rain_params%sp2+rain_params%b_x)
+    ! gamma function constants for Abel and shipway (used in sedimentation)
+    rain_params%gam_1_mu_sp1_b2x = & 
+         Gammafunc(1.0_wp+rain_params%fix_mu+rain_params%sp1+rain_params%b2_x)
+    rain_params%gam_1_mu_sp2_b2x = & 
+         Gammafunc(1.0_wp+rain_params%fix_mu+rain_params%sp2+rain_params%b2_x)
+    ! exponent of lambda for sedimentation
+    rain_params%exp_1_mu_sp1 = 1.0+rain_params%fix_mu+rain_params%sp1
+    rain_params%exp_1_mu_sp1_bx = 1.0 + rain_params%fix_mu + rain_params%sp1 + rain_params%b_x
+    rain_params%exp_1_mu_sp2 = 1.0+rain_params%fix_mu+rain_params%sp2
+    rain_params%exp_1_mu_sp2_bx = 1.0 + rain_params%fix_mu + rain_params%sp2 + rain_params%b_x
+    ! exponent of lambda for Abel and Shipway sedimentation
+    rain_params%exp_1_mu_sp1_b2x = &
+         1.0 + rain_params%fix_mu + rain_params%sp1 + rain_params%b2_x
+    rain_params%exp_1_mu_sp2_b2x = &
+         1.0 + rain_params%fix_mu + rain_params%sp2 + rain_params%b2_x
+    ! gamma function used in ventilation
+    rain_params%gam_0p5bx_mu_2p5 = GammaFunc(.5*rain_params%b_x+rain_params%fix_mu+2.5)
+
+    ! Ice
+    ! gamma function constants (used in sedimentation)
+    ice_params%gam_1_mu_sp1 = Gammafunc(1.0_wp+ice_params%fix_mu+ice_params%sp1)
+    ice_params%gam_1_mu_sp1_bx = & 
+         Gammafunc(1.0_wp+ice_params%fix_mu+ice_params%sp1+ice_params%b_x)
+    ice_params%gam_1_mu_sp2 = Gammafunc(1.0_wp+ice_params%fix_mu+ice_params%sp2)
+    ice_params%gam_1_mu_sp2_bx = & 
+         Gammafunc(1.0_wp+ice_params%fix_mu+ice_params%sp2+ice_params%b_x)
+    ! exponent of lambda for sedimentation
+    ice_params%exp_1_mu_sp1 = 1.0+ice_params%fix_mu+ice_params%sp1
+    ice_params%exp_1_mu_sp1_bx = 1.0 + ice_params%fix_mu + ice_params%sp1 + ice_params%b_x
+    ice_params%exp_1_mu_sp2 = 1.0+ice_params%fix_mu+ice_params%sp2
+    ice_params%exp_1_mu_sp2_bx = 1.0 + ice_params%fix_mu + ice_params%sp2 + ice_params%b_x
+    ! gamma function used in ventilation
+    ice_params%gam_0p5bx_mu_2p5 = GammaFunc(.5*ice_params%b_x+ice_params%fix_mu+2.5)
+
+    
+    ! Snow
+    ! gamma function constants (used in sedimentation)
+    snow_params%gam_1_mu_sp1 = Gammafunc(1.0_wp+snow_params%fix_mu+snow_params%sp1)
+    snow_params%gam_1_mu_sp1_bx = & 
+         Gammafunc(1.0_wp+snow_params%fix_mu+snow_params%sp1+snow_params%b_x)
+    snow_params%gam_1_mu_sp2 = Gammafunc(1.0_wp+snow_params%fix_mu+snow_params%sp2)
+    snow_params%gam_1_mu_sp2_bx = & 
+         Gammafunc(1.0_wp+snow_params%fix_mu+snow_params%sp2+snow_params%b_x)
+    ! exponent of lambda for sedimentation
+    snow_params%exp_1_mu_sp1 = 1.0+snow_params%fix_mu+snow_params%sp1
+    snow_params%exp_1_mu_sp1_bx = 1.0 + snow_params%fix_mu + snow_params%sp1 + snow_params%b_x
+    snow_params%exp_1_mu_sp2 = 1.0+snow_params%fix_mu+snow_params%sp2
+    snow_params%exp_1_mu_sp2_bx = 1.0 + snow_params%fix_mu + snow_params%sp2 + snow_params%b_x
+    ! gamma function used in ventilation
+    snow_params%gam_0p5bx_mu_2p5 = GammaFunc(.5*snow_params%b_x+snow_params%fix_mu+2.5)
+    
+    
+    ! Graupel
+    ! gamma function constants (used in sedimentation)
+    graupel_params%gam_1_mu_sp1 = Gammafunc(1.0_wp+graupel_params%fix_mu+graupel_params%sp1)
+    graupel_params%gam_1_mu_sp1_bx = & 
+         Gammafunc(1.0_wp+graupel_params%fix_mu+graupel_params%sp1+graupel_params%b_x)
+    graupel_params%gam_1_mu_sp2 = Gammafunc(1.0_wp+graupel_params%fix_mu+graupel_params%sp2)
+    graupel_params%gam_1_mu_sp2_bx = & 
+         Gammafunc(1.0_wp+graupel_params%fix_mu+graupel_params%sp2+graupel_params%b_x)
+    ! exponent of lambda for sedimentation
+    graupel_params%exp_1_mu_sp1 = 1.0+graupel_params%fix_mu+graupel_params%sp1
+    graupel_params%exp_1_mu_sp1_bx = 1.0 + graupel_params%fix_mu + graupel_params%sp1 + graupel_params%b_x
+    graupel_params%exp_1_mu_sp2 = 1.0+graupel_params%fix_mu+graupel_params%sp2
+    graupel_params%exp_1_mu_sp2_bx = 1.0 + graupel_params%fix_mu + graupel_params%sp2 + graupel_params%b_x
+    ! gamma function used in ventilation
+    graupel_params%gam_0p5bx_mu_2p5 = GammaFunc(.5*graupel_params%b_x+graupel_params%fix_mu+2.5)
+
+! gamma functions for the calculation of the ice_accretion using the functions sweepout and binary collection
+
+    ! Cloud 
+    ! gamma function (used in sweepout)
+    cloud_params%gam_3_bx_mu = GammaFunc(3.0+cloud_params%b_x+cloud_params%fix_mu)
+    cloud_params%gam_3_bx_mu_dx = GammaFunc(3.0+cloud_params%b_x+cloud_params%fix_mu+cloud_params%d_x)
+    ! gamma function constants (used in binary_collection)
+    cloud_params%gam_2_mu = GammaFunc(2.0_wp+cloud_params%fix_mu)
+    cloud_params%gam_3_mu = GammaFunc(3.0_wp+cloud_params%fix_mu)
+    cloud_params%gam_2_mu_dx = GammaFunc(2.0_wp+cloud_params%fix_mu+cloud_params%d_x)
+    cloud_params%gam_3_mu_dx = GammaFunc(3.0_wp+cloud_params%fix_mu+cloud_params%d_x)
+    ! gamma function used in Vx and Vy (binary_collection)
+    cloud_params%gam_1_mu_dx_bx = GammaFunc(1.0 + cloud_params%fix_mu + cloud_params%d_x + cloud_params%b_x)
+    cloud_params%gam_1_mu_dx = GammaFunc(1.0 + cloud_params%fix_mu + cloud_params%d_x) 
+    
+    ! Rain
+    ! gamma function (used in sweepout)
+    rain_params%gam_3_bx_mu = GammaFunc(3.0+rain_params%b_x+rain_params%fix_mu)
+    rain_params%gam_3_bx_mu_dx = GammaFunc(3.0+rain_params%b_x+rain_params%fix_mu+rain_params%d_x)
+    ! gamma function constants (used in binary_collection)
+    rain_params%gam_2_mu = GammaFunc(2.0_wp+rain_params%fix_mu)
+    rain_params%gam_3_mu = GammaFunc(3.0_wp+rain_params%fix_mu)
+    rain_params%gam_2_mu_dx = GammaFunc(2.0_wp+rain_params%fix_mu+rain_params%d_x)
+    rain_params%gam_3_mu_dx = GammaFunc(3.0_wp+rain_params%fix_mu+rain_params%d_x)
+    ! gamma function used in Vx and Vy (binary_collection)
+    rain_params%gam_1_mu_dx_bx = GammaFunc(1.0 + rain_params%fix_mu + rain_params%d_x + rain_params%b_x)
+    rain_params%gam_1_mu_dx = GammaFunc(1.0 + rain_params%fix_mu + rain_params%d_x) 
+    
+    ! Ice
+    ! gamma function (used in sweepout)
+    ice_params%gam_3_bx_mu = GammaFunc(3.0+ice_params%b_x+ice_params%fix_mu)
+    ice_params%gam_3_bx_mu_dx = GammaFunc(3.0+ice_params%b_x+ice_params%fix_mu+ice_params%d_x)
+    ! gamma function constants (used in binary_collection)
+    ice_params%gam_2_mu = GammaFunc(2.0_wp+ice_params%fix_mu)
+    ice_params%gam_3_mu = GammaFunc(3.0_wp+ice_params%fix_mu)
+    ice_params%gam_2_mu_dx = GammaFunc(2.0_wp+ice_params%fix_mu+ice_params%d_x)
+    ice_params%gam_3_mu_dx = GammaFunc(3.0_wp+ice_params%fix_mu+ice_params%d_x)
+    ! gamma function used in Vx and Vy (binary_collection)
+    ice_params%gam_1_mu_dx_bx = GammaFunc(1.0 + ice_params%fix_mu + ice_params%d_x + ice_params%b_x)
+    ice_params%gam_1_mu_dx = GammaFunc(1.0 + ice_params%fix_mu + ice_params%d_x) 
+    
+    ! Snow
+    ! gamma function (used in sweepout)
+    snow_params%gam_3_bx_mu = GammaFunc(3.0+snow_params%b_x+snow_params%fix_mu)
+    snow_params%gam_3_bx_mu_dx = GammaFunc(3.0+snow_params%b_x+snow_params%fix_mu+snow_params%d_x)
+    ! gamma function constants (used in binary_collection)
+    snow_params%gam_2_mu = GammaFunc(2.0_wp+snow_params%fix_mu)
+    snow_params%gam_3_mu = GammaFunc(3.0_wp+snow_params%fix_mu)
+    snow_params%gam_2_mu_dx = GammaFunc(2.0_wp+snow_params%fix_mu+snow_params%d_x)
+    snow_params%gam_3_mu_dx = GammaFunc(3.0_wp+snow_params%fix_mu+snow_params%d_x)
+    ! gamma function used in Vx and Vy (binary_collection)
+    snow_params%gam_1_mu_dx_bx = GammaFunc(1.0 + snow_params%fix_mu + snow_params%d_x + snow_params%b_x)
+    snow_params%gam_1_mu_dx = GammaFunc(1.0 + snow_params%fix_mu + snow_params%d_x) 
+
+    ! Graupel
+    ! gamma function (used in sweepout)
+    graupel_params%gam_3_bx_mu = GammaFunc(3.0+graupel_params%b_x+graupel_params%fix_mu)
+    graupel_params%gam_3_bx_mu_dx = GammaFunc(3.0+graupel_params%b_x+graupel_params%fix_mu+graupel_params%d_x)
+    ! gamma function constants (used in binary_collection)
+    graupel_params%gam_2_mu = GammaFunc(2.0_wp+graupel_params%fix_mu)
+    graupel_params%gam_3_mu = GammaFunc(3.0_wp+graupel_params%fix_mu)
+    graupel_params%gam_2_mu_dx = GammaFunc(2.0_wp+graupel_params%fix_mu+graupel_params%d_x)
+    graupel_params%gam_3_mu_dx = GammaFunc(3.0_wp+graupel_params%fix_mu+graupel_params%d_x)
+    ! gamma function used in Vx and Vy (binary_collection)
+    graupel_params%gam_1_mu_dx_bx = GammaFunc(1.0 + graupel_params%fix_mu + graupel_params%d_x + graupel_params%b_x)
+    graupel_params%gam_1_mu_dx = GammaFunc(1.0 + graupel_params%fix_mu + graupel_params%d_x) 
+    
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+    
+  end subroutine gamma_initialize
+
 end module initialize

@@ -4,7 +4,8 @@ module condensation
   use mphys_switches, only: i_qv, i_ql, i_nl, i_th, i_qr, i_qi, i_qs, i_qg, hydro_complexity, l_warm, &
        i_am4, i_am1, i_an1, i_am2, i_an2, i_am3, i_an3, i_am6, i_an6, i_am9, i_an11, i_an12,  &
        cloud_params, l_process, l_passivenumbers,l_passivenumbers_ice, aero_index, &
-       active_cloud, active_number, l_preventsmall, l_cfrac_casim_diag_scheme
+       active_cloud, active_number, l_preventsmall, l_cfrac_casim_diag_scheme, &
+       l_bypass_which_mode, iopt_which_mode
   use process_routines, only: process_rate, i_cond, i_aact
   use mphys_constants, only: Lv, cp
   use qsat_funs, only: qsaturation, dqwsatdt
@@ -13,8 +14,15 @@ module condensation
   use aerosol_routines, only: aerosol_phys, aerosol_chem, aerosol_active
   use special, only: pi
   use which_mode_to_use, only : which_mode
-  use casim_parent_mod, only: casim_parent, parent_um
+  use casim_runtime, only: casim_time, casim_smax, casim_smax_limit_time
+  use casim_parent_mod, only: casim_parent, parent_um, parent_kid
   use cloud_frac_scheme, only: cloud_frac_casim_mphys
+
+! #if DEF_MODEL==MODEL_KiD
+!   use diagnostics, only: save_dg, i_dgtime, i_here, k_here
+!   use runtime, only: time
+!   Use namelists, only : smax, smax_limit_time
+! #endif
 
   implicit none
 
@@ -28,6 +36,10 @@ module condensation
       real(wp), allocatable :: dnccnd_all(:),dmad_all(:)
 
   public condevp_initialise, condevp_finalise, condevp
+!PRF
+  public dnccn_all, dmac_all, dnccnd_all, dmad_all
+!PRF
+
 contains
 
   subroutine condevp_initialise()
@@ -86,7 +98,7 @@ contains
 
   end subroutine condevp_finalise  
 
-  subroutine condevp(dt, k, qfields, aerofields, procs, aerophys, aerochem,   &
+  subroutine condevp(dt, nz, qfields, aerofields, procs, aerophys, aerochem,   &
        aeroact, dustphys, dustchem, dustliq, aerosol_procs, rhcrit_lev)
 
     USE yomhook, ONLY: lhook, dr_hook
@@ -96,7 +108,7 @@ contains
 
     ! Subroutine arguments
     real(wp), intent(in) :: dt
-    integer, intent(in) :: k
+    integer, intent(in) :: nz
     real(wp), intent(in), target :: qfields(:,:), aerofields(:,:)
     type(process_rate), intent(inout), target :: procs(:,:)
 
@@ -111,7 +123,7 @@ contains
     ! optional aerosol fields to be processed
     type(process_rate), intent(inout), optional, target :: aerosol_procs(:,:)
 
-    real(wp), intent(in) :: rhcrit_lev
+    real(wp), intent(in) :: rhcrit_lev(:)
 
     ! Local variables
     real(wp) :: dmass, dnumber, dmac, dmad, dnumber_a, dnumber_d
@@ -121,8 +133,6 @@ contains
     real(wp) :: qv
     real(wp) :: cloud_mass
     real(wp) :: cloud_number
-    type(process_rate), pointer :: this_proc
-    type(process_rate), pointer :: aero_proc
 
     real(wp) :: qs, dqsdt, qsatfac
 
@@ -134,7 +144,10 @@ contains
     ! local variables for diagnostics cloud scheme (if needed)
     real(wp) :: cloud_mass_new, abs_liquid_t
 
+    real(wp) :: cfrac_dummy
+
     logical :: l_docloud  ! do we want to do the calculation of cond/evap
+    integer :: k
 
     character(len=*), parameter :: RoutineName='CONDEVP'
 
@@ -146,7 +159,7 @@ contains
     ! End of header, no more declarations beyond here
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
-
+    cfrac_dummy=1.0
     tau=dt ! adjust instantaneously
 
     ! Initializations
@@ -158,6 +171,8 @@ contains
     
     dnccn_all=0.0
     dmac_all=0.0
+
+    do k = 1, nz
 
     ! Set pointers for convenience
     cloud_mass=qfields(k, i_ql)
@@ -191,6 +206,17 @@ contains
     l_docloud=.true.
     if (qs==0.0) l_docloud=.false.
 
+      
+    if (casim_parent == parent_kid) then
+      if ((qv/qs > 1.0 - ss_small .or. cloud_mass > 0.0) .and. l_docloud) then
+!AH - following code limits the maximum supersaturation permitted. This 
+!     is needed for the KiD-A 2d Sc case  - USE WITH CAUTION!!
+        if ( (((qv/qs)-1.)*100.) > casim_smax .and. casim_time <= casim_smax_limit_time) then
+          qs = qv/(1+(casim_smax/100.))
+        endif
+      endif
+    endif ! casim_parent == parent_kid
+
     if ((qv/qs > 1.0 - ss_small .or. cloud_mass > 0.0 .or. l_cfrac_casim_diag_scheme) .and. l_docloud) then
 ! DPG - allow the cloud scheme to operate even if we are sub-saturated (since
 ! this is it's purpose!)
@@ -200,7 +226,7 @@ contains
         ! cloud fraction, which is used to derive in-cloud mass and number
         !
         !IMPORTANT - qv is total water at this stage!
-        call cloud_frac_casim_mphys(k, pressure(k), th*exner(k), abs_liquid_T, rhcrit_lev,  &
+        call cloud_frac_casim_mphys(k, pressure(k), th*exner(k), abs_liquid_T, rhcrit_lev(k),  &
              qs, qv, cloud_mass, qfields(k,i_qr), cloud_mass_new )
 
         dmass=max(-cloud_mass, (cloud_mass_new-cloud_mass))/dt
@@ -217,7 +243,7 @@ contains
             w_act=max(w(k), 0.1_wp)
 
             call activate(tau, cloud_mass, cloud_number, w_act, rho(k), dnumber, dmac, &
-                 th*exner(k), pressure(k), aerophys(k), aerochem(k), aeroact(k),   &
+                 th*exner(k), pressure(k), cfrac_dummy, aerophys(k), aerochem(k), aeroact(k),   &
                  dustphys(k), dustchem(k), dustliq(k),           &
                  dnccn_all, dmac_all, dnumber_d, dmad,           &
                  dnccnd_all,dmad_all)
@@ -254,8 +280,10 @@ contains
                   dnumber_d=dnumber
                 end if
 
-                dmad_all(aero_index%i_coarse_dust) = dmad
-                dnccnd_all(aero_index%i_coarse_dust) = dnumber_d
+                if (aero_index%nin > 0) then 
+                   dmad_all(aero_index%i_coarse_dust) = dmad
+                   dnccnd_all(aero_index%i_coarse_dust) = dnumber_d
+                endif
 
                 if (aero_index%i_accum >0 .and. aero_index%i_coarse >0) then
                   ! We have both accumulation and coarse modes
@@ -312,50 +340,48 @@ contains
       end if
 
       if (dmass /= 0.0_wp) then
-        this_proc=>procs(k, i_cond%id)
 
-        this_proc%source(i_qv)=-dmass
-        this_proc%source(i_ql)=dmass
+        procs(i_qv, i_cond%id)%column_data(k)=-dmass
+        procs(i_ql, i_cond%id)%column_data(k)=dmass
 
         if (cloud_params%l_2m) then
-          this_proc%source(i_nl)=dnumber
+          procs(i_nl, i_cond%id)%column_data(k)=dnumber
         end if
-        nullify(this_proc)
 
         !============================
         ! aerosol processing
         !============================
         if (l_process) then
-          aero_proc=>aerosol_procs(k, i_aact%id)
 
-          aero_proc%source(i_am4)=dmac
-          if (l_passivenumbers) aero_proc%source(i_an11)=dnumber_a
-          if (l_passivenumbers_ice) aero_proc%source(i_an12)=dnumber_d
+          aerosol_procs(i_am4, i_aact%id)%column_data(k)=dmac
+          if (l_passivenumbers) aerosol_procs(i_an11, i_aact%id)%column_data(k)=dnumber_a
+          if (l_passivenumbers_ice) aerosol_procs(i_an12, i_aact%id)%column_data(k)=dnumber_d
 
           if (aero_index%i_aitken > 0) then
-            aero_proc%source(i_am1)=-dmac_all(aero_index%i_aitken)
-            aero_proc%source(i_an1)=-dnccn_all(aero_index%i_aitken)
+            aerosol_procs(i_am1, i_aact%id)%column_data(k)=-dmac_all(aero_index%i_aitken)
+            aerosol_procs(i_an1, i_aact%id)%column_data(k)=-dnccn_all(aero_index%i_aitken)
           end if
           if (aero_index%i_accum > 0) then
-            aero_proc%source(i_am2)=-dmac_all(aero_index%i_accum)
-            aero_proc%source(i_an2)=-dnccn_all(aero_index%i_accum)
+            aerosol_procs(i_am2, i_aact%id)%column_data(k)=-dmac_all(aero_index%i_accum)
+            aerosol_procs(i_an2, i_aact%id)%column_data(k)=-dnccn_all(aero_index%i_accum)
           end if
           if (aero_index%i_coarse > 0) then
-            aero_proc%source(i_am3)=-dmac_all(aero_index%i_coarse)
-            aero_proc%source(i_an3)=-dnccn_all(aero_index%i_coarse)
+            aerosol_procs(i_am3, i_aact%id)%column_data(k)=-dmac_all(aero_index%i_coarse)
+            aerosol_procs(i_an3, i_aact%id)%column_data(k)=-dnccn_all(aero_index%i_coarse)
           end if
 
           if (.not. l_warm .and. dmad /=0.0) then
             ! We may have some dust in the liquid...
-            aero_proc%source(i_am9)= dmad_all(aero_index%i_coarse_dust)
-            aero_proc%source(i_am6)=-dmad_all(aero_index%i_coarse_dust)! < USING COARSE
-            aero_proc%source(i_an6)=-dnccnd_all(aero_index%i_coarse_dust) ! < USING COARSE
+             if (aero_index%nin > 0 ) then 
+                aerosol_procs(i_am9, i_aact%id)%column_data(k)= dmad_all(aero_index%i_coarse_dust)
+                aerosol_procs(i_am6, i_aact%id)%column_data(k)=-dmad_all(aero_index%i_coarse_dust)! < USING COARSE
+                aerosol_procs(i_an6, i_aact%id)%column_data(k)=-dnccnd_all(aero_index%i_coarse_dust) ! < USING COARSE
+             end if
           end if
-          nullify(aero_proc)
         end if
-      end if
-    end if
-
+       end if
+     end if 
+   enddo
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
   end subroutine condevp

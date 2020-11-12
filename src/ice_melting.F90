@@ -5,11 +5,11 @@ module ice_melting
   use aerosol_routines, only: aerosol_phys, aerosol_chem, aerosol_active
   use passive_fields, only: TdegC, qws0, rho
   use mphys_parameters, only: ice_params, snow_params, graupel_params, rain_params, DR_melt, hydro_params, ZERO_REAL_WP
-  use mphys_switches, only: i_qv, i_am4, i_am7, i_am8, i_am9, l_process
+  use mphys_switches, only: i_qv, i_am4, i_am7, i_am8, i_am9, l_process, l_gamma_online
   use mphys_constants, only: Lv, Lf, Ka, Cwater, Cice, cp, Dv
   use thresholds, only: thresh_tidy
   use m3_incs, only: m3_inc_type2, m3_inc_type3, m3_inc_type4
-  use ventfac, only: ventilation
+  use ventfac, only: ventilation_1M_2M, ventilation_3M
   use distributions, only: dist_lambda, dist_mu, dist_n0
 
   implicit none
@@ -48,7 +48,6 @@ contains
     real(wp) :: qv
     real(wp) :: dmass, dnumber, dm1, dm2, dm3, dm3_r
     real(wp) :: number, mass, m1, m2, m3
-    type(process_rate), pointer :: this_proc, aero_proc
     real(wp) :: n0, lam, mu, V_x
     real(wp) :: acc_correction
     logical :: l_meltall ! do we melt everything?
@@ -72,37 +71,36 @@ contains
       if (params%id == ice_params%id) then ! instantaneous removal
         iaproc=i_dimlt
         iproc=i_imlt
-        this_proc=>procs(k, iproc%id)
         dmass=mass/dt
 
         if (params%l_2m)then
           dnumber=number/dt
-          this_proc%source(ice_params%i_2m)=-dnumber
+          procs(ice_params%i_2m, iproc%id)%column_data(k)=-dnumber
           if (rain_params%l_2m) then
-            this_proc%source(rain_params%i_2m)=dnumber
+            procs(rain_params%i_2m, iproc%id)%column_data(k)=dnumber
           end if
         end if
 
-        this_proc%source(ice_params%i_1m)=-dmass
-        this_proc%source(rain_params%i_1m)=dmass
+        procs(ice_params%i_1m, iproc%id)%column_data(k)=-dmass
+        procs(rain_params%i_1m, iproc%id)%column_data(k)=dmass
 
-        if (rain_params%l_3m) then
-          m1=qfields(k, rain_params%i_1m)/rain_params%c_x
-          m2=qfields(k, rain_params%i_2m)
-          m3=qfields(k, rain_params%i_3m)
-          dm1=dt*dmass/rain_params%c_x
-          dm2=dt*dnumber
+        ! if (rain_params%l_3m) then
+        !   m1=qfields(k, rain_params%i_1m)/rain_params%c_x
+        !   m2=qfields(k, rain_params%i_2m)
+        !   m3=qfields(k, rain_params%i_3m)
+        !   dm1=dt*dmass/rain_params%c_x
+        !   dm2=dt*dnumber
 
-          if (m1 > 0.0) then
-            call m3_inc_type2(m1, m2, m3, rain_params%p1,      &
-                 rain_params%p2, rain_params%p3, dm1, dm2, dm3_r)
-          else
-            call m3_inc_type3(rain_params%p1, rain_params%p2, rain_params%p3,      &
-                 dm1, dm2, dm3_r, rain_params%fix_mu)
-          end if
-          dm3_r=dm3_r/dt
-          this_proc%source(rain_params%i_3m) = dm3_r
-        end if
+        !   if (m1 > 0.0) then
+        !     call m3_inc_type2(m1, m2, m3, rain_params%p1,      &
+        !          rain_params%p2, rain_params%p3, dm1, dm2, dm3_r)
+        !   else
+        !     call m3_inc_type3(rain_params%p1, rain_params%p2, rain_params%p3,      &
+        !          dm1, dm2, dm3_r, rain_params%fix_mu)
+        !   end if
+        !   dm3_r=dm3_r/dt
+        !   procs(rain_params%i_3m, iproc%id)%column_data(k) = dm3_r
+        ! end if
       else
         if (params%id==snow_params%id) then
           i_acw=i_sacw
@@ -116,10 +114,10 @@ contains
           iaproc=i_dgmlt
         end if
         acc_correction=0.0
-        if (i_acw%on)acc_correction=procs(k, i_acw%id)%source(params%i_1m)
-        if (i_acr%on)acc_correction=acc_correction + procs(k, i_acr%id)%source(params%i_1m)
+        if (i_acw%on)acc_correction=procs(params%i_1m, i_acw%id)%column_data(k)
+        if (i_acr%on)acc_correction=acc_correction + procs(params%i_1m, i_acr%id)%column_data(k)
         if (params%id==graupel_params%id .and. i_gshd%on) then
-          acc_correction=acc_correction + procs(k, i_gshd%id)%source(params%i_1m)
+          acc_correction=acc_correction + procs(params%i_1m, i_gshd%id)%column_data(k)
         end if
 
         qv=qfields(k, i_qv)
@@ -132,7 +130,11 @@ contains
         mu=dist_mu(k,params%id)
         lam=dist_lambda(k,params%id)
 
-        call ventilation(k, V_x, n0, lam, mu, params)
+        if (l_gamma_online) then 
+           call ventilation_3M(k, V_x, n0, lam, mu, params)
+        else 
+           call ventilation_1M_2M(k, V_x, n0, lam, mu, params)
+        endif
 
         dmass=(1.0/(rho(k)*Lf))*(Ka*TdegC(k) + Lv*Dv*rho(k)*(qv - qws0(k))) * V_x&
              + (Cwater*TdegC(k)/Lf)*acc_correction
@@ -155,51 +157,49 @@ contains
         !--------------------------------------------------
         !< RAIN BREAKUP TO BE ADDED
 
-        this_proc=>procs(k, iproc%id)
-        this_proc%source(params%i_1m)=-dmass
-        this_proc%source(rain_params%i_1m)=dmass
+        procs(params%i_1m, iproc%id)%column_data(k)=-dmass
+        procs(rain_params%i_1m, iproc%id)%column_data(k)=dmass
 
         if (params%l_2m) then
           dnumber=dmass*number/mass
-          this_proc%source(params%i_2m)=-dnumber
-          this_proc%source(rain_params%i_2m)=dnumber
+          procs(params%i_2m, iproc%id)%column_data(k)=-dnumber
+          procs(rain_params%i_2m, iproc%id)%column_data(k)=dnumber
         end if
-        if (params%l_3m) then
-          if (l_meltall) then
-            dm3=-m3/dt
-          else
-            dm1=-dt*dmass/params%c_x
-            dm2=-dt*dnumber
-            m2=number
-            call m3_inc_type2(m1, m2, m3, params%p1, params%p2, params%p3, dm1, dm2, dm3)
-            dm3=dm3/dt
-          end if
-          this_proc%source(params%i_3m)=dm3
-        end if
+        ! if (params%l_3m) then
+        !   if (l_meltall) then
+        !     dm3=-m3/dt
+        !   else
+        !     dm1=-dt*dmass/params%c_x
+        !     dm2=-dt*dnumber
+        !     m2=number
+        !     call m3_inc_type2(m1, m2, m3, params%p1, params%p2, params%p3, dm1, dm2, dm3)
+        !     dm3=dm3/dt
+        !   end if
+        !   procs(params%i_3m, iproc%id)%column_data(k)=dm3
+        ! end if
 
-        if (rain_params%l_3m) then
-          if (params%l_3m) then
-            call m3_inc_type4(dm3, rain_params%c_x, params%c_x, params%p3, dm3_r)
-          else
-            m1=qfields(k, rain_params%i_1m)/rain_params%c_x
-            m2=qfields(k, rain_params%i_2m)
-            m3=qfields(k, rain_params%i_3m)
+        ! if (rain_params%l_3m) then
+        !   if (params%l_3m) then
+        !     call m3_inc_type4(dm3, rain_params%c_x, params%c_x, params%p3, dm3_r)
+        !   else
+        !     m1=qfields(k, rain_params%i_1m)/rain_params%c_x
+        !     m2=qfields(k, rain_params%i_2m)
+        !     m3=qfields(k, rain_params%i_3m)
 
-            dm1=dt*dmass/rain_params%c_x
-            dm2=dt*dnumber
-            call m3_inc_type2(m1, m2, m3, rain_params%p1, rain_params%p2, rain_params%p3, dm1, dm2, dm3_r, rain_params%fix_mu)
-            dm3_r=dm3_r/dt
-          end if
-          this_proc%source(rain_params%i_3m) = dm3_r
-        end if
+        !     dm1=dt*dmass/rain_params%c_x
+        !     dm2=dt*dnumber
+        !     call m3_inc_type2(m1, m2, m3, rain_params%p1, rain_params%p2, rain_params%p3, dm1, dm2, dm3_r, rain_params%fix_mu)
+        !     dm3_r=dm3_r/dt
+        !   end if
+        !   procs(rain_params%i_3m, iproc%id)%column_data(k) = dm3_r
+        ! end if
       end if
       !----------------------
       ! Aerosol processing...
       !----------------------
 
       if (l_process) then
-        aero_proc=>aerosol_procs(k, iaproc%id)
-
+      
         if (params%id == ice_params%id) then
           dmac=dnumber*aeroice(k)%nratio1*aeroice(k)%mact1_mean
           dmad=dnumber*dustact(k)%nratio1*dustact(k)%mact1_mean
@@ -211,13 +211,11 @@ contains
           dmad=dnumber*dustact(k)%nratio3*dustact(k)%mact3_mean
         end if
 
-        aero_proc%source(i_am8)=-dmac
-        aero_proc%source(i_am4)=dmac
-        aero_proc%source(i_am9)=dmad
-        aero_proc%source(i_am7)=-dmad
-        nullify(aero_proc)
+        aerosol_procs(i_am8, iaproc%id)%column_data(k)=-dmac
+        aerosol_procs(i_am4, iaproc%id)%column_data(k)=dmac
+        aerosol_procs(i_am9, iaproc%id)%column_data(k)=dmad
+        aerosol_procs(i_am7, iaproc%id)%column_data(k)=-dmad
       end if
-      nullify(this_proc)
     end if
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)

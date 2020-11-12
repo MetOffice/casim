@@ -8,8 +8,9 @@ module graupel_embryo
   use thresholds, only: thresh_sig
   use special, only: pi, Gammafunc
   use m3_incs, only: m3_inc_type2, m3_inc_type3
-  use ventfac, only: ventilation
+  use ventfac, only: ventilation_1M_2M, ventilation_3M
   use distributions, only: dist_lambda, dist_mu, dist_n0
+  use mphys_switches, only: l_gamma_online
 
   implicit none
   private
@@ -56,8 +57,6 @@ contains
     real(wp) :: dnembryo ! rate of embryo creation
     real(wp) :: embryo_mass = 1.6e-10 ! mass(kg) of a new graupel embryo (should be in parameters)
 
-    type(process_rate), pointer :: this_proc
-
     real(wp) :: pgsacw  ! Rate of mass transfer to graupel
     real(wp) :: Eff
 
@@ -103,21 +102,15 @@ contains
       dnumber=min(dnembryo, 0.95*snow_number/dt)
 
       pid=i_sacw%id
-      this_proc=>procs(k, pid)
-      dmass=this_proc%source(snow_params%i_1m)-pgsacw
-      this_proc%source(snow_params%i_1m)=dmass
-      this_proc%source(graupel_params%i_1m)=pgsacw
+      dmass=procs(snow_params%i_1m, pid)%column_data(k)-pgsacw
+      procs(snow_params%i_1m,pid)%column_data(k)=dmass
+      procs(graupel_params%i_1m,pid)%column_data(k)=pgsacw
       if (graupel_params%l_2m) then
-        this_proc%source(graupel_params%i_2m)=dnumber
+        procs(graupel_params%i_2m,pid)%column_data(k)=dnumber
       end if
       if (snow_params%l_2m) then
-        this_proc%source(snow_params%i_2m)=-dnumber
+        procs(snow_params%i_2m,pid)%column_data(k)=-dnumber
       end if
-
-      !----------------------
-      ! Aerosol processing...
-      !----------------------
-      nullify(this_proc)
 
     end if
       

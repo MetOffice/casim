@@ -19,6 +19,8 @@ module aerosol_routines
 
   character(len=*), parameter, private :: ModuleName='AEROSOL_ROUTINES'
 
+  logical :: l_warned_of_prag_hack = .FALSE.
+
   private
 
   public aerosol_active, aerosol_phys, aerosol_chem, abdulRazzakGhan2000, invert_partial_moment, upperpartial_moment_logn, &
@@ -234,7 +236,7 @@ contains
           mode_N=aerofields(k,aero_index%ccn_n(imode))
           mode_M=aerofields(k,aero_index%ccn_m(imode))
           mode_K=aerofields(k,aero_index%ccn_k(imode))
-          if (mode_N > ccn_tidy .and. mode_M > ccn_tidy*1e-18) then ! FiX This
+          if (mode_N > ccn_tidy .and. mode_M > ccn_tidy*epsilon(1.0_wp)) then ! FiX This
             aerophys(k)%N(imode)=mode_N
             aerophys(k)%M(imode)=mode_M
             aerophys(k)%rd(imode)=MNtoRm(mode_M,mode_N,density,aerophys(k)%sigma(imode))
@@ -271,12 +273,12 @@ contains
           if (l_separate_rain) then
             mar=aerofields(k,i_am5)
             mact=mac+mar
-            l_condition=mac > 0.0 .and. cloud_number > nl_tidy
-            l_condition_r=mar > 0.0 .and. rain_number > nr_tidy .and. rain_mass > qr_tidy
+            l_condition=mac > epsilon(1.0_wp) .and. cloud_number > nl_tidy
+            l_condition_r=mar > epsilon(1.0_wp) .and. rain_number > nr_tidy .and. rain_mass > qr_tidy
           else
             mact=mac
-            l_condition=mac > 0.0 .and. cloud_number + rain_number > nl_tidy
-            l_condition_r=mac > 0.0 .and. rain_number > nr_tidy .and. rain_mass > qr_tidy
+            l_condition=mac > epsilon(1.0_wp) .and. cloud_number + rain_number > nl_tidy
+            l_condition_r=mac > epsilon(1.0_wp) .and. rain_number > nr_tidy .and. rain_mass > qr_tidy
           end if
 
           if (l_warm)then
@@ -285,7 +287,7 @@ contains
             maai=aerofields(k,i_am8)
           end if
 
-          ratio_ali=mact/(mact+maai+1e-38)
+          ratio_ali=mact/(mact+maai+epsilon(1.0_wp))
 
           nhtot=cloud_number+rain_number
 
@@ -295,9 +297,9 @@ contains
             ntot=nhtot
           end if
 
-          l_condition=l_condition .and. ntot > 0.0
+          l_condition=l_condition .and. ntot > epsilon(1.0_wp)
 
-          nhtot=nhtot+1e-38 ! prevent possible later division by zero
+          nhtot=nhtot+epsilon(1.0_wp) ! prevent possible later division by zero
           nratio_l=cloud_number/nhtot
           nratio_r=rain_number/nhtot
 
@@ -338,8 +340,8 @@ contains
           aeroact(k)%rcrit1=0.0
           aeroact(k)%mact1_mean=aeroact(k)%mact1/(aeroact(k)%nact1+tiny(mar))
 
-          if (cloud_number > 0.0) aeroact(k)%nratio1=aeroact(k)%nact1/cloud_number
-          if (rain_number > 0.0) aeroact(k)%nratio2=aeroact(k)%nact2/rain_number
+          if (cloud_number > epsilon(1.0_wp)) aeroact(k)%nratio1=aeroact(k)%nact1/cloud_number
+          if (rain_number > epsilon(1.0_wp)) aeroact(k)%nratio2=aeroact(k)%nact2/rain_number
         end if
     end do
 
@@ -387,10 +389,14 @@ contains
           mode_M=aerofields(k,aero_index%in_m(imode))
           if (mode_m < 0 .or. mode_n < 0 ) then
 
-            write(std_msg,*)   'Problem! Using pragmatic hack to continue.  '//       &
-                               'If you see this message, report it to Ben Shipway!!!'
+            if ( .not. l_warned_of_prag_hack ) then
 
-            call throw_mphys_error(warn, ModuleName//':'//RoutineName, std_msg)
+              write(std_msg,*)   'Problem! Using pragmatic hack to continue.  '//       &
+                                 'If you see this message, report it to Ben Shipway!!!'
+
+              call throw_mphys_error(warn, ModuleName//':'//RoutineName, std_msg)
+              l_warned_of_prag_hack = .true.
+            end if
 
             if (mode_m < 0) mode_m=aeromass_small
             if (mode_n < 0) mode_n=aeronumber_small
@@ -425,7 +431,7 @@ contains
         dustact(k)%mact3_mean=0.0
 
         if (l_process) then
-          if (mad > 0.0 .and. nitot > ni_tidy) then
+          if (mad > epsilon(1.0_wp) .and. nitot > ni_tidy) then
 
             ! Equal partitioning of dust distribution across all ice species
             ! This will cause problems, e.g. when ice splinters, there will be a
@@ -437,7 +443,7 @@ contains
             dustact(k)%rcrit=0.0
             dustact(k)%mact_mean=dustact(k)%mact/(dustact(k)%nact+tiny(mad))
 
-            if (ice_number > 0.0) then
+            if (ice_number > epsilon(1.0_wp)) then
               dustact(k)%nact1=nitot * ratio_i
               dustact(k)%mact1=mad * dustact(k)%nact1/dustact(k)%nact
               dustact(k)%rcrit1=0.0
@@ -445,7 +451,7 @@ contains
               dustact(k)%nratio1=dustact(k)%nact1/(ice_number+tiny(nhtot))
             end if
 
-            if (snow_number > 0.0) then
+            if (snow_number > epsilon(1.0_wp)) then
               dustact(k)%nact2=nitot*ratio_s
               dustact(k)%rcrit2=0.0
               dustact(k)%mact2=mad*dustact(k)%nact2/(dustact(k)%nact+tiny(nhtot))
@@ -471,7 +477,7 @@ contains
             density=aerochem(k)%density(1)
             maai=aerofields(k,i_am8)
             mac=aerofields(k,i_am4)
-            ratio_ail = maai/(maai+mac+1e-38)
+            ratio_ail = maai/(maai+mac+epsilon(1.0_wp))
 
             ice_number=qfields(k,i_ni)
             snow_number=qfields(k,i_ns)
@@ -493,7 +499,7 @@ contains
               nitot=nhtot
             end if
 
-            nhtot=nhtot+1e-38 ! prevent possible later division by zero
+            nhtot=nhtot+epsilon(1.0_wp) ! prevent possible later division by zero
             nratio_i=ice_number/nhtot
             nratio_s=snow_number/nhtot
             nratio_g=graupel_number/nhtot
@@ -527,14 +533,14 @@ contains
             aeroice(k)%rcrit3=999.0
             aeroice(k)%mact3_mean=0.0
 
-            if (maai > 0.0 .and. nitot > ni_tidy) then
+            if (maai > epsilon(1.0_wp) .and. nitot > ni_tidy) then
               ! Equal partitioning of dust distribution across all ice species
               aeroice(k)%nact=nitot
               aeroice(k)%mact=maai
               aeroice(k)%rcrit=0.0
               aeroice(k)%mact_mean=aeroice(k)%mact/(aeroice(k)%nact+tiny(nhtot))
 
-              if (ratio_i > 0.0) then
+              if (ratio_i > epsilon(1.0_wp)) then
                 aeroice(k)%nact1=nitot*ratio_i
                 aeroice(k)%mact1=maai*ratio_i
                 aeroice(k)%rcrit1=0.0
@@ -542,7 +548,7 @@ contains
                 aeroice(k)%nratio1=aeroice(k)%nact1/(ice_number+tiny(nhtot))
               end if
 
-              if (ratio_s > 0.0) then
+              if (ratio_s > epsilon(1.0_wp)) then
                 aeroice(k)%nact2=nitot*ratio_s
                 aeroice(k)%rcrit2=0.0
                 aeroice(k)%mact2=maai*ratio_s
@@ -550,7 +556,7 @@ contains
                 aeroice(k)%nratio2=aeroice(k)%nact2/(snow_number+tiny(nhtot))
               end if
 
-              if (ratio_g > 0.0) then
+              if (ratio_g > epsilon(1.0_wp)) then
                 aeroice(k)%nact3=nitot*ratio_g
                 aeroice(k)%rcrit3=0.0
                 aeroice(k)%mact3=maai*ratio_g
@@ -569,7 +575,7 @@ contains
             density=dustchem(k)%density(1)
             madl=aerofields(k,i_am9)
             mad=aerofields(k,i_am7)
-            ratio_dli = madl/(mad+madl+1e-38)
+            ratio_dli = madl/(mad+madl+epsilon(1.0_wp))
 
             cloud_number=qfields(k,i_nl)
             rain_number=qfields(k,i_nr)
@@ -608,7 +614,7 @@ contains
             dustliq(k)%rcrit3=999.0
             dustliq(k)%mact3_mean=0.0
 
-            if (madl > 0.0 .and. ntot > nr_tidy) then
+            if (madl > epsilon(1.0_wp) .and. ntot > nr_tidy) then
               ! Equal partitioning of aerosol distribution across all liquid species
 
               dustliq(k)%nact=ntot
@@ -616,7 +622,7 @@ contains
               dustliq(k)%rcrit=0.0
               dustliq(k)%mact_mean=dustliq(k)%mact/(dustliq(k)%nact+tiny(nhtot))
 
-              if (ratio_l > 0.0) then
+              if (ratio_l > epsilon(1.0_wp)) then
                 dustliq(k)%nact1=ntot*ratio_l
                 dustliq(k)%mact1=madl*ratio_l
                 dustliq(k)%rcrit1=0.0
@@ -624,7 +630,7 @@ contains
                 dustliq(k)%nratio1=dustliq(k)%nact1/(cloud_number+tiny(nhtot))
               end if
 
-              if (ratio_r > 0.0) then
+              if (ratio_r > epsilon(1.0_wp)) then
                 dustliq(k)%nact2=ntot*ratio_r
                 dustliq(k)%rcrit2=0.0
                 dustliq(k)%mact2=madl*ratio_r

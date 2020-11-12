@@ -1,13 +1,22 @@
 module mphys_switches
   use variable_precision, only: wp
-  use mphys_parameters, only: cloud_params, rain_params, ice_params , snow_params, graupel_params, naero, p1,p2,p3
+  use mphys_parameters, only: cloud_params, rain_params, ice_params,           &
+                              rain_params_orig, rain_params_kf,                &
+                              ice_params_orig, ice_params_kf,                  &
+                              snow_params, graupel_params, naero, p1,p2,p3
   use thresholds, only: thresh_small, th_small, qv_small, ql_small, qr_small, nl_small, nr_small, m3r_small, &
        qi_small, qs_small, ni_small, ns_small, m3s_small, qg_small, ng_small, m3g_small, thresh_tidy, &
        th_tidy, qv_tidy, ql_tidy, qr_tidy, nl_tidy, nr_tidy, m3r_tidy, qi_tidy, qs_tidy, ni_tidy, &
        ns_tidy, m3s_tidy, qg_tidy, ng_tidy, m3g_tidy, thresh_sig, qs_sig, ql_sig, qr_sig, qi_sig, qg_sig, &
        thresh_large, qs_large, ql_large, qr_large, qi_large, qg_large, ns_large, nl_large, nr_large, ni_large, &
        ng_large, thresh_atidy, aeromass_small, aeronumber_small
-  use process_routines 
+  use process_routines, only: i_cond, i_praut, &
+       i_pracw, i_pracr, i_prevp, i_psedr, i_psedl, i_aact, i_aaut, i_aacw, i_aevp, i_asedr, i_asedl, i_arevp, &
+       i_tidy, i_tidy2, i_atidy, i_atidy2, i_inuc, i_idep, i_dnuc, i_dsub, i_saut, i_iacw, i_sacw, i_pseds, &
+       i_sdep, i_saci, i_raci, i_sacr, i_gacw, i_gacr, i_gaci, i_gacs, i_gdep, i_psedg, i_iagg, i_sagg, i_gagg, &
+       i_gshd, i_ihal, i_smlt, i_gmlt, i_psedi, i_homr, i_homc, i_imlt, i_isub, i_ssub, i_gsub, i_sbrk, i_dssub, &
+       i_dgsub, i_dsedi, i_dseds, i_dsedg, i_dimlt, i_dsmlt, i_dgmlt, i_diacw, i_dsacw, i_dgacw, i_dsacr, &
+       i_dgacr, i_draci, i_dhomc, i_dhomr, process_name
 
   implicit none
 
@@ -48,11 +57,23 @@ module mphys_switches
 
   logical :: l_cfrac_casim_diag_scheme = .false. ! Use diagnostic cloud scheme
 
+  logical :: l_prf_cfrac = .false. ! Paul Field's new Smith Cloud Fraction
+                                   ! scheme
+
 ! Flag to decide whether to transfer the evaporating aerosol based on whether 
 ! it is less or more than halfway between the sizes of accum and coarse modes
 ! This is True (Dan Grosvenor Bug) in the package branch
 ! Turn to false to turn off Dan's bug fix
-  logical :: l_aeroproc_midway =.true. 
+  logical :: l_aeroproc_midway =.true.
+
+  logical :: l_aeroproc_no_coarse =.false.
+  logical :: l_bypass_which_mode = .true. ! DPG - bypass which_mode_to_use and
+                                          !put all evaporated aeroosl in either
+                                          !accum or coarse mode
+!DPG - option of where to transfer aerosol from evap; 1=accum mode (default),
+!2 = coarse, anything else = keep mass in activated mode
+!(but transfer number to the mode selected by iact_mode below)  
+  integer :: iopt_which_mode=1  
 
   logical :: l_ukca_casim = .false. ! CASIM is coupled to UKCA. 
   ! This is set to false, but needs setting to .true. if l_ukca
@@ -186,13 +207,38 @@ module mphys_switches
 
   integer :: nsubsteps, nsubseds
 
+  ! number of substeps for each hydrometor
+  integer :: nsubseds_cloud, nsubseds_ice, nsubseds_rain, &
+       nsubseds_snow, nsubseds_graupel
+  
+  ! Switch used to determine whether gamma functions  computed for each timestep (true) 
+  ! or at initialisation. Default is false, since precomputing the gamma functions results in 
+  ! significant compute speed up and reduces the need for timestep lookups, which is beneficial 
+  ! to GPUs. In general this should only be true when 3-moment or diagnostic shape is used
+  logical :: l_gamma_online = .false. 
+  logical :: l_subseds_maxv = .false.
+
+  ! Switch to use eulexp sedimentation, which is based on the sedimentation from the
+  ! UM. It permits one step sedimentation on long timesteps. False will give the 
+  ! standard CASIM sed with substep on timesteps greater than max_sed_length
+  ! Note: This has only been tested with single moment and double moment, not sure how this 
+  !       works with three moment stuff
+  logical :: l_sed_eulexp = .true.
+
+  real(wp) :: cfl_vt_max = 1.0
+
   real :: inv_nsubsteps, inv_nsubseds, inv_allsubs
+  ! inverse number of substeps for each hydrometor
+  real :: inv_nsubseds_cloud, inv_nsubseds_ice, inv_nsubseds_rain, &
+       inv_nsubseds_snow, inv_nsubseds_graupel
+  real :: inv_allsubs_cloud, inv_allsubs_ice, inv_allsubs_rain, &
+       inv_allsubs_snow, inv_allsubs_graupel
 
   ! process switches
   ! Some of these switches are obsolete or inactive - review these
   ! and then remove this message
 
-  logical :: l_abelshipway=.false.
+  logical :: l_abelshipway=.true.
   logical :: l_sed_3mdiff=.false.
   logical :: l_sed_icecloud_as_1m=.false.
   logical :: l_cons=.false.
@@ -229,7 +275,7 @@ module mphys_switches
   logical, target :: l_pracw   = .true.  ! Accretion  cloud -> rain
   logical, target :: l_pracr   = .true.  ! aggregation of rain drops
   logical, target :: l_prevp   = .true.  ! evaporation of rain
-  logical, target :: l_psedl   = .false.  ! sedimentation of cloud
+  logical, target :: l_psedl   = .true.  ! sedimentation of cloud
   logical, target :: l_psedr   = .true.  ! sedimentation of rain
   logical, target :: l_ptidy   = .true.  ! tidying term 1
   logical, target :: l_ptidy2  = .true.  ! tidying term 2
@@ -241,7 +287,7 @@ module mphys_switches
   logical, target :: l_psacw   = .true.  ! snow accreting water
   logical, target :: l_pgdep   = .true.  ! vapour deposition onto graupel
   logical, target :: l_pseds   = .true.  ! snow sedimentation
-  logical, target :: l_psedi   = .false.  ! ice sedimentation
+  logical, target :: l_psedi   = .true.  ! ice sedimentation
   logical, target :: l_psedg   = .true.  ! graupel sedimentation
   logical, target :: l_psaci   = .true.  ! snow accreting ice
   logical, target :: l_praci   = .true.  ! rain accreting ice
@@ -265,8 +311,8 @@ module mphys_switches
   logical, target :: l_pisub   = .true.  ! sublimation of ice
   logical, target :: l_pimlt   = .true.  ! ice melting
 
-  logical :: l_tidy_conserve_E = .false.
-  logical :: l_tidy_conserve_q = .false.
+  logical :: l_tidy_conserve_E = .true.  !fixed in qtidy (missing exner)
+  logical :: l_tidy_conserve_q = .true.
   logical :: l_tidy_negonly    = .true.  ! Only tidy up negative (i.e. not small) values 
 
   logical :: l_preventsmall = .false.  ! Modify tendencies to prevent production of small quantities
@@ -419,8 +465,10 @@ module mphys_switches
   ! override them (but only to be used by Ben and Adrian!)
   logical :: l_override_checks = .false.
 
-  logical :: l_SM_fix_n0 = .true. ! If running in single moment, then fix n0.  
+  logical :: l_SM_fix_n0 = .true. ! If running in single moment, then fix n0.
   ! If false, then we fix na and nb (c.f. the LEM microphysics)
+
+  logical :: l_kfsm = .false. ! Switch for Kalli's single moment code.
 
 contains
 
@@ -428,6 +476,8 @@ contains
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
+
+    use casim_parent_mod, only: casim_parent, parent_um
 
     implicit none
 
@@ -449,6 +499,18 @@ contains
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     if (.not. mphys_is_set) then
+
+      if (in_option == 11111 ) then
+        l_kfsm = .true.
+      end if
+      
+      if (casim_parent == parent_um .and. l_sed_eulexp) then 
+         !AH - this forces the a long sedimentation step, which will prevent sedimentation 
+         !     substepping. These settings assumes the microphysics substep is 2 minutes.
+         max_step_length = 120.0
+         max_sed_length = 120.0
+      endif
+     
       call derive_logicals()
       option=in_option
       aerosol_option=in_aerosol_option
@@ -552,6 +614,18 @@ contains
       end if
 
       ! Set params
+
+      if (l_kfsm) then
+        ! Kalli's single moment in use, so use his new
+        ! parameters
+        rain_params = rain_params_kf
+        ice_params  = ice_params_kf
+      else
+        ! Use the original parameters
+        rain_params = rain_params_orig
+        ice_params  = ice_params_orig
+      end if
+
       cloud_params%i_1m=i_ql
       cloud_params%i_2m=i_nl
 
@@ -570,9 +644,14 @@ contains
       graupel_params%i_2m=i_ng
       graupel_params%i_3m=i_m3g
 
-      rain_params%fix_mu=fix_mu
-      snow_params%fix_mu=fix_mu
-      graupel_params%fix_mu=fix_mu
+      ! Mphys distribution parameters set in mphys_parameters
+      !if (.not. l_kfsm) then
+      !  rain_params%fix_mu = fix_mu
+      !  graupel_params%fix_mu = fix_mu
+      !end if
+
+      !snow_params%fix_mu=fix_mu
+      !graupel_params%fix_mu=fix_mu
 
       ! Set complexity
       if (l_warm) then
@@ -780,52 +859,65 @@ contains
       iopt_accr=1
       iopt_auto=1
 
+      !-----------------------------------------------------
+      ! Automatically set cloud sedimentation ON with Paul's
+      ! new cloud fraction scheme.
+      ! Do this here, so it is ahead of allocation of process
+      ! indices etc.
+      !-----------------------------------------------------
+
+      if (l_prf_cfrac) then
+        l_psedl = .true.
+        l_psedi = .true.
+      end if
+
       !--------------------------
       ! Allocate process indices
       !--------------------------
       iproc=0
       idgproc=0
-      if (l_pcond) call allocp(i_cond, iproc, idgproc, 'pcond')
-      if (l_praut) call allocp(i_praut, iproc, idgproc, 'praut')
-      if (l_pracw) call allocp(i_pracw, iproc, idgproc, 'pracw')
-      if (l_pracr) call allocp(i_pracr, iproc, idgproc, 'pracr')
-      if (l_prevp) call allocp(i_prevp, iproc, idgproc, 'prevp')
-      if (l_psedl) call allocp(i_psedl, iproc, idgproc, 'psedl')
-      if (l_psedr) call allocp(i_psedr, iproc, idgproc, 'psedr')
-      if (l_ptidy) call allocp(i_tidy, iproc, idgproc, 'ptidy')
-      if (l_ptidy2) call allocp(i_tidy2, iproc, idgproc, 'ptidy2')
+      ! AH - Allocate all warm processes even if procs are not used
+      call allocp(i_cond, iproc, idgproc, 'pcond')
+      call allocp(i_praut, iproc, idgproc, 'praut')
+      call allocp(i_pracw, iproc, idgproc, 'pracw')
+      call allocp(i_pracr, iproc, idgproc, 'pracr')
+      call allocp(i_prevp, iproc, idgproc, 'prevp')
+      call allocp(i_psedl, iproc, idgproc, 'psedl')
+      call allocp(i_psedr, iproc, idgproc, 'psedr')
+      call allocp(i_tidy, iproc, idgproc, 'ptidy')
+      call allocp(i_tidy2, iproc, idgproc, 'ptidy2')
       if (.not. l_warm) then
-        if (l_pinuc) call allocp(i_inuc, iproc, idgproc, 'pinuc')
-        if (l_pidep) call allocp(i_idep, iproc, idgproc, 'pidep')
-        if (l_piacw) call allocp(i_iacw, iproc, idgproc, 'piacw')
-        if (l_psaut) call allocp(i_saut, iproc, idgproc, 'psaut')
-        if (l_psdep) call allocp(i_sdep, iproc, idgproc, 'psdep')
-        if (l_psacw) call allocp(i_sacw, iproc, idgproc, 'psacw')
-        if (l_pgdep) call allocp(i_gdep, iproc, idgproc, 'pgdep')
-        if (l_pseds) call allocp(i_pseds, iproc, idgproc, 'pseds')
-        if (l_psedi) call allocp(i_psedi, iproc, idgproc, 'psedi')
-        if (l_psedg) call allocp(i_psedg, iproc, idgproc, 'psedg')
-        if (l_psaci) call allocp(i_saci, iproc, idgproc, 'psaci')
-        if (l_praci) call allocp(i_raci, iproc, idgproc, 'praci')
-        if (l_psacr) call allocp(i_sacr, iproc, idgproc, 'psacr')
-        if (l_pgacr) call allocp(i_gacr, iproc, idgproc, 'pgacr')
-        if (l_pgacw) call allocp(i_gacw, iproc, idgproc, 'pgacw')
-        if (l_pgaci) call allocp(i_gaci, iproc, idgproc, 'pgaci')
-        if (l_pgacs) call allocp(i_gacs, iproc, idgproc, 'pgacs')
-        if (l_piagg) call allocp(i_iagg, iproc, idgproc, 'piagg')
-        if (l_psagg) call allocp(i_sagg, iproc, idgproc, 'psagg')
-        if (l_pgagg) call allocp(i_gagg, iproc, idgproc, 'pgagg')
-        if (l_psbrk) call allocp(i_sbrk, iproc, idgproc, 'psbrk')
-        if (l_pgshd) call allocp(i_gshd, iproc, idgproc, 'pgshd')
-        if (l_pihal) call allocp(i_ihal, iproc, idgproc, 'pihal')
-        if (l_psmlt) call allocp(i_smlt, iproc, idgproc, 'psmlt')
-        if (l_pgmlt) call allocp(i_gmlt, iproc, idgproc, 'pgmlt')
-        if (l_phomr) call allocp(i_homr, iproc, idgproc, 'phomr')
-        if (l_phomc) call allocp(i_homc, iproc, idgproc, 'phomc')
-        if (l_pssub) call allocp(i_ssub, iproc, idgproc, 'pssub')
-        if (l_pgsub) call allocp(i_gsub, iproc, idgproc, 'pgsub')
-        if (l_pisub) call allocp(i_isub, iproc, idgproc, 'pisub')
-        if (l_pimlt) call allocp(i_imlt, iproc, idgproc, 'pimlt')
+        call allocp(i_inuc, iproc, idgproc, 'pinuc')
+        call allocp(i_idep, iproc, idgproc, 'pidep')
+        call allocp(i_iacw, iproc, idgproc, 'piacw')
+        call allocp(i_saut, iproc, idgproc, 'psaut')
+        call allocp(i_sdep, iproc, idgproc, 'psdep')
+        call allocp(i_sacw, iproc, idgproc, 'psacw')
+        call allocp(i_gdep, iproc, idgproc, 'pgdep')
+        call allocp(i_pseds, iproc, idgproc, 'pseds')
+        call allocp(i_psedi, iproc, idgproc, 'psedi')
+        call allocp(i_psedg, iproc, idgproc, 'psedg')
+        call allocp(i_saci, iproc, idgproc, 'psaci')
+        call allocp(i_raci, iproc, idgproc, 'praci')
+        call allocp(i_sacr, iproc, idgproc, 'psacr')
+        call allocp(i_gacr, iproc, idgproc, 'pgacr')
+        call allocp(i_gacw, iproc, idgproc, 'pgacw')
+        call allocp(i_gaci, iproc, idgproc, 'pgaci')
+        call allocp(i_gacs, iproc, idgproc, 'pgacs')
+        call allocp(i_iagg, iproc, idgproc, 'piagg')
+        call allocp(i_sagg, iproc, idgproc, 'psagg')
+        call allocp(i_gagg, iproc, idgproc, 'pgagg')
+        call allocp(i_sbrk, iproc, idgproc, 'psbrk')
+        call allocp(i_gshd, iproc, idgproc, 'pgshd')
+        call allocp(i_ihal, iproc, idgproc, 'pihal')
+        call allocp(i_smlt, iproc, idgproc, 'psmlt')
+        call allocp(i_gmlt, iproc, idgproc, 'pgmlt')
+        call allocp(i_homr, iproc, idgproc, 'phomr')
+        call allocp(i_homc, iproc, idgproc, 'phomc')
+        call allocp(i_ssub, iproc, idgproc, 'pssub')
+        call allocp(i_gsub, iproc, idgproc, 'pgsub')
+        call allocp(i_isub, iproc, idgproc, 'pisub')
+        call allocp(i_imlt, iproc, idgproc, 'pimlt')
       end if
       hydro_complexity%nprocesses=iproc
 
@@ -1037,6 +1129,31 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+    if (l_kfsm) then
+      ! Kalli's single moment scheme in use, so we need to switch off
+      ! all of the process rates which are not required.
+
+      !l_psaut = .false.
+      !l_psdep = .false.
+      !l_psacw = .false.
+      !l_pseds = .false.
+      !l_psaci = .false.
+      !l_psacr = .false.
+      !l_pgacs = .false.
+      !l_psagg = .false.
+      !l_psbrk = .false.
+      !l_pihal = .false.
+      !l_psmlt = .false.
+      !l_pssub = .false.
+
+      ! But we need to turn on ice and snow sedimentation as these
+      ! are on in his runs.
+
+      l_psedl = .true.
+      l_psedi = .true.
+
+    end if ! l_kfsm
+
     pswitch%l_pcond=>l_pcond ! Condensation
     pswitch%l_praut=>l_praut ! Autoconversion cloud -> rain
     pswitch%l_pracw=>l_pracw ! Accretion  cloud -> rain
@@ -1123,6 +1240,11 @@ contains
       pswitch%l_pgdep=.false.
       pswitch%l_pgmlt=.false.
       pswitch%l_psedg=.false.
+      pswitch%l_pgacs=.false.
+      pswitch%l_pgaci=.false.
+      pswitch%l_pgshd=.false.
+      ! this should not be switched off
+      pswitch%l_phomr=.false.
     end if
 
     if (.not. l_halletmossop) pswitch%l_pihal=.false.

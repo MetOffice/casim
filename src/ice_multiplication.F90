@@ -56,7 +56,6 @@ contains
     real(wp) :: n0, lam, mu
     real(wp) :: Eff  !< splintering efficiency
 
-    type(process_rate), pointer :: this_proc
     type(process_name) :: iproc ! processes selected depending on which species we're modifying
 
     character(len=*), parameter :: RoutineName='HALLET_MOSSOP'
@@ -80,12 +79,11 @@ contains
     if (Eff > 0.0) then
       sacw=0.0
       gacw=0.0
-      if (snow_params%i_1m > 0)   sacw=procs(k, i_sacw%id)%source(snow_params%i_1m)
-      if (graupel_params%i_1m > 0) gacw=procs(k, i_gacw%id)%source(graupel_params%i_1m)
+      if (snow_params%i_1m > 0)   sacw=procs(snow_params%i_1m, i_sacw%id)%column_data(k)
+      if (graupel_params%i_1m > 0) gacw=procs(graupel_params%i_1m, i_gacw%id)%column_data(k)
 
       if ((sacw + gacw)*dt > thresh_small(snow_params%i_1m)) then
         iproc=i_ihal
-        this_proc=>procs(k, iproc%id)
 
         dnumber_g=dN_hallet_mossop * Eff * (gacw) ! Number of splinters from graupel
         dnumber_s=dN_hallet_mossop * Eff * (sacw) ! Number of splinters from snow
@@ -99,30 +97,26 @@ contains
         !-------------------
         ! Sources for ice...
         !-------------------
-        this_proc%source(ice_params%i_1m)=dmass_g+dmass_s
-        this_proc%source(ice_params%i_2m)=dnumber_g+dnumber_s
+        procs(ice_params%i_1m, iproc%id)%column_data(k)=dmass_g+dmass_s
+        procs(ice_params%i_2m, iproc%id)%column_data(k)=dnumber_g+dnumber_s
 
         !-------------------
         ! Sinks for snow...
         !-------------------
         if (sacw > 0.0) then
-          this_proc%source(snow_params%i_1m)=-dmass_s
-          this_proc%source(snow_params%i_2m)=0.0
+          procs(snow_params%i_1m, iproc%id)%column_data(k)=-dmass_s
+          procs(snow_params%i_2m, iproc%id)%column_data(k)=0.0
         end if
 
         !---------------------
         ! Sinks for graupel...
         !---------------------
         if (gacw > 0.0) then
-          this_proc%source(graupel_params%i_1m)=-dmass_g
-          this_proc%source(graupel_params%i_2m)=0.0
+          procs(graupel_params%i_1m, iproc%id)%column_data(k)=-dmass_g
+          procs(graupel_params%i_2m, iproc%id)%column_data(k)=0.0
         end if
 
-        !----------------------
-        ! Aerosol processing...
-        !----------------------
       end if
-      nullify(this_proc)
     end if
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)

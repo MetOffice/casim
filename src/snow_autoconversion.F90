@@ -48,7 +48,6 @@ contains
     real(wp) :: ice_number
     real(wp) :: th
     real(wp) :: qv
-    type(process_rate), pointer :: this_proc
     real(wp) :: p1, p2, p3
     real(wp) :: lami_min , AB, qis
     integer :: i
@@ -96,7 +95,6 @@ contains
     end if
 
     if (l_condition) then
-      this_proc=>procs(k, i_saut%id)
 
       p1=snow_params%p1
       p2=snow_params%p2
@@ -130,24 +128,23 @@ contains
           dm3=dm3/dt
         end if
 
-        this_proc%source(i_qi)=-dmass
-        this_proc%source(i_qs)=dmass
+        procs(i_qi, i_saut%id)%column_data(k)=-dmass
+        procs(i_qs, i_saut%id)%column_data(k)=dmass
 
         if (ice_params%l_2m) then
-          this_proc%source(i_ni)=-dnumber
+          procs(i_ni, i_saut%id)%column_data(k)=-dnumber
         end if
         if (snow_params%l_2m) then
-          this_proc%source(i_ns)=dnumber
+          procs(i_ns, i_saut%id)%column_data(k)=dnumber
         end if
         if (snow_params%l_3m) then
-          this_proc%source(i_m3s)=dm3
+          procs(i_m3s, i_saut%id)%column_data(k)=dm3
         end if
       end if
       !==============================
       ! No aerosol processing needed
       !==============================
-      nullify(this_proc)
-    end if
+   end if
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 

@@ -1,16 +1,16 @@
 module ice_nucleation
   use mphys_die, only: throw_mphys_error, bad_values, std_msg
   use variable_precision, only: wp
-  use passive_fields, only: rho, pressure, w, exner
+  use passive_fields, only: rho, pressure, w, exner, cfliq
   use mphys_switches, only: i_qv, i_ql, i_qi, i_ni, i_th , hydro_complexity, i_am4, i_am6, i_an2, l_2mi, l_2ms, l_2mg, &
        i_am8, i_am9, aerosol_option, i_nl, i_ns, i_ng, iopt_inuc, i_am7, i_an6, i_an12, l_process, l_passivenumbers, &
        l_passivenumbers_ice, active_number, active_ice, isol, iinsol, l_itotsg, contact_efficiency, immersion_efficiency, &
-       aero_index
+       aero_index, l_prf_cfrac, iopt_act
   use process_routines, only: process_rate, i_inuc, i_dnuc
   use mphys_parameters, only: nucleated_ice_mass, cloud_params, ice_params
   use mphys_constants, only: Ls, cp, pi, m3_to_cm3
   use qsat_funs, only: qsaturation, qisaturation
-  use thresholds, only: ql_small, w_small, ni_tidy, nl_tidy
+  use thresholds, only: ql_small, w_small, ni_tidy, nl_tidy, cfliq_small
   use aerosol_routines, only: aerosol_phys, aerosol_chem, aerosol_active
 
   implicit none
@@ -63,7 +63,9 @@ contains
     real(wp) :: qv
     real(wp) :: ice_number
     real(wp) :: cloud_number, cloud_mass
-    real(wp) :: qs, qis, Si, Sw, limit, dN_imm, dN_contact
+    real(wp) :: qs, qis, Si, Sw, limit, dN_imm, dN_contact, ql
+    
+    real(wp) :: cf_liquid
 
     ! parameters for Meyers et al (1992)
     ! Meyers MP, DeMott PJ, Cotton WR (1992) New primary ice-nucleation
@@ -77,8 +79,7 @@ contains
     ! variables for surface site based parameterisations
     real(wp) :: n_sites, surf_area
 
-    type(process_rate), pointer :: this_proc
-    type(process_rate), pointer :: aero_proc
+    !type(process_rate), pointer :: aero_proc
 
     integer :: kk
     logical :: l_condition
@@ -95,15 +96,26 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+!    if (l_prf_cfrac) then
+!      if (cfliq(k) .gt. cfliq_small) then  !only doing liquid cloud fraction at the moment
+!        cf_liquid=cfliq(k)
+!      else
+!        cf_liquid=cfliq_small !nonzero value - maybe move cf test higher up
+!      endif
+!    else
+      cf_liquid = 1.0
+!    end if
+
     qv=qfields(k, i_qv)
     th=qfields(k, i_th)
 
+    ql=qfields(k, i_ql)
     Tk=th*exner(k)
     qs=qsaturation(Tk, pressure(k)/100.0)
     qis=qisaturation(Tk, pressure(k)/100.0)
-    cloud_mass=qfields(k, i_ql)
+    cloud_mass=qfields(k, i_ql) / cf_liquid
     if (cloud_params%l_2m) then
-      cloud_number=qfields(k, i_nl)
+      cloud_number=qfields(k, i_nl) / cf_liquid
     else
       cloud_number=cloud_params%fix_N0
     end if
@@ -145,7 +157,6 @@ contains
     end select
 
     if (l_condition) then
-      this_proc=>procs(k, i_inuc%id)
 
       if (ice_params%l_2m)then
         ice_number=qfields(k, i_ni)
@@ -160,7 +171,13 @@ contains
         ! Cooper
         ! Cooper WA (1986) Ice Initiation in Natural Clouds. Precipitation Enhancement -
         ! A Scientific Challenge. Meteor Monogr, (Am Meteor Soc, Boston, MA), 21, pp 29–32.
-        dN_imm=5.0*exp(-0.304*Tc)/rho(k)
+
+        if (ql > ql_small) then  !only make ice when liquid present
+          dN_imm=5.0*exp(-0.304*Tc)/rho(k)
+          if (iopt_act .eq. 0) then
+            dN_imm=dN_imm-ice_number
+          endif
+        endif
       case (2)
         ! Meyers
         ! Meyers MP, DeMott PJ, Cotton WR (1992) New primary ice-nucleation
@@ -311,21 +328,25 @@ contains
       dnumber=dN_imm + dN_contact
       dnumber=min(dnumber, cloud_number/dt)
 
+!convert back to gridbox mean
+      dnumber=dnumber*cf_liquid
+      cloud_number=cloud_number*cf_liquid
+      cloud_mass=cloud_mass*cf_liquid
+
       if (dnumber > ni_tidy) then
         dmass=cloud_mass*dnumber/cloud_number
-        this_proc%source(i_qi)=dmass
+        procs(i_qi, i_inuc%id)%column_data(k)=dmass
 
         if (l_2mi) then
-          this_proc%source(i_ni)=dnumber
+          procs(i_ni, i_inuc%id)%column_data(k)=dnumber
         end if
         if (cloud_params%l_2m) then
-          this_proc%source(i_nl)=-dnumber
+          procs(i_nl, i_inuc%id)%column_data(k)=-dnumber
         end if
-        this_proc%source(i_ql)=-dmass
+        procs(i_ql, i_inuc%id)%column_data(k)=-dmass
 
         if (l_process) then
-          aero_proc=>aerosol_procs(k, i_dnuc%id)
-
+        
           ! New ice nuclei
           dmad=dN_contact*dustphys(k)%M(1)/dustphys(k)%N(1)
 
@@ -335,22 +356,20 @@ contains
           ! Dust already in the liquid phase
           dmadl=dN_imm*dustliq(k)%mact1_mean*dustliq(k)%nratio1
 
-          aero_proc%source(i_am8)=dmac
-          aero_proc%source(i_am4)=-dmac
-          aero_proc%source(i_am9)=-dmadl
+          aerosol_procs(i_am8, i_dnuc%id)%column_data(k)=dmac
+          aerosol_procs(i_am4, i_dnuc%id)%column_data(k)=-dmac
+          aerosol_procs(i_am9, i_dnuc%id)%column_data(k)=-dmadl
 
-          aero_proc%source(i_am7)=dmad+dmadl
-          aero_proc%source(i_am6)=-dmad    ! <WARNING: using coarse mode
-          aero_proc%source(i_an6)=-dN_contact ! <WARNING: using coarse mode
+          aerosol_procs(i_am7, i_dnuc%id)%column_data(k)=dmad+dmadl
+          aerosol_procs(i_am6, i_dnuc%id)%column_data(k)=-dmad    ! <WARNING: using coarse mode
+          aerosol_procs(i_an6, i_dnuc%id)%column_data(k)=-dN_contact ! <WARNING: using coarse mode
 
           if (l_passivenumbers_ice) then
             ! we retain information on what'd been nucleated
-            aero_proc%source(i_an12)=dN_contact
+            aerosol_procs(i_an12, i_dnuc%id)%column_data(k)=dN_contact
           end if
-          nullify(aero_proc)
         end if
       end if
-      nullify(this_proc)
     end if
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)

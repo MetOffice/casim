@@ -291,6 +291,7 @@ contains
       if (use_mode(i)) then
         sm = max(xmin*s0i(i)*1.01, sm)
         sp = min(xmax*s0i(i)*0.99, sp)
+
       end if
     end do
 

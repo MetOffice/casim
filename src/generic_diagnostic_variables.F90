@@ -24,6 +24,7 @@ TYPE diaglist
   ! 2D variable logical flags
   !---------------------------------
   LOGICAL :: l_precip         = .FALSE.
+  LOGICAL :: l_surface_cloud  = .FALSE.
   LOGICAL :: l_surface_rain   = .FALSE.
   LOGICAL :: l_surface_snow   = .FALSE.
   LOGICAl :: l_surface_graup  = .FALSE.
@@ -48,6 +49,7 @@ TYPE diaglist
   LOGICAL :: l_psaci          = .FALSE.
   LOGICAL :: l_praut          = .FALSE.
   LOGICAL :: l_pracw          = .FALSE.
+  LOGICAL :: l_pracr          = .FALSE.
   LOGICAL :: l_prevp          = .FALSE.
   LOGICAL :: l_pgacw          = .FALSE.
   LOGICAL :: l_pgacs          = .FALSE.
@@ -72,6 +74,17 @@ TYPE diaglist
   LOGICAL :: l_snowonly_3d    = .FALSE.
   LOGICAL :: l_graupfall_3d   = .FALSE.
   LOGICAL :: l_mphys_pts      = .FALSE.
+
+
+!PRF water path
+  LOGICAL :: l_lwp          = .FALSE.
+  LOGICAL :: l_rwp          = .FALSE.
+  LOGICAL :: l_iwp          = .FALSE.
+  LOGICAL :: l_swp          = .FALSE.
+  LOGICAL :: l_gwp          = .FALSE.
+!PRF
+
+
 
   !---------------------------------
   ! logical flags for theta tendencies
@@ -100,8 +113,18 @@ TYPE diaglist
   ! Surface Precipitation rates
   REAL, ALLOCATABLE :: precip(:,:)
   REAL, ALLOCATABLE :: SurfaceRainR(:,:)
+  REAL, ALLOCATABLE :: SurfaceCloudR(:,:)
   REAL, ALLOCATABLE :: SurfaceSnowR(:,:)
   REAL, ALLOCATABLE :: SurfaceGraupR(:,:)
+
+!PRF
+  REAL, ALLOCATABLE :: lwp(:,:)
+  REAL, ALLOCATABLE :: rwp(:,:)
+  REAL, ALLOCATABLE :: iwp(:,:)
+  REAL, ALLOCATABLE :: swp(:,:)
+  REAL, ALLOCATABLE :: gwp(:,:)
+
+
 
   !--------------------------------
   ! 3D variable arrays
@@ -130,6 +153,7 @@ TYPE diaglist
   REAL, ALLOCATABLE :: psaci(:,:,:)
   REAL, ALLOCATABLE :: praut(:,:,:)
   REAL, ALLOCATABLE :: pracw(:,:,:)
+  REAL, ALLOCATABLE :: pracr(:,:,:)
   REAL, ALLOCATABLE :: prevp(:,:,:)
   REAL, ALLOCATABLE :: pgacw(:,:,:)
   REAL, ALLOCATABLE :: pgacs(:,:,:)
@@ -225,6 +249,13 @@ IF ( casdiags % l_precip) THEN
   casdiags % precip(:,:) = zero_real_wp
 
 END IF ! casdiags % l_precip
+
+IF ( casdiags % l_surface_cloud ) THEN
+
+  ALLOCATE ( casdiags % SurfaceCloudR(is:ie, js:je) )
+  casdiags % SurfaceCloudR(:,:) = zero_real_wp
+
+END IF
 
 IF ( casdiags % l_surface_rain ) THEN
 
@@ -368,6 +399,12 @@ IF (casdiags % l_pracw) THEN
   casdiags % l_process_rates = .TRUE.
 END IF
 
+IF (casdiags % l_pracr) THEN
+  ALLOCATE ( casdiags % pracr(is:ie, js:je, ks:ke) )
+  casdiags % pracr(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
 IF (casdiags % l_prevp) THEN
   ALLOCATE ( casdiags % prevp(is:ie, js:je, ks:ke) )
   casdiags % prevp(:,:,:) = zero_real_wp
@@ -380,13 +417,13 @@ IF (casdiags % l_pgacw) THEN
   casdiags % l_process_rates = .TRUE.
 END IF
 
-IF (casdiags % l_pgacw) THEN
+IF (casdiags % l_pgacs) THEN
   ALLOCATE ( casdiags % pgacs(is:ie, js:je, ks:ke) )
   casdiags % pgacs(:,:,:) = zero_real_wp
   casdiags % l_process_rates = .TRUE.
 END IF
 
-IF (casdiags % l_pgacw) THEN
+IF (casdiags % l_pgmlt) THEN
   ALLOCATE ( casdiags % pgmlt(is:ie, js:je, ks:ke) )
   casdiags % pgmlt(:,:,:) = zero_real_wp
   casdiags % l_process_rates = .TRUE.
@@ -542,6 +579,33 @@ IF (casdiags % l_mphys_pts) THEN
   casdiags % mphys_pts(:,:,:) = .FALSE.
 END IF
 
+!PRF water paths
+IF (casdiags % l_lwp) THEN
+  ALLOCATE ( casdiags % lwp(is:ie, js:je) )
+  casdiags % lwp(:,:) = zero_real_wp
+END IF
+IF (casdiags % l_rwp) THEN
+  ALLOCATE ( casdiags % rwp(is:ie, js:je) )
+  casdiags % rwp(:,:) = zero_real_wp
+END IF
+IF (casdiags % l_iwp) THEN
+  ALLOCATE ( casdiags % iwp(is:ie, js:je) )
+  casdiags % iwp(:,:) = zero_real_wp
+END IF
+IF (casdiags % l_swp) THEN
+  ALLOCATE ( casdiags % swp(is:ie, js:je) )
+  casdiags % swp(:,:) = zero_real_wp
+END IF
+IF (casdiags % l_gwp) THEN
+  ALLOCATE ( casdiags % gwp(is:ie, js:je) )
+  casdiags % gwp(:,:) = zero_real_wp
+END IF
+!!!!
+
+
+
+
+
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
 END SUBROUTINE allocate_diagnostic_space
@@ -654,6 +718,10 @@ END IF
 
 IF ( ALLOCATED ( casdiags % prevp ) ) THEN
   DEALLOCATE ( casdiags % prevp )
+END IF
+
+IF ( ALLOCATED ( casdiags % pracr ) ) THEN
+  DEALLOCATE (casdiags % pracr )
 END IF
 
 IF ( ALLOCATED ( casdiags % pracw ) ) THEN
@@ -807,6 +875,28 @@ END IF
 IF ( ALLOCATED ( casdiags %  dqg )) THEN
   DEALLOCATE ( casdiags % dqg )
 END IF
+
+
+!PRF water paths
+IF ( ALLOCATED ( casdiags % lwp ) ) THEN
+  DEALLOCATE ( casdiags % lwp )
+END IF
+IF ( ALLOCATED ( casdiags % rwp ) ) THEN
+  DEALLOCATE ( casdiags % rwp )
+END IF
+IF ( ALLOCATED ( casdiags % iwp ) ) THEN
+  DEALLOCATE ( casdiags % iwp )
+END IF
+IF ( ALLOCATED ( casdiags % swp ) ) THEN
+  DEALLOCATE ( casdiags % swp )
+END IF
+IF ( ALLOCATED ( casdiags % gwp ) ) THEN
+  DEALLOCATE ( casdiags % gwp )
+END IF
+
+!!
+
+
 
 ! Set to False all switches which affect groups of more than one diagnostic
 casdiags % l_process_rates = .FALSE.

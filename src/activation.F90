@@ -5,7 +5,7 @@ module activation
   use mphys_switches, only: iopt_act, aero_index,   &
        i_am2, i_an2, i_am4, i_am1, i_an1, i_am3, i_an3, &
        i_am5, i_am6, i_an6, i_am7, l_warm,              &
-       iopt_shipway_act,l_ukca_casim
+       iopt_shipway_act,l_ukca_casim, l_prf_cfrac
   use aerosol_routines, only: aerosol_active, aerosol_phys, aerosol_chem, &
        abdulRazzakGhan2000, invert_partial_moment, upperpartial_moment_logn, &
        invert_partial_moment_approx, invert_partial_moment_betterapprox, &
@@ -36,19 +36,19 @@ module activation
 
 contains
 
-  subroutine activate(dt, cloud_mass, cloud_number, w, rho, dnumber, dmac, T, p, &
+  subroutine activate(dt, cloud_mass, cloud_number, w, rho, dnumber, dmac, T, p, cfliq, & 
        aerophys, aerochem, aeroact, dustphys, dustchem, dustliq, dnccn_all, dmac_all, &
        dnumber_d, dmass_d, dnccnd_all, dmad_all)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
-
+    use thresholds, only: cfliq_small
     implicit none
 
     ! Subroutine arguments
 
     real(wp), intent(in) :: dt
-    real(wp), intent(in) :: cloud_mass, cloud_number, w, rho, T, p
+    real(wp), intent(in) :: cloud_mass, cloud_number, w, rho, T, p, cfliq
     real(wp), intent(out) ::  dnumber, dmac
     type(aerosol_phys), intent(in) :: aerophys
     type(aerosol_chem), intent(in) :: aerochem
@@ -62,9 +62,12 @@ contains
 
     ! Local Variables
 
+    real(wp) :: cloud_number_work
     real(wp) :: active, nccn, Smax, rcrit, nccn_active, dactive,nccn_dactive
     real(wp) :: Nd, rm, sigma, density
-
+    
+    real(wp) :: cf_liquid
+    
     real :: work, dmac_i, diff
     integer :: imode
     logical :: l_useactive
@@ -84,6 +87,25 @@ contains
     ! End of header, no more declarations beyond here
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+
+    if (l_prf_cfrac) then
+
+      if (cfliq .gt. cfliq_small) then  !only doing liquid cloud fraction at the moment
+        cf_liquid=cfliq
+      else
+        cf_liquid=cfliq_small !nonzero value - maybe move cf test higher up
+      endif
+
+    ! make in-cloud number conc
+      cloud_number_work=cloud_number / cf_liquid
+    ! cloud_mass isn't used
+
+    else ! l_prf_cfrac
+
+      cloud_number_work = cloud_number
+
+    end if ! l_prf_cfrac
 
     l_useactive=.false.
     dmac=0.0
@@ -113,12 +135,16 @@ contains
              nccn_active, l_useactive)
         active=sum(dnccn_all(:))
 
-        if (Smax > 0.02 .and. .not. l_warm) then
-          ! need better model than this. Could do partitioning in the same way as CCN
-          dactive = 0.01*dustphys%N(1)
-          !dnumber_d=.01*dustphys%N(1)
-          dmass_d=dactive*dustphys%M(1)/dustphys%N(1)
-        end if
+        if (aero_index%i_accum_dust > 0 .or. aero_index%i_coarse_dust > 0) then 
+           if (Smax > 0.02 .and. .not. l_warm) then
+              ! need better model than this. Could do partitioning in the same way as CCN
+              dactive = 0.01*dustphys%N(1)
+              !dnumber_d=.01*dustphys%N(1)
+              dmass_d=dactive*dustphys%M(1)/dustphys%N(1)
+           end if
+        else
+           dactive = 0.0
+        endif
       else
         active=0.0
         dactive=0.0
@@ -162,7 +188,7 @@ contains
         use_mode(imode) = aerophys%N(imode) > Nd_min 
       end do
       
-      if (any(use_mode) .and. cloud_number < sum(Ndi))then
+      if (any(use_mode) .and. cloud_number_work < sum(Ndi))then
 
         select case (solve_select)
           case (solve_household)
@@ -182,14 +208,14 @@ contains
     select case(iopt_act)
     case default
       ! fixed number, so no need to calculate aerosol changes
-      dnumber=max(0.0_wp,(active-cloud_number))
+      dnumber=max(0.0_wp,(active-cloud_number_work))
     case (1:5)
       if (active > nl_tidy) then
         if (l_useactive) then
           dnumber=active
           dnumber_d=dactive
         else
-          dnumber=max(0.0_wp,(active+dactive-cloud_number))
+          dnumber=max(0.0_wp,(active+dactive-cloud_number_work))
           ! Rescale to ensure total removal of aerosol number=creation of cloud number
           dnccn_all = dnccn_all*(dnumber/(sum(dnccn_all) + sum(dnccnd_all) + tiny(dnumber)))
           dnccnd_all = dnccnd_all*(dnumber/(sum(dnccn_all) + sum(dnccnd_all) + tiny(dnumber)))
@@ -231,15 +257,29 @@ contains
       end if
     end select
 
-    ! Convert to rates rather than increments
-    dmac=dmac/dt
-    dmac_all=dmac_all/dt
-    dnccn_all=dnccn_all/dt
-    dnumber=dnumber/dt
-    dmass_d = dmass_d/dt
-    dmad_all = dmad_all/dt
-    dnccnd_all=dnccnd_all/dt
-    dnumber_d=dnumber_d/dt
+    if (l_prf_cfrac) then
+      ! Convert to rates rather than increments .... and back to gridbox means
+      dmac=dmac/dt  *cf_liquid
+      dmac_all=dmac_all/dt  *cf_liquid
+      dnccn_all=dnccn_all/dt  *cf_liquid
+      dnumber=dnumber/dt  *cf_liquid
+      dmass_d = dmass_d/dt  *cf_liquid
+      dmad_all = dmad_all/dt  *cf_liquid
+      dnccnd_all=dnccnd_all/dt  *cf_liquid
+      dnumber_d=dnumber_d/dt  *cf_liquid
+
+    else
+      ! Convert to rates rather than increments ....
+      dmac=dmac/dt
+      dmac_all=dmac_all/dt
+      dnccn_all=dnccn_all/dt
+      dnumber=dnumber/dt
+      dmass_d = dmass_d/dt
+      dmad_all = dmad_all/dt
+      dnccnd_all=dnccnd_all/dt
+      dnumber_d=dnumber_d/dt
+
+    end if ! l_prf_cfrac
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 

@@ -7,12 +7,12 @@ module graupel_wetgrowth
 
   use mphys_parameters, only: ice_params, snow_params, graupel_params,   &
        rain_params, T_hom_freeze, DR_melt
-  use mphys_switches, only: i_qv
+  use mphys_switches, only: i_qv, l_kfsm, l_gamma_online
   use mphys_constants, only: Lv, Lf, Ka, Cwater, Cice
   use thresholds, only: thresh_small
 
   use m3_incs, only: m3_inc_type2
-  use ventfac, only: ventilation
+  use ventfac, only: ventilation_3M, ventilation_1M_2M
   use distributions, only: dist_lambda, dist_mu, dist_n0
 
   implicit none
@@ -60,7 +60,6 @@ contains
     real(wp) :: dnumber_s, dnumber_g  ! number conversion rate from snow/graupel
     real(wp) :: dmass_s, dmass_g      ! mass conversion rate from snow/graupel
 
-    type(process_rate), pointer :: this_proc
 
     real(wp) :: n0, lam, mu, V_x
     real(wp) :: pgacw, pgacr, pgaci, pgacs
@@ -83,16 +82,23 @@ contains
     mass=qfields(k, graupel_params%i_1m)
 
     if (mass > thresh_small(graupel_params%i_1m)) then
-      pgacw=procs(k, i_gacw%id)%source(graupel_params%i_1m)
-      pgacr=procs(k, i_gacr%id)%source(graupel_params%i_1m)
-      pgaci=procs(k, i_gaci%id)%source(graupel_params%i_1m)
-      pgacs=procs(k, i_gacs%id)%source(graupel_params%i_1m)
+      pgacw=procs(graupel_params%i_1m, i_gacw%id)%column_data(k)
+      pgacr=procs(graupel_params%i_1m, i_gacr%id)%column_data(k)
+      pgaci=procs(graupel_params%i_1m, i_gaci%id)%column_data(k)
+
+      if (l_kfsm) then
+        pgacs = 0.0 !<KF. Single ice prognostics. No process gacs. Set to zero.>
+      else
+        pgacs=procs(graupel_params%i_1m, i_gacs%id)%column_data(k)
+      end if ! l_kfsm
 
       ! Factors for converting wet collection efficiencies to dry ones
-      Eff=1.0
-      sdryfac=min(1.0_wp, 0.2*exp(0.08*TdegC(k))/Eff)
-      Eff=1.0
-      idryfac=min(1.0_wp, 0.2*exp(0.08*TdegC(k))/Eff)
+      ! AH - Changed 1.0 to 0.001 to match RA and GA tests. 0.001 prevents a divide by zero but is equivalent 
+      !      to a 0.0 eff. 
+      Eff=0.001
+      sdryfac=1.0_wp ! min(1.0_wp, 0.2*exp(0.08*TdegC(k))/Eff)
+      Eff=0.001
+      idryfac=1.0_wp !min(1.0_wp, 0.2*exp(0.08*TdegC(k))/Eff)
 
       pgaci_dry=idryfac*pgaci
       pgacs_dry=sdryfac*pgacs
@@ -109,56 +115,55 @@ contains
         mu=dist_mu(k,graupel_params%id)
         lam=dist_lambda(k,graupel_params%id)
 
-        call ventilation(k, V_x, n0, lam, mu, graupel_params)
+        if (l_gamma_online) then 
+           call ventilation_3M(k, V_x, n0, lam, mu, graupel_params)
+        else 
+           call ventilation_1M_2M(k, V_x, n0, lam, mu, graupel_params)
+        endif
 
         pgwet=(910.0/graupel_params%density)**0.625*(Lv*(qws0(k)-qv)-Ka*TdegC(k)/rho(k))/(Lf+Cwater*TdegC(k))*V_x
         pgwet=pgwet+(pgaci+pgacs)*(1.0-Cice*TdegC(k)/(Lf+Cwater*TdegC(k)))
 
         if (pgdry < pgwet .or. TdegC(k) < T_hom_freeze) then ! Dry growth, so use recalculated gaci, gacs
           if (pgaci + pgacs > 0.0) then
-            this_proc=>procs(k, i_gacs%id)
-            dmass=pgacs_dry
-            this_proc%source(graupel_params%i_1m)=dmass
-            this_proc%source(snow_params%i_1m)=-dmass
-            if (snow_params%l_2m) then
-              dnumber=this_proc%source(snow_params%i_2m)*sdryfac
-              this_proc%source(snow_params%i_2m)=dnumber
-            end if
-            this_proc=>procs(k, i_gaci%id)
+
+            if ( .not. l_kfsm ) then
+              ! KF. Single ice prognostics. No process gacs
+              dmass=pgacs_dry
+            procs(graupel_params%i_1m, i_gacs%id)%column_data(k)=dmass
+            procs(snow_params%i_1m, i_gacs%id)%column_data(k)=-dmass
+              if (snow_params%l_2m) then
+              dnumber=procs(snow_params%i_2m, i_gacs%id)%column_data(k)*sdryfac
+              procs(snow_params%i_2m, i_gacs%id)%column_data(k)=dnumber
+              end if
+            end if ! l_kfsm
+
             dmass=pgaci_dry
-            this_proc%source(graupel_params%i_1m)=dmass
-            this_proc%source(ice_params%i_1m)=-dmass
+            procs(graupel_params%i_1m, i_gaci%id)%column_data(k)=dmass
+            procs(ice_params%i_1m, i_gaci%id)%column_data(k)=-dmass
             if (ice_params%l_2m) then
-              dnumber=this_proc%source(ice_params%i_2m)*idryfac
-              this_proc%source(ice_params%i_2m)=dnumber
+              dnumber=procs(ice_params%i_2m, i_gaci%id)%column_data(k)*idryfac
+              procs(ice_params%i_2m, i_gaci%id)%column_data(k)=dnumber
             end if
           end if
         else ! Wet growth mode so recalculate gacr, gshd
-          this_proc=>procs(k, i_gacr%id)
-          if (abs(procs(k, i_gacr%id)%source(graupel_params%i_1m)) > thresh_small(graupel_params%i_1m)) then
+          if (abs(procs(graupel_params%i_1m, i_gacr%id)%column_data(k)) > thresh_small(graupel_params%i_1m)) then
             dmass=pgacr+pgwet-pgacsum
             if (dmass > 0.0) then
-              this_proc%source(graupel_params%i_1m)=dmass
-              this_proc%source(rain_params%i_1m)=-dmass
+              procs(graupel_params%i_1m, i_gacr%id)%column_data(k)=dmass
+              procs(rain_params%i_1m, i_gacr%id)%column_data(k)=-dmass
             else
               iproc=i_gshd
-              this_proc=>procs(k, iproc%id)
               dmass=min(pgacw, -1.0*dmass)
-              this_proc%source(rain_params%i_1m)=dmass
+              procs(rain_params%i_1m, iproc%id)%column_data(k)=dmass
               if (rain_params%l_2m) then
                 dnumber=dmass/(rain_params%c_x*DR_melt**3)
-                this_proc%source(rain_params%i_2m)=dnumber
+                procs(rain_params%i_2m, iproc%id)%column_data(k)=dnumber
               end if
             end if
           end if
         end if
       end if
-
-      !----------------------
-      ! Aerosol processing...
-      !----------------------
-      nullify(this_proc)
-
     end if
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)

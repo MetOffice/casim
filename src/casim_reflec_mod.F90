@@ -6,7 +6,7 @@ MODULE casim_reflec_mod
 ! Updated Summer 2017 by Jonathan Wilkinson to fit with latest code
 ! structure
 
-! AKM_TODO: currently no cloud fractions used!!! 
+! AKM_TODO: currently no cloud fractions used!!!
 ! (Cloud fractions are now available)
 
 ! Description:
@@ -42,6 +42,8 @@ REAL(wp) :: krain        ! Reflectivity prefactor due to rain
 REAL(wp) :: kclw         ! Reflectivity prefactor due to cloud liquid water
 REAL(wp) :: kice_a       ! Reflectivity prefactor due to ice aggregates
 REAL(wp) :: kice_c       ! Reflectivity prefactor due to ice crystals
+
+LOGICAL :: l_reflec_warn = .TRUE.
 
 PUBLIC setup_reflec_constants, casim_reflec, kclw, krain, kgraup, kice_a, &
        kice_c, ref_lim
@@ -96,6 +98,10 @@ USE mphys_switches,       ONLY: l_g, l_warm, l_cfrac_casim_diag_scheme
 USE special,              ONLY: Gammafunc
 USE mphys_die,            ONLY: throw_mphys_error, warn, std_msg
 
+
+USE distributions,        ONLY: query_distributions, dist_lambda, dist_mu, dist_n0, dist_lams
+
+
 ! Dr Hook Modules
 USE yomhook,              ONLY: lhook, dr_hook
 USE parkind1,             ONLY: jprb, jpim
@@ -110,7 +116,7 @@ IMPLICIT NONE
 ! Subroutine Arguments
 
 INTEGER, INTENT(IN) :: points      ! Number of points calculation is done over
-INTEGER, INTENT(IN) :: nq      
+INTEGER, INTENT(IN) :: nq
 
 REAL(wp), INTENT(IN) :: rho(points)    ! Air density [kg m-3]
 REAL(wp), INTENT(IN) :: t(points)      ! Temperature [K]
@@ -121,9 +127,9 @@ REAL(wp), INTENT(OUT) :: dbz_g_c(points)   ! Reflectivity due to graupel [dBZ]
 REAL(wp), INTENT(OUT) :: dbz_i_c(points)   ! Reflectivity due to ice
                                            ! aggregates [dBZ]
 REAL(wp), INTENT(OUT) :: dbz_r_c(points)   ! Reflectivity due to rain [dBZ]
-REAL(wp), INTENT(OUT) :: dbz_i2_c(points)  ! Reflectivity due to ice crystals 
+REAL(wp), INTENT(OUT) :: dbz_i2_c(points)  ! Reflectivity due to ice crystals
                                            ! [dBZ]
-REAL(wp), INTENT(OUT) :: dbz_l_c(points)   ! Reflectivity due to liquid 
+REAL(wp), INTENT(OUT) :: dbz_l_c(points)   ! Reflectivity due to liquid
                                            ! cloud [dBZ]
 
 !------------------------------------------------------------------------------
@@ -162,10 +168,12 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='CASIM_REFLEC'
 ! Start of calculations
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-IF (l_cfrac_casim_diag_scheme) THEN
+IF (l_cfrac_casim_diag_scheme .AND. l_reflec_warn ) THEN
   WRITE(std_msg, '(A)') 'Using radar reflectivity with cloud fraction scheme.' &
                      //' Assumed cloud fraction is 1'
   CALL throw_mphys_error(warn, ModuleName//':'//RoutineName, std_msg)
+
+  l_reflec_warn = .FALSE. ! Switch off the warning message
 END IF ! l_cfrac_casim_diag_scheme
 
 
@@ -193,6 +201,23 @@ kgraup = kice / 0.93 * (6.0 / pi / graupel_params%density)**2
 kice_a = kice / 0.93 * (6.0 / pi / 900.0)**2!snow_params%density)**2
 kice_c = kice / 0.93 * (6.0 / pi / 900.0)**2!ice_params%density)**2
 
+
+!dist_lambda(:,:) = 0.0 !prob  dont need this as set to zero in query dist
+!dist_mu(:,:) = 0.0
+!dist_n0(:,:) = 0.0
+
+! determine n0, lambda, mu
+
+CALL query_distributions(cloud_params, qfields)
+CALL query_distributions(rain_params, qfields)
+IF (.NOT. l_warm) THEN
+  CALL query_distributions(ice_params, qfields)
+  CALL query_distributions(snow_params, qfields)
+  IF (l_g) THEN
+     CALL query_distributions(graupel_params, qfields)
+  END IF
+END IF
+
 ! calculate z_lin
 DO i = 1,points
   ! Reflectivity for cloud water
@@ -200,9 +225,9 @@ DO i = 1,points
   IF (qfields(i,cloud_params%i_1m)>mr_lim) THEN
      arg2 = 1.0+dist_mu(i,cloud_params%id)+cloud_params%p2
      arg3 = 2.0*cloud_params%d_x+dist_mu(i,cloud_params%id)+1.0
-     ze_l(i) = mm6m3*kclw*cloud_params%c_x**2*(dist_n0(i,cloud_params%id)* &
+     ze_l(i) = rho(i)*mm6m3*kclw*cloud_params%c_x**2*(dist_n0(i,cloud_params%id)* &
          dist_lambda(i,cloud_params%id)**(arg2)/Gammafunc(arg2)) / &
-         dist_lambda(i,cloud_params%id)**(arg3)*Gammafunc(arg3)      
+         dist_lambda(i,cloud_params%id)**(arg3)*Gammafunc(arg3)
   END IF
 
   ! Reflectivity for rain water
@@ -210,9 +235,9 @@ DO i = 1,points
   IF (qfields(i,rain_params%i_1m)>mr_lim) THEN
      arg2 = 1.0+dist_mu(i,rain_params%id)+rain_params%p2
      arg3 = 2.0*rain_params%d_x+dist_mu(i,rain_params%id)+1.0
-     ze_r(i) = mm6m3*kclw*rain_params%c_x**2*(dist_n0(i,rain_params%id)* &
+     ze_r(i) = rho(i)*mm6m3*kclw*rain_params%c_x**2*(dist_n0(i,rain_params%id)* &
          dist_lambda(i,rain_params%id)**(arg2)/Gammafunc(arg2)) / &
-         dist_lambda(i,rain_params%id)**(arg3)*Gammafunc(arg3)      
+         dist_lambda(i,rain_params%id)**(arg3)*Gammafunc(arg3)
   END IF
 
   IF (.NOT. l_warm) THEN
@@ -221,32 +246,32 @@ DO i = 1,points
      IF (qfields(i,ice_params%i_1m)>mr_lim) THEN
         arg2 = 1.0+dist_mu(i,ice_params%id)+ice_params%p2
         arg3 = 2.0*ice_params%d_x+dist_mu(i,ice_params%id)+1.0
-        ze_i(i) = mm6m3*kice_c*ice_params%c_x**2*(dist_n0(i,ice_params%id)* &
+        ze_i(i) = rho(i)*mm6m3*kice_c*ice_params%c_x**2*(dist_n0(i,ice_params%id)* &
             dist_lambda(i,ice_params%id)**(arg2)/Gammafunc(arg2)) / &
-            dist_lambda(i,ice_params%id)**(arg3)*Gammafunc(arg3)      
+            dist_lambda(i,ice_params%id)**(arg3)*Gammafunc(arg3)
      END IF
 
-     ! Reflectivity for snow 
+     ! Reflectivity for snow
      ! ------------------------------------------------------------------
      IF (qfields(i,snow_params%i_1m)>mr_lim) THEN
         arg2 = 1.0+dist_mu(i,snow_params%id)+snow_params%p2
         arg3 = 2.0*snow_params%d_x+dist_mu(i,snow_params%id)+1.0
-        ze_i2(i) = mm6m3*kice_a*snow_params%c_x**2*(dist_n0(i,snow_params%id)* &
+        ze_i2(i) = rho(i)*mm6m3*kice_a*snow_params%c_x**2*(dist_n0(i,snow_params%id)* &
             dist_lambda(i,snow_params%id)**(arg2)/Gammafunc(arg2)) / &
-            dist_lambda(i,snow_params%id)**(arg3)*Gammafunc(arg3)      
+            dist_lambda(i,snow_params%id)**(arg3)*Gammafunc(arg3)
      END IF
-  
+
      IF (l_g) THEN
         ! Reflectivity for  graupel
         ! ------------------------------------------------------------------
         IF (qfields(i,graupel_params%i_1m)>mr_lim) THEN
            arg2 = 1.0+dist_mu(i,graupel_params%id)+graupel_params%p2
            arg3 = 2.0*graupel_params%d_x+dist_mu(i,graupel_params%id)+1.0
-           ze_g(i) = mm6m3*kgraup*graupel_params%c_x**2*(dist_n0(i,graupel_params%id)* &
+           ze_g(i) = rho(i)*mm6m3*kgraup*graupel_params%c_x**2*(dist_n0(i,graupel_params%id)* &
                dist_lambda(i,graupel_params%id)**(arg2)/Gammafunc(arg2)) / &
-               dist_lambda(i,graupel_params%id)**(arg3)*Gammafunc(arg3)      
+               dist_lambda(i,graupel_params%id)**(arg3)*Gammafunc(arg3)
         END IF
-     END IF 
+     END IF
   END IF
 
   ! Compute total reflectivity

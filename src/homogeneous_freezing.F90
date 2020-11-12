@@ -1,14 +1,14 @@
 module homogeneous
   use variable_precision, only: wp
-  use passive_fields, only: rho, pressure, w, exner
+  use passive_fields, only: rho, pressure, w, exner, cfliq
   use mphys_switches, only: i_qv, i_ql, i_qi, i_ni, i_th , hydro_complexity, i_am6, i_an2, l_2mi, l_2ms, l_2mg &
        , i_ns, i_ng, iopt_inuc, i_am7, i_an6, i_am9 , i_m3r, i_m3g, i_qr, i_qg, i_nr, i_ng, i_nl          &
-       , isol, i_am4, i_am8, active_ice, l_process
+       , isol, i_am4, i_am8, active_ice, l_process, l_prf_cfrac
   use process_routines, only: process_rate, i_homr, i_homc, i_dhomc, i_dhomr
   use mphys_parameters, only: rain_params, graupel_params, cloud_params, ice_params, T_hom_freeze
   use mphys_constants, only: Lf, cp
   use qsat_funs, only: qsaturation, qisaturation
-  use thresholds, only: thresh_small, thresh_tidy
+  use thresholds, only: thresh_small, thresh_tidy, cfliq_small
   use aerosol_routines, only: aerosol_phys, aerosol_chem, aerosol_active
   use distributions, only: dist_lambda, dist_mu, dist_n0
   use special, only: GammaFunc, pi
@@ -44,8 +44,6 @@ contains
 
     real(wp) :: th
     real(wp) :: qv, qr, nr
-    type(process_rate), pointer :: this_proc
-    type(process_rate), pointer :: aero_proc
 
     real(wp) :: Tc
 
@@ -77,7 +75,6 @@ contains
     l_condition=(Tc < -4.0 .and. qr > thresh_small(i_qr))
     l_freezeall=.false.
     if (l_condition) then
-      this_proc => procs(k, i_homr%id)
 
       n0 = dist_n0(k,rain_params%id)
       mu = dist_mu(k,rain_params%id)
@@ -107,14 +104,14 @@ contains
         l_freezeall=.true.
       end if
 
-      this_proc%source(i_qr) = -dmass
-      this_proc%source(i_qg) = dmass
+      procs(i_qr, i_homr%id)%column_data(k) = -dmass
+      procs(i_qg, i_homr%id)%column_data(k) = dmass
 
       if (rain_params%l_2m) then
-        this_proc%source(i_nr) = -dnumber
+        procs(i_nr, i_homr%id)%column_data(k) = -dnumber
       end if
       if (graupel_params%l_2m) then
-        this_proc%source(i_ng) = dnumber
+        procs(i_ng, i_homr%id)%column_data(k) = dnumber
       end if
 
       if (rain_params%l_3m) then
@@ -131,7 +128,7 @@ contains
           call m3_inc_type2(m1, m2, m3, rain_params%p1, rain_params%p2, rain_params%p3, dm1, dm2, dm3)
           dm3=dm3/dt
         end if
-        this_proc%source(i_m3r) = dm3
+        procs(i_m3r, i_homr%id)%column_data(k) = dm3
       end if
 
       if (graupel_params%l_3m) then
@@ -147,25 +144,22 @@ contains
           call m3_inc_type2(m1, m2, m3, graupel_params%p1, graupel_params%p2, graupel_params%p3, dm1, dm2, dm3_g)
           dm3_g=dm3_g/dt
         end if
-        this_proc%source(i_m3g) = dm3_g
+        procs(i_m3g, i_homr%id)%column_data(k) = dm3_g
       end if
 
       if (l_process) then
-        aero_proc => aerosol_procs(k, i_dhomr%id)
         dmac = dnumber*aeroact(k)%mact2_mean
 
-        aero_proc%source(i_am8) = dmac
-        aero_proc%source(i_am4) = -dmac
+        aerosol_procs(i_am8, i_dhomr%id)%column_data(k) = dmac
+        aerosol_procs(i_am4, i_dhomr%id)%column_data(k) = -dmac
 
         ! Dust already in the liquid phase
         dmadl = dnumber*dustliq(k)%mact2_mean*dustliq(k)%nratio2
         if (dmadl /=0.0) then
-          aero_proc%source(i_am9) = -dmadl
-          aero_proc%source(i_am7) = dmadl
+          aerosol_procs(i_am9, i_dhomr%id)%column_data(k) = -dmadl
+          aerosol_procs(i_am7, i_dhomr%id)%column_data(k) = dmadl
         end if
-        nullify(aero_proc)
       end if
-      nullify(this_proc)
     end if
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
@@ -196,10 +190,10 @@ contains
 
     real(wp) :: th
     real(wp) :: qv, ql
-    type(process_rate), pointer :: this_proc
-    type(process_rate), pointer :: aero_proc
 
     real(wp) :: Tc
+
+    real(wp) :: cf_liquid
 
     logical :: l_condition
 
@@ -215,42 +209,56 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+!    if (l_prf_cfrac) then
+!      if (cfliq(k) .gt. cfliq_small) then  !only doing liquid cloud fraction at the moment
+!        cf_liquid=cfliq(k)
+!      else
+!        cf_liquid=cfliq_small !nonzero value - maybe move cf test higher up
+!      endif
+!
+!    else ! l_prf_cfrac
+      cf_liquid = 1.0
+!    end if
+
     th = qfields(k, i_th)
     Tc = th*exner(k) - 273.15
-    ql = qfields(k, i_ql)
+    ql = qfields(k, i_ql) / cf_liquid
 
     l_condition=(Tc < T_hom_freeze .and. ql > thresh_tidy(i_ql))
     if (l_condition) then
-      this_proc => procs(k, i_homc%id)
       dmass=min(ql, cp*(T_hom_freeze - Tc)/Lf)/dt
-      dnumber=dmass*qfields(k, i_nl)/ql
+      dnumber=dmass*(qfields(k, i_nl)/cf_liquid)/ql   !missing a l_2m check here.
 
-      this_proc%source(i_ql)=-dmass
-      this_proc%source(i_qi)=dmass
+
+      
+!convert back to grid mean
+      dmass=dmass*cf_liquid
+      dnumber=dnumber*cf_liquid
+!!
+
+      procs(i_ql, i_homc%id)%column_data(k)=-dmass
+      procs(i_qi, i_homc%id)%column_data(k)=dmass
 
       if (cloud_params%l_2m) then
-        this_proc%source(i_nl)=-dnumber
+         procs(i_nl, i_homc%id)%column_data(k)=-dnumber
       end if
       if (ice_params%l_2m) then
-        this_proc%source(i_ni)=dnumber
+         procs(i_ni, i_homc%id)%column_data(k)=dnumber
       end if
 
       if (l_process) then
-        aero_proc=>aerosol_procs(k, i_dhomc%id)
         dmac=dnumber*aeroact(k)%mact1_mean
 
-        aero_proc%source(i_am8)=dmac
-        aero_proc%source(i_am4)=-dmac
+        aerosol_procs(i_am8, i_dhomc%id)%column_data(k)=dmac
+        aerosol_procs(i_am4, i_dhomc%id)%column_data(k)=-dmac
 
         ! Dust already in the liquid phase
         dmadl=dnumber*dustliq(k)%mact1_mean*dustliq(k)%nratio1
         if (dmadl /=0.0) then
-          aero_proc%source(i_am9)=-dmadl
-          aero_proc%source(i_am7)=dmadl
+          aerosol_procs(i_am9, i_dhomc%id)%column_data(k)=-dmadl
+          aerosol_procs(i_am7, i_dhomc%id)%column_data(k)=dmadl
         end if
-        nullify(aero_proc)
       end if
-      nullify(this_proc)
     end if
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)

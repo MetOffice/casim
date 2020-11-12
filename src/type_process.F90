@@ -5,7 +5,7 @@ module type_process
   implicit none
 
   type :: process_rate
-     real(wp), allocatable :: source(:)
+     real(wp), allocatable :: column_data(:)
   end type process_rate
 
   type :: process_name

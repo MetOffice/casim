@@ -169,7 +169,7 @@ contains
 
   end subroutine finalise_mphystidy
 
-  subroutine qtidy(dt, k, qfields, procs, aerofields, aeroact, dustact, aeroice, dustliq, &
+  subroutine qtidy(dt, nz, qfields, procs, aerofields, aeroact, dustact, aeroice, dustliq, &
        aeroprocs, i_proc, i_aproc, l_negonly)
 
     USE yomhook, ONLY: lhook, dr_hook
@@ -179,7 +179,7 @@ contains
 
     character(len=*), parameter :: RoutineName='QTIDY'
 
-    integer, intent(in) :: k
+    integer, intent(in) :: nz
     real(wp), intent(in) :: dt
     real(wp), intent(in) :: qfields(:,:), aerofields(:,:)
     type(aerosol_active), intent(in) :: aeroact(:), dustact(:), aeroice(:), dustliq(:)
@@ -195,7 +195,7 @@ contains
 
     real(wp) :: dmass, dnumber
 
-    integer :: iq
+    integer :: iq, k
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -205,7 +205,8 @@ contains
     ! End of header, no more declarations beyond here
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
-
+    
+    do k = 1, nz
     ql_reset=.false.
     nl_reset=.false.
     qr_reset=.false.
@@ -225,6 +226,10 @@ contains
     am7_reset=.false.
     am8_reset=.false.
     am9_reset=.false.
+! AH - the in-cloud aerosol number is not reset here
+!      Does this cause a problem with passive processing
+!    an11_reset=.false. !? What to do with these???
+!    an12_reset=.false. !? What to do with these???
 
     if (present(l_negonly)) then
       if (l_negonly .neqv. current_l_negonly) then
@@ -406,12 +411,12 @@ contains
     !==============================
     if (ql_reset .or. nl_reset) then
       dmass=qfields(k, i_ql)/dt
-      procs(k,i_proc%id)%source(i_ql)=-dmass
-      if (l_tidy_conserve_q)procs(k,i_proc%id)%source(i_qv)=dmass
-      if (l_tidy_conserve_E)procs(k,i_proc%id)%source(i_th)=-Lv*dmass/cp
+      procs(i_ql,i_proc%id)%column_data(k)=-dmass
+      if (l_tidy_conserve_q)procs(i_qv,i_proc%id)%column_data(k)=dmass
+      if (l_tidy_conserve_E)procs(i_th,i_proc%id)%column_data(k)=-Lv*dmass/cp/exner(k)
       if (l_2mc) then
         dnumber=qfields(k, i_nl)/dt
-        procs(k,i_proc%id)%source(i_nl)=-dnumber
+        procs(i_nl,i_proc%id)%column_data(k)=-dnumber
       end if
       !--------------------------------------------------
       ! aerosol - not reset, but adjusted acordingly
@@ -419,16 +424,16 @@ contains
       if (l_process) then
         if (.not. am4_reset) then
           dmass=aeroact(k)%mact1/dt
-          aeroprocs(k,i_aproc%id)%source(i_am4)=-dmass
-          aeroprocs(k,i_aproc%id)%source(i_am2)=dmass
-          aeroprocs(k,i_aproc%id)%source(i_an2)=dnumber
+          aeroprocs(i_am4,i_aproc%id)%column_data(k)=-dmass
+          aeroprocs(i_am2,i_aproc%id)%column_data(k)=dmass
+          aeroprocs(i_an2,i_aproc%id)%column_data(k)=dnumber
         end if
         if (.not. am9_reset) then
           dmass=dustliq(k)%mact1/dt
           if (dmass > 0.0) then
-            aeroprocs(k,i_aproc%id)%source(i_am9)=-dmass
-            aeroprocs(k,i_aproc%id)%source(i_am6)=dmass
-            aeroprocs(k,i_aproc%id)%source(i_an6)=dnumber
+            aeroprocs(i_am9,i_aproc%id)%column_data(k)=-dmass
+            aeroprocs(i_am6,i_aproc%id)%column_data(k)=dmass
+            aeroprocs(i_an6,i_aproc%id)%column_data(k)=dnumber
           end if
         end if
       end if
@@ -436,40 +441,40 @@ contains
 
     if (qr_reset .or. nr_reset .or. m3r_reset) then
       dmass=qfields(k, i_qr)/dt
-      procs(k,i_proc%id)%source(i_qr)=-dmass
-      if (l_tidy_conserve_q) procs(k,i_proc%id)%source(i_qv)=procs(k,i_proc%id)%source(i_qv) + dmass
-      if (l_tidy_conserve_E) procs(k,i_proc%id)%source(i_th)=procs(k,i_proc%id)%source(i_th) - Lv*dmass/cp
+      procs(i_qr,i_proc%id)%column_data(k)=-dmass
+      if (l_tidy_conserve_q) procs(i_qv,i_proc%id)%column_data(k)=procs(i_qv,i_proc%id)%column_data(k) + dmass
+      if (l_tidy_conserve_E) procs(i_th,i_proc%id)%column_data(k)=procs(i_th,i_proc%id)%column_data(k) - Lv*dmass/cp/exner(k)
       if (l_2mr) then
         dnumber=qfields(k, i_nr)/dt
-        procs(k,i_proc%id)%source(i_nr)=-dnumber
+        procs(i_nr,i_proc%id)%column_data(k)=-dnumber
       end if
-      if (l_3mr) then
-        procs(k,i_proc%id)%source(i_m3r)=-qfields(k, i_m3r)/dt
-      end if
+      ! ! if (l_3mr) then
+      ! !   procs(i_m3r,i_proc%id)%column_data(k)=-qfields(k, i_m3r)/dt
+      ! ! end if
       !--------------------------------------------------
       ! aerosol
       !--------------------------------------------------
       if (l_process) then
         if (.not. am4_reset) then
           dmass=aeroact(k)%mact2/dt
-          aeroprocs(k,i_aproc%id)%source(i_am2)=aeroprocs(k,i_aproc%id)%source(i_am2)+dmass
-          aeroprocs(k,i_aproc%id)%source(i_an2)=aeroprocs(k,i_aproc%id)%source(i_an2)+dnumber
-          aeroprocs(k,i_aproc%id)%source(i_am4)=aeroprocs(k,i_aproc%id)%source(i_am4)-dmass
+          aeroprocs(i_am2,i_aproc%id)%column_data(k)=aeroprocs(i_am2,i_aproc%id)%column_data(k)+dmass
+          aeroprocs(i_an2,i_aproc%id)%column_data(k)=aeroprocs(i_an2,i_aproc%id)%column_data(k)+dnumber
+          aeroprocs(i_am4,i_aproc%id)%column_data(k)=aeroprocs(i_am4,i_aproc%id)%column_data(k)-dmass
         end if
         if (.not. am5_reset) then
           if (l_separate_rain) then
             dmass=aeroact(k)%mact2/dt
-            aeroprocs(k,i_aproc%id)%source(i_am2)=aeroprocs(k,i_aproc%id)%source(i_am2)+dmass
-            aeroprocs(k,i_aproc%id)%source(i_an2)=aeroprocs(k,i_aproc%id)%source(i_an2)+dnumber
-            aeroprocs(k,i_aproc%id)%source(i_am5)=aeroprocs(k,i_aproc%id)%source(i_am5)-dmass
+            aeroprocs(i_am2,i_aproc%id)%column_data(k)=aeroprocs(i_am2,i_aproc%id)%column_data(k)+dmass
+            aeroprocs(i_an2,i_aproc%id)%column_data(k)=aeroprocs(i_an2,i_aproc%id)%column_data(k)+dnumber
+            aeroprocs(i_am5,i_aproc%id)%column_data(k)=aeroprocs(i_am5,i_aproc%id)%column_data(k)-dmass
           end if
         end if
         if (.not. am9_reset .and. .not. l_warm) then
           dmass=dustliq(k)%mact2/dt
           if (dmass>0.0) then
-            aeroprocs(k,i_aproc%id)%source(i_am9)=-dmass
-            aeroprocs(k,i_aproc%id)%source(i_am6)=dmass
-            aeroprocs(k,i_aproc%id)%source(i_an6)=dnumber
+            aeroprocs(i_am9,i_aproc%id)%column_data(k)=-dmass
+            aeroprocs(i_am6,i_aproc%id)%column_data(k)=dmass
+            aeroprocs(i_an6,i_aproc%id)%column_data(k)=dnumber
           end if
         end if
       end if
@@ -478,12 +483,12 @@ contains
     if (.not. l_warm) then
       if (qi_reset .or. ni_reset) then
         dmass=qfields(k, i_qi)/dt
-        procs(k,i_proc%id)%source(i_qi)=-dmass
-        if (l_tidy_conserve_q) procs(k,i_proc%id)%source(i_qv)=procs(k,i_proc%id)%source(i_qv)+dmass
-        if (l_tidy_conserve_E) procs(k,i_proc%id)%source(i_th)=procs(k,i_proc%id)%source(i_th)-Ls*dmass/cp
+        procs(i_qi,i_proc%id)%column_data(k)=-dmass
+        if (l_tidy_conserve_q) procs(i_qv,i_proc%id)%column_data(k)=procs(i_qv,i_proc%id)%column_data(k)+dmass
+        if (l_tidy_conserve_E) procs(i_th,i_proc%id)%column_data(k)=procs(i_th,i_proc%id)%column_data(k)-Ls*dmass/cp/exner(k)
         if (l_2mi) then
           dnumber=qfields(k, i_ni)/dt
-          procs(k,i_proc%id)%source(i_ni)=-dnumber
+          procs(i_ni,i_proc%id)%column_data(k)=-dnumber
         end if
         !--------------------------------------------------
         ! aerosol
@@ -491,77 +496,77 @@ contains
         if (l_process) then
           if (.not. am7_reset) then
             dmass=dustact(k)%mact1/dt
-            aeroprocs(k,i_aproc%id)%source(i_am6)=aeroprocs(k,i_aproc%id)%source(i_am6)+dmass
-            aeroprocs(k,i_aproc%id)%source(i_an6)=aeroprocs(k,i_aproc%id)%source(i_an6)+dnumber
-            aeroprocs(k,i_aproc%id)%source(i_am7)=aeroprocs(k,i_aproc%id)%source(i_am7)-dmass
+            aeroprocs(i_am6,i_aproc%id)%column_data(k)=aeroprocs(i_am6,i_aproc%id)%column_data(k)+dmass
+            aeroprocs(i_an6,i_aproc%id)%column_data(k)=aeroprocs(i_an6,i_aproc%id)%column_data(k)+dnumber
+            aeroprocs(i_am7,i_aproc%id)%column_data(k)=aeroprocs(i_am7,i_aproc%id)%column_data(k)-dmass
           end if
           if (.not. am8_reset) then
             dmass=aeroice(k)%mact1/dt
-            aeroprocs(k,i_aproc%id)%source(i_am2)=aeroprocs(k,i_aproc%id)%source(i_am2)+dmass
-            aeroprocs(k,i_aproc%id)%source(i_an2)=aeroprocs(k,i_aproc%id)%source(i_an2)+dnumber
-            aeroprocs(k,i_aproc%id)%source(i_am8)=aeroprocs(k,i_aproc%id)%source(i_am8)-dmass
+            aeroprocs(i_am2,i_aproc%id)%column_data(k)=aeroprocs(i_am2,i_aproc%id)%column_data(k)+dmass
+            aeroprocs(i_an2,i_aproc%id)%column_data(k)=aeroprocs(i_an2,i_aproc%id)%column_data(k)+dnumber
+            aeroprocs(i_am8,i_aproc%id)%column_data(k)=aeroprocs(i_am8,i_aproc%id)%column_data(k)-dmass
           end if
         end if
       end if
 
       if (qs_reset .or. ns_reset .or. m3s_reset) then
         dmass=qfields(k, i_qs)/dt
-        procs(k,i_proc%id)%source(i_qs)=-dmass
-        if (l_tidy_conserve_q) procs(k,i_proc%id)%source(i_qv)=procs(k,i_proc%id)%source(i_qv)+dmass
-        if (l_tidy_conserve_E) procs(k,i_proc%id)%source(i_th)=procs(k,i_proc%id)%source(i_th)-Ls*dmass/cp
+        procs(i_qs,i_proc%id)%column_data(k)=-dmass
+        if (l_tidy_conserve_q) procs(i_qv,i_proc%id)%column_data(k)=procs(i_qv,i_proc%id)%column_data(k)+dmass
+        if (l_tidy_conserve_E) procs(i_th,i_proc%id)%column_data(k)=procs(i_th,i_proc%id)%column_data(k)-Ls*dmass/cp/exner(k)
         if (l_2ms) then
           dnumber=qfields(k, i_ns)/dt
-          procs(k,i_proc%id)%source(i_ns)=-dnumber
+          procs(i_ns,i_proc%id)%column_data(k)=-dnumber
         end if
-        if (l_3ms) then
-          procs(k,i_proc%id)%source(i_m3s)=-qfields(k, i_m3s)/dt
-        end if
+        ! ! if (l_3ms) then
+        ! !   procs(i_m3s,i_proc%id)%column_data(k)=-qfields(k, i_m3s)/dt
+        ! ! end if
         !--------------------------------------------------
         ! aerosol
         !--------------------------------------------------
         if (l_process) then
           if (.not. am7_reset) then
             dmass=dustact(k)%mact2/dt
-            aeroprocs(k,i_aproc%id)%source(i_am6)=aeroprocs(k,i_aproc%id)%source(i_am6)+dmass
-            aeroprocs(k,i_aproc%id)%source(i_an6)=aeroprocs(k,i_aproc%id)%source(i_an6)+dnumber
-            aeroprocs(k,i_aproc%id)%source(i_am7)=aeroprocs(k,i_aproc%id)%source(i_am7)-dmass
+            aeroprocs(i_am6,i_aproc%id)%column_data(k)=aeroprocs(i_am6,i_aproc%id)%column_data(k)+dmass
+            aeroprocs(i_an6,i_aproc%id)%column_data(k)=aeroprocs(i_an6,i_aproc%id)%column_data(k)+dnumber
+            aeroprocs(i_am7,i_aproc%id)%column_data(k)=aeroprocs(i_am7,i_aproc%id)%column_data(k)-dmass
           end if
           if (.not. am8_reset) then
             dmass=aeroice(k)%mact2/dt
-            aeroprocs(k,i_aproc%id)%source(i_am2)=aeroprocs(k,i_aproc%id)%source(i_am2)+dmass
-            aeroprocs(k,i_aproc%id)%source(i_an2)=aeroprocs(k,i_aproc%id)%source(i_an2)+dnumber
-            aeroprocs(k,i_aproc%id)%source(i_am8)=aeroprocs(k,i_aproc%id)%source(i_am8)-dmass
+            aeroprocs(i_am2,i_aproc%id)%column_data(k)=aeroprocs(i_am2,i_aproc%id)%column_data(k)+dmass
+            aeroprocs(i_an2,i_aproc%id)%column_data(k)=aeroprocs(i_an2,i_aproc%id)%column_data(k)+dnumber
+            aeroprocs(i_am8,i_aproc%id)%column_data(k)=aeroprocs(i_am8,i_aproc%id)%column_data(k)-dmass
           end if
         end if
       end if
 
       if (qg_reset .or. ng_reset .or. m3g_reset) then
         dmass=qfields(k, i_qg)/dt
-        procs(k,i_proc%id)%source(i_qg)=-dmass
-        if (l_tidy_conserve_q)procs(k,i_proc%id)%source(i_qv)=procs(k,i_proc%id)%source(i_qv)+dmass
-        if (l_tidy_conserve_E)procs(k,i_proc%id)%source(i_th)=procs(k,i_proc%id)%source(i_th)-Ls*dmass/cp
+        procs(i_qg,i_proc%id)%column_data(k)=-dmass
+        if (l_tidy_conserve_q)procs(i_qv,i_proc%id)%column_data(k)=procs(i_qv,i_proc%id)%column_data(k)+dmass
+        if (l_tidy_conserve_E)procs(i_th,i_proc%id)%column_data(k)=procs(i_th,i_proc%id)%column_data(k)-Ls*dmass/cp/exner(k)
         if (l_2mg) then
           dnumber=qfields(k, i_ng)/dt
-          procs(k,i_proc%id)%source(i_ng)=-dnumber
+          procs(i_ng,i_proc%id)%column_data(k)=-dnumber
         end if
-        if (l_3mg) then
-          procs(k,i_proc%id)%source(i_m3g)=-qfields(k, i_m3g)/dt
-        end if
+        ! ! if (l_3mg) then
+        ! !   procs(i_m3g,i_proc%id)%column_data(k)=-qfields(k, i_m3g)/dt
+        ! ! end if
         !--------------------------------------------------
         ! aerosol
         !--------------------------------------------------
         if (l_process) then
           if (.not. am7_reset) then
             dmass=dustact(k)%mact3/dt
-            aeroprocs(k,i_aproc%id)%source(i_am6)=aeroprocs(k,i_aproc%id)%source(i_am6)+dmass
-            aeroprocs(k,i_aproc%id)%source(i_an6)=aeroprocs(k,i_aproc%id)%source(i_an6)+dnumber
-            aeroprocs(k,i_aproc%id)%source(i_am7)=aeroprocs(k,i_aproc%id)%source(i_am7)-dmass
+            aeroprocs(i_am6,i_aproc%id)%column_data(k)=aeroprocs(i_am6,i_aproc%id)%column_data(k)+dmass
+            aeroprocs(i_an6,i_aproc%id)%column_data(k)=aeroprocs(i_an6,i_aproc%id)%column_data(k)+dnumber
+            aeroprocs(i_am7,i_aproc%id)%column_data(k)=aeroprocs(i_am7,i_aproc%id)%column_data(k)-dmass
           end if
           if (.not. am8_reset) then
             dmass=aeroice(k)%mact3/dt
-            aeroprocs(k,i_aproc%id)%source(i_am2)=aeroprocs(k,i_aproc%id)%source(i_am2)+dmass
-            aeroprocs(k,i_aproc%id)%source(i_an2)=aeroprocs(k,i_aproc%id)%source(i_an2)+dnumber
-            aeroprocs(k,i_aproc%id)%source(i_am8)=aeroprocs(k,i_aproc%id)%source(i_am8)-dmass
+            aeroprocs(i_am2,i_aproc%id)%column_data(k)=aeroprocs(i_am2,i_aproc%id)%column_data(k)+dmass
+            aeroprocs(i_an2,i_aproc%id)%column_data(k)=aeroprocs(i_an2,i_aproc%id)%column_data(k)+dnumber
+            aeroprocs(i_am8,i_aproc%id)%column_data(k)=aeroprocs(i_am8,i_aproc%id)%column_data(k)-dmass
           end if
         end if
       end if
@@ -573,36 +578,37 @@ contains
     if (l_process) then
       if (am4_reset) then
         dmass=aerofields(k, i_am4)/dt
-        aeroprocs(k,i_aproc%id)%source(i_am4)=aeroprocs(k,i_aproc%id)%source(i_am4)-dmass
-        aeroprocs(k,i_aproc%id)%source(i_am2)=aeroprocs(k,i_aproc%id)%source(i_am2)+dmass
+        aeroprocs(i_am4,i_aproc%id)%column_data(k)=aeroprocs(i_am4,i_aproc%id)%column_data(k)-dmass
+        aeroprocs(i_am2,i_aproc%id)%column_data(k)=aeroprocs(i_am2,i_aproc%id)%column_data(k)+dmass
       end if
 
       if (am5_reset .and. l_separate_rain) then
         dmass=aerofields(k, i_am5)/dt
-        aeroprocs(k,i_aproc%id)%source(i_am5)=aeroprocs(k,i_aproc%id)%source(i_am5)-dmass
-        aeroprocs(k,i_aproc%id)%source(i_am2)=aeroprocs(k,i_aproc%id)%source(i_am2)+dmass
+        aeroprocs(i_am5,i_aproc%id)%column_data(k)=aeroprocs(i_am5,i_aproc%id)%column_data(k)-dmass
+        aeroprocs(i_am2,i_aproc%id)%column_data(k)=aeroprocs(i_am2,i_aproc%id)%column_data(k)+dmass
       end if
 
       if (.not. l_warm) then
         if (am7_reset) then
           dmass=aerofields(k, i_am7)/dt
-          aeroprocs(k,i_aproc%id)%source(i_am7)=aeroprocs(k,i_aproc%id)%source(i_am7)-dmass
-          aeroprocs(k,i_aproc%id)%source(i_am6)=aeroprocs(k,i_aproc%id)%source(i_am6)+dmass
+          aeroprocs(i_am7,i_aproc%id)%column_data(k)=aeroprocs(i_am7,i_aproc%id)%column_data(k)-dmass
+          aeroprocs(i_am6,i_aproc%id)%column_data(k)=aeroprocs(i_am6,i_aproc%id)%column_data(k)+dmass
         end if
 
         if (am8_reset) then
           dmass=aerofields(k, i_am8)/dt
-          aeroprocs(k,i_aproc%id)%source(i_am8)=aeroprocs(k,i_aproc%id)%source(i_am8)-dmass
-          aeroprocs(k,i_aproc%id)%source(i_am2)=aeroprocs(k,i_aproc%id)%source(i_am2)+dmass
+          aeroprocs(i_am8,i_aproc%id)%column_data(k)=aeroprocs(i_am8,i_aproc%id)%column_data(k)-dmass
+          aeroprocs(i_am2,i_aproc%id)%column_data(k)=aeroprocs(i_am2,i_aproc%id)%column_data(k)+dmass
         end if
 
         if (am9_reset) then
           dmass=aerofields(k, i_am9)/dt
-          aeroprocs(k,i_aproc%id)%source(i_am9)=aeroprocs(k,i_aproc%id)%source(i_am9)-dmass
-          aeroprocs(k,i_aproc%id)%source(i_am6)=aeroprocs(k,i_aproc%id)%source(i_am6)+dmass
+          aeroprocs(i_am9,i_aproc%id)%column_data(k)=aeroprocs(i_am9,i_aproc%id)%column_data(k)-dmass
+          aeroprocs(i_am6,i_aproc%id)%column_data(k)=aeroprocs(i_am6,i_aproc%id)%column_data(k)+dmass
         end if
       end if
     end if
+    enddo
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
@@ -870,7 +876,7 @@ contains
          iprocs_dependent_ns(:)   ! list of aerosol processes which
     ! are dependent on rescaled processes but
     ! we don't want to rescale
-    integer :: iproc, id
+    integer :: iproc, id, iq
     real(wp) :: delta_scalable, delta_nonscalable, ratio, maxratio
     integer :: i_1m, i_2m, i_3m
     logical :: l_rescaled
@@ -896,7 +902,7 @@ contains
       do iproc=1,size(iprocs_scalable)
         if (iprocs_scalable(iproc)%on) then
           id=iprocs_scalable(iproc)%id
-          delta_scalable=delta_scalable+procs(k, id)%source(i_1m)
+          delta_scalable=delta_scalable+procs(i_1m, id)%column_data(k)
         end if
       end do
       delta_scalable=delta_scalable*dt
@@ -904,7 +910,7 @@ contains
         do iproc=1, size(iprocs_nonscalable)
           if (iprocs_nonscalable(iproc)%on) then
             id=iprocs_nonscalable(iproc)%id
-            delta_nonscalable=delta_nonscalable+procs(k, id)%source(i_1m)
+            delta_nonscalable=delta_nonscalable+procs(i_1m, id)%column_data(k)
           end if
         end do
       end if
@@ -948,7 +954,9 @@ contains
         do iproc=1, size(iprocs_scalable)
           if (iprocs_scalable(iproc)%on) then
             id=iprocs_scalable(iproc)%id
-            procs(k, id)%source(i_qstart:i_nstart-1)=procs(k, id)%source(i_qstart:i_nstart-1)*ratio
+            do iq = i_qstart, i_nstart-1
+               procs(iq, id)%column_data(k)=procs(iq, id)%column_data(k)*ratio
+            enddo
           end if
         end do
         ! Set flag to indicate a rescaling was performed
@@ -964,7 +972,7 @@ contains
           do iproc=1,size(iprocs_scalable)
             if (iprocs_scalable(iproc)%on) then
               id=iprocs_scalable(iproc)%id
-              delta_scalable=delta_scalable+procs(k, id)%source(i_2m)
+              delta_scalable=delta_scalable+procs(i_2m, id)%column_data(k)
             end if
           end do
           delta_scalable=delta_scalable*dt
@@ -973,7 +981,7 @@ contains
               do iproc=1, size(iprocs_nonscalable)
                 if (iprocs_nonscalable(iproc)%on) then
                   id=iprocs_nonscalable(iproc)%id
-                  delta_nonscalable=delta_nonscalable+procs(k, id)%source(i_2m)
+                  delta_nonscalable=delta_nonscalable+procs(i_2m, id)%column_data(k)
                 end if
               end do
             end if
@@ -984,43 +992,47 @@ contains
             do iproc=1, size(iprocs_scalable)
               if (iprocs_scalable(iproc)%on) then
                 id=iprocs_scalable(iproc)%id
-                procs(k, id)%source(i_nstart:i_m3start-1)=procs(k, id)%source(i_nstart:i_m3start-1)*ratio
+                do iq = i_nstart, i_m3start-1
+                   procs(iq, id)%column_data(k)=procs(iq, id)%column_data(k)*ratio
+                enddo
               end if
             end do
           end if
         end if
-        if (params%l_3m) then ! third moment
-          ! First calculate the unscaled increments
-          delta_scalable=0.0
-          delta_nonscalable=0.0
-          do iproc=1,size(iprocs_scalable)
-            if (iprocs_scalable(iproc)%on) then
-              id=iprocs_scalable(iproc)%id
-              delta_scalable=delta_scalable+procs(k, id)%source(i_3m)
-            end if
-          end do
-          delta_scalable=delta_scalable*dt
-          if (abs(delta_scalable) > epsilon(delta_scalable)) then
-            if (present(iprocs_nonscalable)) then
-              do iproc=1, size(iprocs_nonscalable)
-                if (iprocs_nonscalable(iproc)%on) then
-                  id=iprocs_nonscalable(iproc)%id
-                  delta_nonscalable=delta_nonscalable+procs(k, id)%source(i_3m)
-                end if
-              end do
-            end if
-            delta_nonscalable=delta_nonscalable*dt
-            ! ratio may now be greater than 1
-            ratio=-(qfields(k, i_3m)+delta_nonscalable)/(delta_scalable + epsilon(1.0))
-            ! Now rescale the scalable processes
-            do iproc=1, size(iprocs_scalable)
-              if (iprocs_scalable(iproc)%on) then
-                id=iprocs_scalable(iproc)%id
-                procs(k, id)%source(i_m3start:)=procs(k, id)%source(i_m3start:)*ratio
-              end if
-            end do
-          end if
-        end if
+        ! ! if (params%l_3m) then ! third moment
+        ! !   ! First calculate the unscaled increments
+        ! !   delta_scalable=0.0
+        ! !   delta_nonscalable=0.0
+        ! !   do iproc=1,size(iprocs_scalable)
+        ! !     if (iprocs_scalable(iproc)%on) then
+        ! !       id=iprocs_scalable(iproc)%id
+        ! !       delta_scalable=delta_scalable+procs(i_3m, id)%column_data(k)
+        ! !     end if
+        ! !   end do
+        ! !   delta_scalable=delta_scalable*dt
+        ! !   if (abs(delta_scalable) > epsilon(delta_scalable)) then
+        ! !     if (present(iprocs_nonscalable)) then
+        ! !       do iproc=1, size(iprocs_nonscalable)
+        ! !         if (iprocs_nonscalable(iproc)%on) then
+        ! !           id=iprocs_nonscalable(iproc)%id
+        ! !           delta_nonscalable=delta_nonscalable+procs(i_3m, id)%column_data(k)
+        ! !         end if
+        ! !       end do
+        ! !     end if
+        ! !     delta_nonscalable=delta_nonscalable*dt
+        ! !     ! ratio may now be greater than 1
+        ! !     ratio=-(qfields(k, i_3m)+delta_nonscalable)/(delta_scalable + epsilon(1.0))
+        ! !     ! Now rescale the scalable processes
+        ! !     do iproc=1, size(iprocs_scalable)
+        ! !       if (iprocs_scalable(iproc)%on) then
+        ! !         id=iprocs_scalable(iproc)%id
+        ! !         do iq = i_m3start, ubound(procs,1)
+        ! !            procs(iq, id)%column_data(k)=procs(iq, id)%column_data(k)*ratio
+        ! !         enddo
+        ! !       end if
+        ! !     end do
+        ! !   end if
+        ! ! end if
 
         !Now rescale the increments to aerosol
         ! How do we do this?????
@@ -1035,7 +1047,7 @@ contains
             do iproc=1, size(iprocs_scalable)
               if (iprocs_scalable(iproc)%on) then
                 id=iprocs_scalable(iproc)%id
-                delta_scalable=delta_scalable+procs(k, id)%source(i_2m)
+                delta_scalable=delta_scalable+procs(i_2m, id)%column_data(k)
               end if
             end do
             delta_scalable=delta_scalable*dt
@@ -1043,7 +1055,7 @@ contains
               do iproc=1, size(iprocs_nonscalable)
                 if (iprocs_nonscalable(iproc)%on) then
                   id=iprocs_nonscalable(iproc)%id
-                  delta_nonscalable=delta_nonscalable+procs(k, id)%source(i_2m)
+                  delta_nonscalable=delta_nonscalable+procs(i_2m, id)%column_data(k)
                 end if
               end do
             end if
@@ -1111,7 +1123,9 @@ contains
                 if (iprocs_scalable(iproc)%on) then
                   id=iprocs_scalable(iproc)%id
                   if (i_2m > 0) then
-                    procs(k, id)%source(i_nstart:i_m3start-1)=procs(k, id)%source(i_nstart:i_m3start-1)*ratio
+                     do iq = i_nstart, i_m3start-1
+                        procs(iq, id)%column_data(k)=procs(iq, id)%column_data(k)*ratio
+                     enddo
                   end if
                 end if
               end do
@@ -1164,7 +1178,7 @@ contains
       do iproc=1, size(iprocs)
         if (iprocs(iproc)%on) then
           id=iprocs(iproc)%id
-          delta_scalable=delta_scalable + aerosol_procs(k, id)%source(iq)
+          delta_scalable=delta_scalable + aerosol_procs(iq, id)%column_data(k)
         end if
       end do
       delta_scalable=delta_scalable*dt
@@ -1175,7 +1189,7 @@ contains
         do iproc=1 ,size(iprocs)
           if (iprocs(iproc)%on) then
             id=iprocs(iproc)%id
-            aerosol_procs(k,id)%source(iq)=aerosol_procs(k,id)%source(iq)*ratio
+            aerosol_procs(iq,id)%column_data(k)=aerosol_procs(iq,id)%column_data(k)*ratio
           end if
         end do
       end if
@@ -1206,7 +1220,7 @@ contains
     type(process_rate), intent(inout) :: procs(:,:)         ! microphysical process rates
     type(process_name), intent(in) :: iprocs_scalable(:)    ! list of processes to rescale
 
-    integer :: iproc, id
+    integer :: iproc, id, iq
     real(wp) :: delta_scalable, ratio, delta_sat
     real(wp) :: th, qis
 
@@ -1223,7 +1237,7 @@ contains
     do iproc=1, size(iprocs_scalable)
       if (iprocs_scalable(iproc)%on) then
         id=iprocs_scalable(iproc)%id
-        delta_scalable=delta_scalable+procs(k, id)%source(i_qv)*dt
+        delta_scalable=delta_scalable+procs(i_qv, id)%column_data(k)*dt
       end if
     end do
 
@@ -1241,7 +1255,9 @@ contains
         do iproc=1, size(iprocs_scalable)
           if (iprocs_scalable(iproc)%on) then
             id=iprocs_scalable(iproc)%id
-            procs(k, id)%source(i_qstart:i_nstart-1)=procs(k, id)%source(i_qstart:i_nstart-1)*ratio
+            do iq = i_qstart, i_nstart-1
+               procs(iq, id)%column_data(k)=procs(iq, id)%column_data(k)*ratio
+            enddo
           end if
         end do
       end if

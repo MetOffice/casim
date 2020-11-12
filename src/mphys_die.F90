@@ -3,9 +3,9 @@ module mphys_die
 
   ! Module for the KiD and MONC models - UM has its own version
 
-#if DEF_MODEL==MODEL_KiD
-  use runtime, only: time
-#endif
+! #if DEF_MODEL==MODEL_KiD
+!   use runtime, only: time
+! #endif
 
   implicit none
   private
@@ -63,9 +63,9 @@ contains
       end if
 
       str=trim(str)//' Additional information: '//trim(info)
-#if DEF_MODEL==MODEL_KiD
-      print*, 'Runtime is:' , time
-#endif
+! #if DEF_MODEL==MODEL_KiD
+!       print*, 'Runtime is:' , time
+! #endif
       print*, routine,':', trim(str)
       print*, (minus_one)**0.5
       stop
@@ -78,9 +78,9 @@ contains
 
       str='Warning from CASIM microphysics! '
       str=trim(str)//' Message: '//trim(info)
-#if DEF_MODEL==MODEL_KiD
-      print*, 'Runtime is:' , time
-#endif
+! #if DEF_MODEL==MODEL_KiD
+!       print*, 'Runtime is:' , time
+! #endif
       print*, routine,':', trim(str)
 
     end if

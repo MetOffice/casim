@@ -97,7 +97,7 @@ contains
     integer, intent(in) :: nprocs  ! number of physical processes
     integer, intent(in) :: ntotalq ! number of q or aerosol fields
 
-    integer :: iproc, k
+    integer :: iproc, k, iq
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -108,19 +108,20 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-    do iproc=1, nprocs
-      do k=1,nz
-        allocate(procs(k,iproc)%source(ntotalq))
-      end do
-    end do
+     do iproc=1, nprocs
+       do iq=1,ntotalq
+         allocate(procs(iq,iproc)%column_data(nz))
+       end do
+     end do
+    
 
-    call zero_procs(procs)
+     call zero_procs(procs, nz)
 
-    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
-  end subroutine allocate_procs
+   end subroutine allocate_procs
 
-  subroutine zero_procs(procs)
+  subroutine zero_procs(procs, nz, iprocs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -130,8 +131,10 @@ contains
     character(len=*), parameter :: RoutineName='ZERO_PROCS'
 
     type(process_rate), intent(inout) :: procs(:,:)
+    integer, intent(in) :: nz
+    type(process_name), intent(in), optional :: iprocs(:)
 
-    integer :: iproc, k
+    integer :: iproc, nproc, k, iq, i
     integer :: lb1, lb2, ub1, ub2
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
@@ -145,17 +148,28 @@ contains
 
     lb1=lbound(procs,1)
     ub1=ubound(procs,1)
-    lb2=lbound(procs,2)
-    ub2=ubound(procs,2)
-    do iproc=lb2, ub2
-      do k=lb1,ub1
-        procs(k,iproc)%source(:)=0.0
-      end do
-    end do
-
+    
+    if(present(iprocs)) then 
+       nproc = size(iprocs)
+       do i = 1, nproc
+          iproc = iprocs(i)%id
+          do iq=lb1,ub1
+             procs(iq,iproc)%column_data(:)=0.0
+          enddo
+       enddo
+    else
+       lb2=lbound(procs,2)
+       ub2=ubound(procs,2)
+       do iproc=lb2, ub2
+          do iq=lb1,ub1
+             procs(iq,iproc)%column_data(:)=0.0
+          end do
+       end do
+    endif
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
   end subroutine zero_procs
+ 
 
   subroutine deallocate_procs(procs)
 
@@ -168,7 +182,7 @@ contains
 
     type(process_rate), intent(inout) :: procs(:,:)
 
-    integer :: k, iproc
+    integer :: k, iproc, iq
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -180,8 +194,8 @@ contains
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     do iproc=lbound(procs,2), ubound(procs,2)
-      do k=lbound(procs,1), ubound(procs,1)
-        if (allocated(procs(k,iproc)%source)) deallocate(procs(k,iproc)%source)
+      do iq=lbound(procs,1), ubound(procs,1)
+        if (allocated(procs(iq,iproc)%column_data)) deallocate(procs(iq,iproc)%column_data)
       end do
     end do
 
