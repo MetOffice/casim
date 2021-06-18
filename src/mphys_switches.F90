@@ -57,8 +57,12 @@ module mphys_switches
 
   logical :: l_cfrac_casim_diag_scheme = .false. ! Use diagnostic cloud scheme
 
-  logical :: l_prf_cfrac = .false. ! Paul Field's new Smith Cloud Fraction
+  logical :: l_prf_cfrac = .true. ! Paul Field's new Smith Cloud Fraction
                                    ! scheme
+
+  logical :: l_adjust_D0 = .true.  !adjust the psd in distributions
+  
+  logical :: l_kk00 = .false.  ! true=use KK2000 autoconv+accretion, false=use KK2013
 
 ! Flag to decide whether to transfer the evaporating aerosol based on whether 
 ! it is less or more than halfway between the sizes of accum and coarse modes
@@ -109,6 +113,15 @@ module mphys_switches
   integer :: i_nh  = 0 ! hail number
   integer :: i_m3h = 0 ! graupel 3rd moment
   integer :: i_th  = 0 ! theta
+  
+  !cloud fraction indices (fixed)
+  integer :: i_cfl=1 !liquid
+  integer :: i_cfr=2 !rain
+  integer :: i_cfi=3 !ice
+  integer :: i_cfs=4 !snow
+  integer :: i_cfg=5 !graupel
+  
+  
 
   ! information about location indices of different moments
   integer :: i_qstart = 1 ! First index in for q variables (always 1)
@@ -226,6 +239,12 @@ module mphys_switches
   logical :: l_sed_eulexp = .true.
 
   real(wp) :: cfl_vt_max = 1.0
+  
+  
+  !mixed-phase overlap factor (1=max overlap, 0=min overlap) for cloud fraction
+  real(wp) :: mpof = 0.5 
+  
+  
 
   real :: inv_nsubsteps, inv_nsubseds, inv_allsubs
   ! inverse number of substeps for each hydrometor

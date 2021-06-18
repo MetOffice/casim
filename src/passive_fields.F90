@@ -10,7 +10,7 @@ module passive_fields
 
   real(wp), allocatable :: rho(:), pressure(:), z(:), exner(:), rexner(:)
   real(wp), allocatable :: z_half(:), z_centre(:), dz(:)
-  real(wp), allocatable :: qws(:), qws0(:), TdegC(:), TdegK(:), w(:), tke(:), cfliq(:), cfice(:)
+  real(wp), allocatable :: qws(:), qws0(:), TdegC(:), TdegK(:), w(:), tke(:)
 
   real(wp), allocatable :: rhcrit_1d(:)
 
@@ -23,7 +23,7 @@ module passive_fields
 
   public set_passive_fields, rho, pressure, initialise_passive_fields, z, qws, &
        exner, rexner, z_half, z_centre, dz, qws0, &
-       TdegC, TdegK, w, tke, rhcrit_1d, rdz_on_rho, cfliq, cfice, min_dz
+       TdegC, TdegK, w, tke, rhcrit_1d, rdz_on_rho, min_dz
 contains
 
   subroutine initialise_passive_fields(kl_arg, ku_arg)
@@ -50,8 +50,6 @@ contains
     ku=ku_arg
     nz=ku-kl+1
     allocate(rho(nz))
-    allocate(cfliq(nz))
-    allocate(cfice(nz))
     allocate(pressure(nz))
     allocate(exner(nz))
     allocate(rexner(nz))
@@ -71,7 +69,7 @@ contains
   end subroutine initialise_passive_fields
 
   subroutine set_passive_fields(dt_in, rho_in, p_in, exner_in,   &
-       z_half_in, z_centre_in, dz_in, w_in, tke_in, qfields, cfliq_in, cfice_in)
+       z_half_in, z_centre_in, dz_in, w_in, tke_in, qfields)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -81,7 +79,7 @@ contains
     character(len=*), parameter :: RoutineName='SET_PASSIVE_FIELDS'
 
     real(wp), intent(in) :: dt_in
-    real(wp), intent(in) :: rho_in(kl:ku), p_in(kl:ku), exner_in(kl:ku), cfliq_in(kl:ku), cfice_in(kl:ku)
+    real(wp), intent(in) :: rho_in(kl:ku), p_in(kl:ku), exner_in(kl:ku)
     real(wp), intent(in) :: z_half_in(kl-1:ku),z_centre_in(kl:ku),dz_in(kl:ku)
     real(wp), intent(in) :: w_in(kl:ku), tke_in(kl:ku)
     real(wp), intent(in), target :: qfields(:,:)
@@ -102,13 +100,6 @@ contains
 
     dt=dt_in
 
-    if (l_prf_cfrac) then
-      cfliq(:)=cfliq_in(kl:ku)
-      cfice(:)=cfice_in(kl:ku)
-    else
-      cfliq(:) = 1.0
-      cfice(:) = 1.0
-    end if
 
     rho(:)=rho_in(kl:ku)
     pressure(:)=p_in(kl:ku)

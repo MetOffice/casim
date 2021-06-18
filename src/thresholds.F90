@@ -26,7 +26,7 @@ module thresholds
   real(wp) :: ng_small = 1.0e-6   ! small graupel number
   real(wp) :: m3g_small = 1.0e-25 ! small graupel moment 3
 
-  real(wp) :: cfliq_small=1e-12 !small liquid cloudfraction
+  real(wp) :: cfliq_small=1e-6 !small liquid cloudfraction
 
   ! Thresholds for tidying up small numbers...
   ! (values below which may want to remove and ignore)

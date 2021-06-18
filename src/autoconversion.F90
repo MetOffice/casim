@@ -1,9 +1,9 @@
 module autoconversion
   use variable_precision, only: wp
-  use passive_fields, only: rho, cfliq
+  use passive_fields, only: rho
   use mphys_switches, only: i_ql, i_qr, i_nl, i_nr, i_m3r, hydro_complexity, l_2mc, &
        l_2mr, l_3mr, l_aaut, i_am4, i_am5, cloud_params, rain_params, l_process, &
-       l_separate_rain, l_preventsmall, l_prf_cfrac
+       l_separate_rain, l_preventsmall, l_prf_cfrac, i_cfl, l_kk00
   use mphys_constants, only: rhow, fixed_cloud_number
   use mphys_parameters, only: mu_aut, rain_params
   use process_routines, only: process_rate, i_praut, i_aaut
@@ -20,7 +20,7 @@ module autoconversion
   public raut
 contains
 
-  subroutine raut(dt, qfields, aerofields, procs, aerosol_procs)
+  subroutine raut(dt, qfields, cffields, aerofields, procs, aerosol_procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -29,7 +29,7 @@ contains
 
     ! Subroutine arguments
     real(wp), intent(in) :: dt
-    real(wp), intent(in) :: qfields(:,:), aerofields(:,:)
+    real(wp), intent(in) :: qfields(:,:), aerofields(:,:),    cffields(:,:)
     type(process_rate), intent(inout), target :: procs(:,:)
     type(process_rate), intent(inout), target :: aerosol_procs(:,:)
 
@@ -59,8 +59,8 @@ contains
    do k = 1, ubound(qfields,1)
    if (l_prf_cfrac) then
 
-      if (cfliq(k) .gt. cfliq_small) then  !only doing liquid cloud fraction at the moment
-        cf_liquid=cfliq(k)
+      if (cffields(k,i_cfl) .gt. cfliq_small) then  !only doing liquid cloud fraction at the moment
+        cf_liquid=cffields(k,i_cfl)
       else
         cf_liquid=cfliq_small !nonzero value - maybe move cf test higher up
       endif
@@ -79,8 +79,16 @@ contains
       cloud_number=fixed_cloud_number
     end if
 
-    if (cloud_mass > ql_small .and. cloud_number > nl_small) then
-      dmass=1350.0*cloud_mass**2.47*(cloud_number/1.0e6*rho(k))**(-1.79)
+    if (cloud_mass *cf_liquid> ql_small .and. cloud_number * cf_liquid > nl_small) then
+      if (l_kk00) then
+         dmass = 1350.*cloud_mass**2.47*  &
+              (cloud_number/1.e6*rho(k))**(-1.79)
+      else
+         ! new method, k13 scheme
+         dmass = 7.98e10*cloud_mass**4.22*  &
+              (cloud_number/1.e6*rho(k))**(-3.01)
+      endif
+!      dmass=1350.0*cloud_mass**2.47*(cloud_number/1.0e6*rho(k))**(-1.79)
       dmass=min(.25*cloud_mass/dt, dmass)
       if (l_preventsmall .and. dmass < qr_small) dmass=0.0
       if (l_2mc) dnumber1=dmass/(cloud_mass/cloud_number)

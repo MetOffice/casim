@@ -1,6 +1,6 @@
 module homogeneous
   use variable_precision, only: wp
-  use passive_fields, only: rho, pressure, w, exner, cfliq
+  use passive_fields, only: rho, pressure, w, exner
   use mphys_switches, only: i_qv, i_ql, i_qi, i_ni, i_th , hydro_complexity, i_am6, i_an2, l_2mi, l_2ms, l_2mg &
        , i_ns, i_ng, iopt_inuc, i_am7, i_an6, i_am9 , i_m3r, i_m3g, i_qr, i_qg, i_nr, i_ng, i_nl          &
        , isol, i_am4, i_am8, active_ice, l_process, l_prf_cfrac
@@ -8,7 +8,7 @@ module homogeneous
   use mphys_parameters, only: rain_params, graupel_params, cloud_params, ice_params, T_hom_freeze
   use mphys_constants, only: Lf, cp
   use qsat_funs, only: qsaturation, qisaturation
-  use thresholds, only: thresh_small, thresh_tidy, cfliq_small
+  use thresholds, only: thresh_small, thresh_tidy
   use aerosol_routines, only: aerosol_phys, aerosol_chem, aerosol_active
   use distributions, only: dist_lambda, dist_mu, dist_n0
   use special, only: GammaFunc, pi
@@ -193,8 +193,6 @@ contains
 
     real(wp) :: Tc
 
-    real(wp) :: cf_liquid
-
     logical :: l_condition
 
     character(len=*), parameter :: RoutineName='IHOM_DROPLETS'
@@ -209,41 +207,25 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-!    if (l_prf_cfrac) then
-!      if (cfliq(k) .gt. cfliq_small) then  !only doing liquid cloud fraction at the moment
-!        cf_liquid=cfliq(k)
-!      else
-!        cf_liquid=cfliq_small !nonzero value - maybe move cf test higher up
-!      endif
-!
-!    else ! l_prf_cfrac
-      cf_liquid = 1.0
-!    end if
 
     th = qfields(k, i_th)
     Tc = th*exner(k) - 273.15
-    ql = qfields(k, i_ql) / cf_liquid
+    ql = qfields(k, i_ql) 
 
     l_condition=(Tc < T_hom_freeze .and. ql > thresh_tidy(i_ql))
     if (l_condition) then
-      dmass=min(ql, cp*(T_hom_freeze - Tc)/Lf)/dt
-      dnumber=dmass*(qfields(k, i_nl)/cf_liquid)/ql   !missing a l_2m check here.
+      dmass=min(ql, cp*(T_hom_freeze - Tc)/Lf)/dt    
+      dnumber=dmass*(qfields(k, i_nl))/ql   
+     
 
-
-      
-!convert back to grid mean
-      dmass=dmass*cf_liquid
-      dnumber=dnumber*cf_liquid
-!!
-
-      procs(i_ql, i_homc%id)%column_data(k)=-dmass
-      procs(i_qi, i_homc%id)%column_data(k)=dmass
+      procs(i_ql, i_homc%id)%column_data(k)=-dmass  
+      procs(i_qi, i_homc%id)%column_data(k)=dmass   
 
       if (cloud_params%l_2m) then
-         procs(i_nl, i_homc%id)%column_data(k)=-dnumber
+         procs(i_nl, i_homc%id)%column_data(k)=-dnumber   
       end if
       if (ice_params%l_2m) then
-         procs(i_ni, i_homc%id)%column_data(k)=dnumber
+         procs(i_ni, i_homc%id)%column_data(k)=dnumber    
       end if
 
       if (l_process) then

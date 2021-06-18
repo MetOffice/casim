@@ -83,7 +83,11 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-    qisaturation = qis1/(p*exp(qis2*(T - tk0c)/(T - qis3)) - qis4)
+    if (T > qis3 .and. p * exp (qis2 * (t - tk0c) / (T - qis3)) > qis4) then
+       qisaturation = qis1/(p*exp(qis2*(T - tk0c)/(T - qis3)) - qis4)
+    else
+       qisaturation = 999.0
+    end if
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 

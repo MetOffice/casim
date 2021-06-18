@@ -1,9 +1,9 @@
 module accretion
   use variable_precision, only: wp
-  use passive_fields, only: rho, cfliq
+  use passive_fields, only: rho
   use mphys_switches, only: i_ql, i_qr, i_nl, i_nr, i_m3r, l_2mc, l_2mr, l_3mr, &
        l_aacc, i_am4, i_am5, l_process, active_rain, isol, l_preventsmall, &
-       l_prf_cfrac
+       l_prf_cfrac, i_cfl, i_cfr, l_kk00
   use mphys_constants, only: fixed_cloud_number
   use mphys_parameters, only: hydro_params, p1, p2, p3, rain_params
   use process_routines, only: process_rate, i_pracw, i_aacw
@@ -28,7 +28,7 @@ contains
   !> This subroutine calculates increments due to the accretion of
   !> cloud water by rain
   !--------------------------------------------------------------------------- !
-  subroutine racw(dt, qfields, aerofields, procs, params, aerosol_procs)
+  subroutine racw(dt, qfields, cffields, aerofields, procs, params, aerosol_procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -39,6 +39,7 @@ contains
 
     real(wp), intent(in) :: dt !< microphysics time increment (s)
     real(wp), intent(in) :: qfields(:,:)     !< hydrometeor fields
+    real(wp), intent(in) :: cffields(:,:)     ! < cloud fractions
     real(wp), intent(in) :: aerofields(:,:)  !< aerosol fields
     type(process_rate), intent(inout), target :: procs(:,:)         !< hydrometeor process rates
     type(process_rate), intent(inout), target :: aerosol_procs(:,:) !< aerosol process rates
@@ -54,7 +55,7 @@ contains
     real(wp) :: rain_mass
     real(wp) :: rain_number
     real(wp) :: rain_m3
-    real(wp) :: cf_liquid
+    real(wp) :: cf_liquid, cf_rain
 
 
     real(wp) :: mu, n0, lam
@@ -75,34 +76,47 @@ contains
 
     do k = 1, ubound(qfields,1)
     if (l_prf_cfrac) then
-      if (cfliq(k) .gt. cfliq_small) then
+      if (cffields(k,i_cfl) .gt. cfliq_small) then
         ! only doing liquid cloud fraction at the moment
-        cf_liquid=cfliq(k)
+        cf_liquid=cffields(k,i_cfl)
       else
         cf_liquid=cfliq_small !nonzero value - maybe move cf test higher up
       endif
-
-      cloud_mass = qfields(k, i_ql) / cf_liquid
-
+      if (cffields(k,i_cfr) .gt. cfliq_small) then
+        ! only doing liquid cloud fraction at the moment
+        cf_rain=cffields(k,i_cfr)
+      else
+        cf_rain=cfliq_small !nonzero value - maybe move cf test higher up
+      endif
     else
-      cloud_mass = qfields(k, i_ql)
+      cf_liquid=1.0
+      cf_rain=1.0
+    endif
 
-    end if
 
-    if (l_2mc .and. l_prf_cfrac) then
+
+    
+    cloud_mass = qfields(k, i_ql) / cf_liquid
+    rain_mass = qfields(k, i_qr) / cf_rain
+
+    if (l_2mc ) then
       cloud_number=qfields(k, i_nl) / cf_liquid
-    else if (l_2mc) then
-      cloud_number = qfields(k, i_nl)
     else
-      cloud_number=fixed_cloud_number
+      cloud_number=fixed_cloud_number / cf_liquid !check that fixed_cloud_number is grid mean
     end if
-    rain_mass=qfields(k, i_qr)
-    if (l_2mr) rain_number=qfields(k, i_nr)
+    
+    
     if (l_3mr) rain_m3 = qfields(k, i_m3r)
 
-    if (cloud_mass > ql_small .and. rain_mass > qr_small) then
+    if (cloud_mass*cf_liquid > ql_small .and. rain_mass*cf_rain > qr_small) then
       if (l_kk_acw) then
-        dmass=min(0.9*cloud_mass, 67.0*(cloud_mass*rain_mass)**1.15)
+!        dmass=min(0.9*cloud_mass, 67.0*(cloud_mass*rain_mass)**1.15)
+         if (l_kk00) then
+            dmass = MIN(0.9*cloud_mass, 67.*(cloud_mass*rain_mass)**1.15)
+         else
+            dmass = min(0.9*cloud_mass, 8.53*(cloud_mass**1.05)*(rain_mass)**0.98)
+         endif
+
       else
         n0=dist_n0(k,params%id)
         mu=dist_mu(k,params%id)
@@ -116,8 +130,8 @@ contains
 
       if (l_prf_cfrac) then
         ! convert back to grid mean
-        dmass=dmass*cf_liquid
-        dnumber=dnumber*cf_liquid
+        dmass=dmass*min(cf_liquid, cf_rain)
+        dnumber=dnumber*min(cf_liquid, cf_rain)
         cloud_mass=cloud_mass*cf_liquid
       end if
 

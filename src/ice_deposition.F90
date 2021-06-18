@@ -165,8 +165,6 @@ contains
       ! Check we don't remove too much (sub only)
       if (dmass < 0.0) dmass=max(-mass/dt,dmass)
 
-      procs(i_qv, iproc%id)%column_data(k)=-dmass
-      procs(params%i_1m, iproc%id)%column_data(k)=dmass
 
       if (params%l_2m) then
         dnumber=0.0
@@ -178,6 +176,9 @@ contains
         dmass=-mass/dt
         dnumber=-number/dt
       end if
+
+      procs(i_qv, iproc%id)%column_data(k)=-dmass
+      procs(params%i_1m, iproc%id)%column_data(k)=dmass
 
       if (params%l_2m) procs(params%i_2m, iproc%id)%column_data(k)=dnumber
 

@@ -4,14 +4,14 @@ module snow_autoconversion
   use mphys_switches, only: iopt_auto,   &
        i_qi, i_qs, i_ni, i_ns, i_m3s, hydro_complexity, &
        l_dsaut, i_qv, i_th, &
-       l_harrington
+       l_harrington, i_cfi, i_cfs, l_prf_cfrac
   use mphys_constants, only: rhow, fixed_ice_number,   &
        Ls, cp,  Lv,ka, Dv, Rv
   use mphys_parameters, only: mu_saut, snow_params, ice_params,   &
        DImax, tau_saut, DI2S
   use process_routines, only: process_rate, i_saut
   use qsat_funs, only: qsaturation, qisaturation
-  use thresholds, only: thresh_small
+  use thresholds, only: thresh_small, cfliq_small
   use special, only: pi
   use m3_incs, only: m3_inc_type2, m3_inc_type3
 
@@ -26,7 +26,7 @@ module snow_autoconversion
   public saut
 contains
 
-  subroutine saut(dt, k, qfields, aerofields, procs, aerosol_procs)
+  subroutine saut(dt, k, qfields, cffields, aerofields, procs, aerosol_procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -37,7 +37,7 @@ contains
 
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
-    real(wp), intent(in) :: qfields(:,:), aerofields(:,:)
+    real(wp), intent(in) :: qfields(:,:), aerofields(:,:), cffields(:,:)
     type(process_rate), intent(inout), target :: procs(:,:)
     type(process_rate), intent(inout), target :: aerosol_procs(:,:)
 
@@ -51,6 +51,7 @@ contains
     real(wp) :: p1, p2, p3
     real(wp) :: lami_min , AB, qis
     integer :: i
+    real(wp) :: cf_ice
 
     logical :: l_condition ! logical condition to switch on process
 
@@ -63,17 +64,31 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+
+    if (l_prf_cfrac) then
+      if (cffields(k,i_cfi) .gt. cfliq_small) then
+        ! only doing liquid cloud fraction at the moment
+        cf_ice=cffields(k,i_cfi)
+      else
+        cf_ice=cfliq_small !nonzero value 
+      endif
+    else
+      cf_ice=1.0
+    endif
+
+
+
     l_condition=.true.
     lami_min=0.0
 
-    ice_mass=qfields(k, i_qi)
+    ice_mass=qfields(k, i_qi) / cf_ice
     if (ice_params%l_2m) then
-      ice_number=qfields(k, i_ni)
+      ice_number=qfields(k, i_ni) / cf_ice
     else
-      ice_number=fixed_ice_number
+      ice_number=fixed_ice_number / cf_ice
     end if
 
-    if (ice_mass < thresh_small(i_qi) .or. ice_number < thresh_small(i_ni)) then
+    if (ice_mass * cf_ice < thresh_small(i_qi) .or. ice_number * cf_ice < thresh_small(i_ni)) then
       l_condition=.false.
     else
       ice_mu=dist_mu(k,ice_params%id)
@@ -120,7 +135,7 @@ contains
         dnumber=dmass/ice_mass * ice_number
       end if
 
-      if (dmass*dt > thresh_small(i_qs)) then
+      if (dmass*dt * cf_ice > thresh_small(i_qs)) then
         if (snow_params%l_3m) then
           dm1=dt*dmass/snow_params%c_x
           dm2=dt*dnumber
@@ -128,14 +143,17 @@ contains
           dm3=dm3/dt
         end if
 
-        procs(i_qi, i_saut%id)%column_data(k)=-dmass
-        procs(i_qs, i_saut%id)%column_data(k)=dmass
+        dmass=dmass*cf_ice! convert back to grid box mean
+        dnumber=dnumber*cf_ice! convert back to grid box mean
+
+        procs(i_qi, i_saut%id)%column_data(k)=-dmass  
+        procs(i_qs, i_saut%id)%column_data(k)=dmass   
 
         if (ice_params%l_2m) then
-          procs(i_ni, i_saut%id)%column_data(k)=-dnumber
+          procs(i_ni, i_saut%id)%column_data(k)=-dnumber  
         end if
         if (snow_params%l_2m) then
-          procs(i_ns, i_saut%id)%column_data(k)=dnumber
+          procs(i_ns, i_saut%id)%column_data(k)=dnumber   
         end if
         if (snow_params%l_3m) then
           procs(i_m3s, i_saut%id)%column_data(k)=dm3

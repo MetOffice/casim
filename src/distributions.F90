@@ -2,11 +2,11 @@ module distributions
   use variable_precision, only: wp
   use mphys_parameters, only: hydro_params, nz, rain_params, ice_params, a_s, b_s
   use mphys_switches, only: i_th, hydro_names, l_limit_psd, l_passive3m, &
-                            max_mu, max_mu_frac, l_kfsm
+                            max_mu, max_mu_frac, l_kfsm, l_prf_cfrac, i_cfl, i_cfr, i_cfi, i_cfs, i_cfg, l_adjust_D0
   use lookup, only: get_slope_generic, get_slope_generic_kf, get_n0,     &
                     moment, get_mu, get_lam_n0
   use special, only: GammaFunc
-  use thresholds, only: thresh_tidy, thresh_sig, thresh_large
+  use thresholds, only: thresh_tidy, thresh_sig, thresh_large, cfliq_small
   use mphys_die, only: throw_mphys_error, warn, bad_values, std_msg
   use m3_incs, only: m3_inc_type3
   use passive_fields, only: exner
@@ -58,7 +58,7 @@ contains
 
   ! Any changes in number should be applied to the prognostic variable
   ! rather than just these parameters.  Currently this is not done.
-  subroutine query_distributions(params, qfields, icall)
+  subroutine query_distributions(params, qfields, cffields, icall)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -68,6 +68,7 @@ contains
     ! Subroutine arguments
     type(hydro_params), intent(inout) :: params !< species parameters
     real(wp), intent(inout) :: qfields(:,:)
+    real(wp), intent(in) :: cffields(:,:)
     integer, intent(in), optional :: icall
 
     ! Local variables
@@ -77,6 +78,10 @@ contains
 #if VERBOSE==1
     real(wp) :: n0_old, mu_old, lam_old
 #endif
+
+    real(wp) :: cf , q1_in, m2_in
+    integer :: i_cf
+
 
     character(2) :: chcall
 
@@ -111,8 +116,8 @@ contains
     dist_lams(:,ispec,1) = 0.0
     dist_lams(:,ispec,2) = 0.0
 
-    m1(:)=qfields(:, i1)/params%c_x
-    if (params%l_2m) m2(:)=qfields(:, i2)
+    m1(:)=qfields(:, i1)/params%c_x                
+    if (params%l_2m) m2(:)=qfields(:, i2)          
     ! if (params%l_3m) then
     !   m3(:)=qfields(:, i3)
     ! else
@@ -150,18 +155,48 @@ contains
 !    end if
 
     do k=1, nz
+    
+      select case (params%id)
+      case (1) !cloud
+        i_cf=i_cfl
+      case (2) !rain
+        i_cf=i_cfr
+      case (3) !ice
+        i_cf=i_cfi
+      case (4) !snow
+        i_cf=i_cfs
+      case (5) !graupel
+        i_cf=i_cfg
+      case default
+        STOP
+      end select
+
+      if (l_prf_cfrac) then
+        if (cffields(k,i_cf) .gt. cfliq_small) then
+          cf=cffields(k,i_cf)
+        else
+          cf=cfliq_small !nonzero value - maybe move cf test higher up
+        endif
+      else
+          cf=1.0
+      endif
+
+      q1_in=qfields(k, i1) / cf  !incloud mass                 
+      m2_in=m2(k)          / cf  !incloud number
+    
+    
       if (qfields(k, i1) > 0.0) then
         if (l_kfsm) then
           Tk = qfields(k, i_th) * exner(k)
           call get_slope_generic_kf(k, params, dist_n0(k,ispec),                &
                                     dist_lambda(k,ispec), dist_mu(k,ispec),     &
-                                    dist_lams(k,ispec,:), qfields(k, i1), Tk,   &
-                                    m2(k), m3(k))
+                                    dist_lams(k,ispec,:), q1_in, Tk,   &
+                                    m2_in, m3(k))
 
         else
           call get_slope_generic(k, params, dist_n0(k,ispec),                   &
                                  dist_lambda(k,ispec), dist_mu(k,ispec),        &
-                                 qfields(k, i1), m2(k), m3(k))
+                                 q1_in, m2_in, m3(k))
 
         end if ! l_kfsm
 
@@ -231,58 +266,63 @@ contains
 
       !-----------------------
       ! Adjust D0 if necessary
+      ! only conserves mass - not number
       !-----------------------
-      !D0 = (m1/m2)**(1./(params%p1-params%p2))
-      do k=1, nz
-        if (qfields(k, i1) .gt. 0.0) then
-          D0=(1+dist_mu(k,ispec))/dist_lambda(k,ispec)
-          if (D0 > params%Dmax) then
+      if (l_adjust_D0) then  !skip limit lam
+        !D0 = (m1/m2)**(1./(params%p1-params%p2))
+        do k=1, nz
+          if (qfields(k, i1) .gt. 0.0) then
+            D0=(1+dist_mu(k,ispec))/dist_lambda(k,ispec)
+            if (D0 > params%Dmax) then
 #if VERBOSE==1
-            mu_old=dist_mu(k,ispec)
-            lam_old=dist_lambda(k,ispec)
-            n0_old=dist_n0(k,ispec)
+              mu_old=dist_mu(k,ispec)
+              lam_old=dist_lambda(k,ispec)
+              n0_old=dist_n0(k,ispec)
 #endif
-            alpha=D0/params%Dmax
-            dist_lambda(k,ispec)=alpha*dist_lambda(k,ispec)
-            dist_n0(k,ispec)=alpha**(params%p1)*dist_n0(k,ispec)
+              alpha=D0/params%Dmax
+              dist_lambda(k,ispec)=alpha*dist_lambda(k,ispec)
+              dist_n0(k,ispec)=alpha**(params%p1)*dist_n0(k,ispec)
 
-            qfields(k,i2)=dist_n0(k,ispec)
-!             if (params%l_3m) then
-!               m3(k)=moment(dist_n0(k,ispec),dist_lambda(k,ispec),dist_mu(k,ispec),params%p3)
-!               qfields(k,i3)=m3(k)
-!             end if
-! #if VERBOSE==1
-!             write(std_msg,*) 'WARNING: adjusting number and m3',  params%id, n0_old,     &
-!                               dist_n0(k,ispec), m3_old(k), m3(k), 'new m1, m2, m3 are: ', &
-!                               m1(k), m2(k), m3(k)
-!             call throw_mphys_error(warn, ModuleName//':'//RoutineName, std_msg)
-! #endif
-          end if
-          if (D0 < params%Dmin) then
+              qfields(k,i2)=dist_n0(k,ispec)
+  !             if (params%l_3m) then
+  !               m3(k)=moment(dist_n0(k,ispec),dist_lambda(k,ispec),dist_mu(k,ispec),params%p3)
+  !               qfields(k,i3)=m3(k)
+  !             end if
+  ! #if VERBOSE==1
+  !             write(std_msg,*) 'WARNING: adjusting number and m3',  params%id, n0_old,     &
+  !                               dist_n0(k,ispec), m3_old(k), m3(k), 'new m1, m2, m3 are: ', &
+  !                               m1(k), m2(k), m3(k)
+  !             call throw_mphys_error(warn, ModuleName//':'//RoutineName, std_msg)
+  ! #endif
+            end if
+            if (D0 < params%Dmin) then
 #if VERBOSE==1
-            mu_old=dist_mu(k,ispec)
-            lam_old=dist_lambda(k,ispec)
-            n0_old=dist_n0(k,ispec)
+              mu_old=dist_mu(k,ispec)
+              lam_old=dist_lambda(k,ispec)
+              n0_old=dist_n0(k,ispec)
 #endif
-            alpha=D0/params%Dmin
-            dist_lambda(k,ispec)=alpha*dist_lambda(k,ispec)
-            dist_n0(k,ispec)=alpha**(params%p1)*dist_n0(k,ispec)
+              alpha=D0/params%Dmin
+              dist_lambda(k,ispec)=alpha*dist_lambda(k,ispec)
+              dist_n0(k,ispec)=alpha**(params%p1)*dist_n0(k,ispec)
 
-            qfields(k,i2)=dist_n0(k,ispec)
-!             if (params%l_3m) then
-!                m3(k)=moment(dist_n0(k,ispec),dist_lambda(k,ispec),dist_mu(k,ispec),params%p3)
-!                qfields(k,i3)=m3(k)
-!             end if
-! #if VERBOSE==1
-!             write(std_msg,*) 'WARNING: adjusting number and m3',  params%id, n0_old,      &
-!                               dist_n0(k,ispec), m3_old(k), m3(k), 'new m1, m2, m3 are: ',  &
-!                               m1(k), m2(k), m3(k)
-!             call throw_mphys_error(warn, ModuleName//':'//RoutineName, std_msg)
-! #endif
+              qfields(k,i2)=dist_n0(k,ispec)
+  !             if (params%l_3m) then
+  !                m3(k)=moment(dist_n0(k,ispec),dist_lambda(k,ispec),dist_mu(k,ispec),params%p3)
+  !                qfields(k,i3)=m3(k)
+  !             end if
+  ! #if VERBOSE==1
+  !             write(std_msg,*) 'WARNING: adjusting number and m3',  params%id, n0_old,      &
+  !                               dist_n0(k,ispec), m3_old(k), m3(k), 'new m1, m2, m3 are: ',  &
+  !                               m1(k), m2(k), m3(k)
+  !             call throw_mphys_error(warn, ModuleName//':'//RoutineName, std_msg)
+  ! #endif
 
+            end if
           end if
-        end if
-      end do
+        end do
+      
+      endif !skip limit lam
+      
     end if
 
     ! Final check that distributions do actually make sense.

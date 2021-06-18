@@ -82,7 +82,7 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
 END SUBROUTINE setup_reflec_constants
 
-SUBROUTINE casim_reflec( points, nq, rho, t, qfields, &
+SUBROUTINE casim_reflec( points, nq, rho, t, qfields, cffields, &
                          dbz_tot_c, dbz_g_c, dbz_i_c, &
                          dbz_i2_c, dbz_l_c, dbz_r_c )
 
@@ -94,10 +94,9 @@ USE distributions,        ONLY: dist_lambda, dist_mu, dist_n0
 USE mphys_parameters,     ONLY: cloud_params, rain_params, ice_params,   &
                                 snow_params, graupel_params
 
-USE mphys_switches,       ONLY: l_g, l_warm, l_cfrac_casim_diag_scheme
+USE mphys_switches,       ONLY: l_g, l_warm, l_cfrac_casim_diag_scheme, l_prf_cfrac, i_cfl, i_cfr, i_cfi, i_cfs, i_cfg
 USE special,              ONLY: Gammafunc
 USE mphys_die,            ONLY: throw_mphys_error, warn, std_msg
-
 
 USE distributions,        ONLY: query_distributions, dist_lambda, dist_mu, dist_n0, dist_lams
 
@@ -131,6 +130,8 @@ REAL(wp), INTENT(OUT) :: dbz_i2_c(points)  ! Reflectivity due to ice crystals
                                            ! [dBZ]
 REAL(wp), INTENT(OUT) :: dbz_l_c(points)   ! Reflectivity due to liquid
                                            ! cloud [dBZ]
+
+real(wp), intent(in) :: cffields(points,5)
 
 !------------------------------------------------------------------------------
 ! Local Variables
@@ -208,13 +209,13 @@ kice_c = kice / 0.93 * (6.0 / pi / 900.0)**2!ice_params%density)**2
 
 ! determine n0, lambda, mu
 
-CALL query_distributions(cloud_params, qfields)
-CALL query_distributions(rain_params, qfields)
+CALL query_distributions(cloud_params, qfields, cffields)
+CALL query_distributions(rain_params, qfields, cffields)
 IF (.NOT. l_warm) THEN
-  CALL query_distributions(ice_params, qfields)
-  CALL query_distributions(snow_params, qfields)
+  CALL query_distributions(ice_params, qfields, cffields)
+  CALL query_distributions(snow_params, qfields, cffields)
   IF (l_g) THEN
-     CALL query_distributions(graupel_params, qfields)
+     CALL query_distributions(graupel_params, qfields, cffields)
   END IF
 END IF
 
@@ -227,7 +228,7 @@ DO i = 1,points
      arg3 = 2.0*cloud_params%d_x+dist_mu(i,cloud_params%id)+1.0
      ze_l(i) = rho(i)*mm6m3*kclw*cloud_params%c_x**2*(dist_n0(i,cloud_params%id)* &
          dist_lambda(i,cloud_params%id)**(arg2)/Gammafunc(arg2)) / &
-         dist_lambda(i,cloud_params%id)**(arg3)*Gammafunc(arg3)
+         dist_lambda(i,cloud_params%id)**(arg3)*Gammafunc(arg3) * cffields(i,i_cfl) 
   END IF
 
   ! Reflectivity for rain water
@@ -237,7 +238,7 @@ DO i = 1,points
      arg3 = 2.0*rain_params%d_x+dist_mu(i,rain_params%id)+1.0
      ze_r(i) = rho(i)*mm6m3*kclw*rain_params%c_x**2*(dist_n0(i,rain_params%id)* &
          dist_lambda(i,rain_params%id)**(arg2)/Gammafunc(arg2)) / &
-         dist_lambda(i,rain_params%id)**(arg3)*Gammafunc(arg3)
+         dist_lambda(i,rain_params%id)**(arg3)*Gammafunc(arg3) * cffields(i,i_cfr) 
   END IF
 
   IF (.NOT. l_warm) THEN
@@ -248,7 +249,7 @@ DO i = 1,points
         arg3 = 2.0*ice_params%d_x+dist_mu(i,ice_params%id)+1.0
         ze_i(i) = rho(i)*mm6m3*kice_c*ice_params%c_x**2*(dist_n0(i,ice_params%id)* &
             dist_lambda(i,ice_params%id)**(arg2)/Gammafunc(arg2)) / &
-            dist_lambda(i,ice_params%id)**(arg3)*Gammafunc(arg3)
+            dist_lambda(i,ice_params%id)**(arg3)*Gammafunc(arg3) * cffields(i,i_cfi) 
      END IF
 
      ! Reflectivity for snow
@@ -258,7 +259,7 @@ DO i = 1,points
         arg3 = 2.0*snow_params%d_x+dist_mu(i,snow_params%id)+1.0
         ze_i2(i) = rho(i)*mm6m3*kice_a*snow_params%c_x**2*(dist_n0(i,snow_params%id)* &
             dist_lambda(i,snow_params%id)**(arg2)/Gammafunc(arg2)) / &
-            dist_lambda(i,snow_params%id)**(arg3)*Gammafunc(arg3)
+            dist_lambda(i,snow_params%id)**(arg3)*Gammafunc(arg3) * cffields(i,i_cfs) 
      END IF
 
      IF (l_g) THEN
@@ -269,7 +270,7 @@ DO i = 1,points
            arg3 = 2.0*graupel_params%d_x+dist_mu(i,graupel_params%id)+1.0
            ze_g(i) = rho(i)*mm6m3*kgraup*graupel_params%c_x**2*(dist_n0(i,graupel_params%id)* &
                dist_lambda(i,graupel_params%id)**(arg2)/Gammafunc(arg2)) / &
-               dist_lambda(i,graupel_params%id)**(arg3)*Gammafunc(arg3)
+               dist_lambda(i,graupel_params%id)**(arg3)*Gammafunc(arg3) * cffields(i,i_cfg) 
         END IF
      END IF
   END IF

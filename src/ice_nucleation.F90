@@ -1,11 +1,11 @@
 module ice_nucleation
   use mphys_die, only: throw_mphys_error, bad_values, std_msg
   use variable_precision, only: wp
-  use passive_fields, only: rho, pressure, w, exner, cfliq
+  use passive_fields, only: rho, pressure, w, exner
   use mphys_switches, only: i_qv, i_ql, i_qi, i_ni, i_th , hydro_complexity, i_am4, i_am6, i_an2, l_2mi, l_2ms, l_2mg, &
        i_am8, i_am9, aerosol_option, i_nl, i_ns, i_ng, iopt_inuc, i_am7, i_an6, i_an12, l_process, l_passivenumbers, &
        l_passivenumbers_ice, active_number, active_ice, isol, iinsol, l_itotsg, contact_efficiency, immersion_efficiency, &
-       aero_index, l_prf_cfrac, iopt_act
+       aero_index, l_prf_cfrac, iopt_act, i_cfl, i_cfi
   use process_routines, only: process_rate, i_inuc, i_dnuc
   use mphys_parameters, only: nucleated_ice_mass, cloud_params, ice_params
   use mphys_constants, only: Ls, cp, pi, m3_to_cm3
@@ -25,7 +25,7 @@ contains
   !> Contact freezing (i.e. collision between cloud drop and IN) are not
   !> yet properly concidered.  Such freezing mechanisms should consider the
   !> processing of the aerosol in different ways.
-  subroutine inuc(dt, k, qfields, procs, dustphys, dustchem, aeroact, dustliq, aerosol_procs)
+  subroutine inuc(dt, k, qfields, cffields, procs, dustphys, dustchem, aeroact, dustliq, aerosol_procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -36,6 +36,7 @@ contains
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
     real(wp), intent(in), target :: qfields(:,:)
+    real(wp), intent(in) :: cffields(:,:)
     type(process_rate), intent(inout), target :: procs(:,:)
 
     ! aerosol fields
@@ -65,7 +66,7 @@ contains
     real(wp) :: cloud_number, cloud_mass
     real(wp) :: qs, qis, Si, Sw, limit, dN_imm, dN_contact, ql
     
-    real(wp) :: cf_liquid
+    real(wp) :: cf_liquid, cf_ice
 
     ! parameters for Meyers et al (1992)
     ! Meyers MP, DeMott PJ, Cotton WR (1992) New primary ice-nucleation
@@ -96,15 +97,23 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-!    if (l_prf_cfrac) then
-!      if (cfliq(k) .gt. cfliq_small) then  !only doing liquid cloud fraction at the moment
-!        cf_liquid=cfliq(k)
-!      else
-!        cf_liquid=cfliq_small !nonzero value - maybe move cf test higher up
-!      endif
-!    else
-      cf_liquid = 1.0
-!    end if
+    if (l_prf_cfrac) then
+      if (cffields(k,i_cfl) .gt. cfliq_small) then
+        cf_liquid=cffields(k,i_cfl)
+      else
+        cf_liquid=cfliq_small !nonzero value - maybe move cf test higher up
+      endif
+      if (cffields(k,i_cfi) .gt. cfliq_small) then
+        cf_ice=cffields(k,i_cfi)
+      else
+        cf_ice=cfliq_small !nonzero value - maybe move cf test higher up
+      endif
+    else
+         cf_liquid=1.0
+         cf_ice=1.0
+    endif
+
+
 
     qv=qfields(k, i_qv)
     th=qfields(k, i_th)
@@ -120,13 +129,15 @@ contains
       cloud_number=cloud_params%fix_N0
     end if
 
-    if (qs==0.0 .or. qis==0.0) then
-      write(std_msg, '(A)') 'Error in saturation calculation - qs or qis is zero'
-      call throw_mphys_error(bad_values,  ModuleName//':'//RoutineName, std_msg)
-    end if
+!!    if (qs==0.0 .or. qis==0.0) then
+!!      write(std_msg, '(A)') 'Error in saturation calculation - qs or qis is zero'
+!!      call throw_mphys_error(bad_values,  ModuleName//':'//RoutineName, std_msg)
+!!    end if
 
-    Sw=qv/qs - 1.0
-    Si=qv/qis - 1.0
+    Sw=-999.0
+    Si=-999.0
+    if (qs > 0.0) Sw=qv/qs - 1.0
+    if (qis > 0.0) Si=qv/qis - 1.0
     Tc=Tk - 273.15
 
     ! What's the condition for ice nucleation...?
@@ -153,13 +164,12 @@ contains
       l_condition=( cloud_number >= nl_tidy .and. Tc < 0)
     case (10)
       l_condition=( cloud_number >= nl_tidy .and. Tc < 0)
-
     end select
 
     if (l_condition) then
 
       if (ice_params%l_2m)then
-        ice_number=qfields(k, i_ni)
+        ice_number=qfields(k, i_ni) / cf_ice
       else
         ice_number=1.e3 ! PRAGMATIC SM HACK
       end if
@@ -172,10 +182,10 @@ contains
         ! Cooper WA (1986) Ice Initiation in Natural Clouds. Precipitation Enhancement -
         ! A Scientific Challenge. Meteor Monogr, (Am Meteor Soc, Boston, MA), 21, pp 29–32.
 
-        if (ql > ql_small) then  !only make ice when liquid present
+        if (ql * cf_liquid > ql_small) then  !only make ice when liquid present
           dN_imm=5.0*exp(-0.304*Tc)/rho(k)
           if (iopt_act .eq. 0) then
-            dN_imm=dN_imm-ice_number
+            dN_imm = MAX( dN_imm-ice_number, 0.0 )
           endif
         endif
       case (2)

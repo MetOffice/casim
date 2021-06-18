@@ -1,9 +1,9 @@
 module ice_accretion
   use variable_precision, only: wp, iwp
-  use passive_fields, only: rho, pressure, w, exner, TdegC, cfliq
+  use passive_fields, only: rho, pressure, w, exner, TdegC
   use mphys_switches, only: hydro_complexity,  i_ql, l_process,   &
        cloud_params, rain_params, i_am4, i_am7, i_am8, i_am9, l_prf_cfrac, &
-       l_gamma_online
+       l_gamma_online, l_prf_cfrac, i_cfi, i_cfs, i_cfg, i_cfl, i_cfr, mpof
   use type_process, only: process_name
   use process_routines, only: process_rate,   &
        i_iacw, i_sacw, i_saci, i_raci, i_sacr, i_gacw, i_gacr, i_gaci, i_gacs, &
@@ -19,7 +19,8 @@ module ice_accretion
   use distributions, only: dist_lambda, dist_mu, dist_n0
   use sweepout_rate, only: sweepout, binary_collection, sweepout_1M2M, binary_collection_1M2M
 
-  use special, only: pi, Gammafunc
+  use special,   only: pi, Gammafunc
+  use mphys_die, only: incorrect_opt, throw_mphys_error, std_msg
 
   implicit none
   private
@@ -29,7 +30,7 @@ module ice_accretion
   public iacc
 contains
 
-  subroutine iacc(dt, k, params_X, params_Y, params_Z, qfields, procs,   &
+  subroutine iacc(dt, k, params_X, params_Y, params_Z, qfields, cffields, procs,   &
        aeroact, dustliq, aerosol_procs)
     !
     !< CODE TIDYING: Move efficiencies into parameters
@@ -46,6 +47,7 @@ contains
     type(hydro_params), intent(in) :: params_Y !< parameters for species which is collected
     type(hydro_params), intent(in) :: params_Z !< parameters for species to which resulting amalgamation is sent
     real(wp), intent(in), target :: qfields(:,:)
+    real(wp), intent(in) :: cffields(:,:)
     type(process_rate), intent(inout), target :: procs(:,:)
 
     ! aerosol fields
@@ -69,7 +71,7 @@ contains
     real(wp) :: n0_Y, lam_Y, mu_Y
     real(wp) :: dm1, dm2
 
-    real(wp) :: cf_liquid
+    real(wp) :: cf_X, cf_Y, overlap_cf
 
     real(wp) :: Eff ! collection efficiencies need to re-evaluate these and put them in properly to mphys_parameters
 
@@ -83,41 +85,57 @@ contains
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
     REAL(KIND=jprb)               :: zhook_handle
 
-    integer cloud_collided_flag
- 
     !--------------------------------------------------------------------------
     ! End of header, no more declarations beyond here
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-!prf test cf_liquid
-!    if (l_prf_cfrac) then
-!
-!      if (cfliq(k) .gt. cfliq_small) then  !only doing liquid cloud fraction at the moment
-!        cf_liquid=cfliq(k)
-!      else
-!        cf_liquid=cfliq_small !nonzero value - maybe move cf test higher up
-!      endif
-!
-!    else ! l_prf_cfrac
-      cf_liquid = 1.0
-!    end if
+    !setup cloud fractions
+    if (l_prf_cfrac) then
+      select case (params_X%id)
+      case(1)
+        cf_X=max(cffields(k,i_cfl), cfliq_small)
+      case(2)
+        cf_X=max(cffields(k,i_cfr), cfliq_small)
+      case(3)
+        cf_X=max(cffields(k,i_cfi), cfliq_small)
+      case(4)
+        cf_X=max(cffields(k,i_cfs), cfliq_small)
+      case(5)
+        cf_X=max(cffields(k,i_cfg), cfliq_small)
+      case default
+        write(std_msg, '(A, I0)')                                              &
+          'Incorrect value of collecting species ID (params_X):', params_X%id
+        call throw_mphys_error(incorrect_opt, RoutineName, std_msg)
+      end select
+
+      select case (params_Y%id)
+      case(1)
+        cf_Y=max(cffields(k,i_cfl), cfliq_small)
+      case(2)
+        cf_Y=max(cffields(k,i_cfr), cfliq_small)
+      case(3)
+        cf_Y=max(cffields(k,i_cfi), cfliq_small)
+      case(4)
+        cf_Y=max(cffields(k,i_cfs), cfliq_small)
+      case(5)
+        cf_Y=max(cffields(k,i_cfg), cfliq_small)
+      case default
+        write(std_msg, '(A, I0)')                                              &
+          'Incorrect value of collected species ID (params_Y):', params_Y%id
+        call throw_mphys_error(incorrect_opt, RoutineName, std_msg)
+      end select
+    else
+      cf_X=1.0
+      cf_Y=1.0
+    endif
 
 
+    mass_Y=qfields(k, params_Y%i_1m)  / cf_Y  !incloud values
+    mass_X=qfields(k, params_X%i_1m)  / cf_X  !incloud values
 
 
-
-    mass_Y=qfields(k, params_Y%i_1m)
-    mass_X=qfields(k, params_X%i_1m)
-    if (params_Y%id .eq. cloud_params%id) mass_Y=mass_Y/cf_liquid  !only do cloud species
-    if (params_X%id .eq. cloud_params%id) mass_X=mass_X/cf_liquid  !only do cloud species
-
-    !prf
-    cloud_collided_flag=0
-    if ((params_Y%id .eq. cloud_params%id) .or. (params_X%id .eq. cloud_params%id)) cloud_collided_flag=1
-    !prf
-
-    l_condition=mass_X > thresh_small(params_X%i_1m) .and. mass_Y > thresh_small(params_Y%i_1m)
+    l_condition=mass_X * cf_X > thresh_small(params_X%i_1m) .and. mass_Y * cf_Y > thresh_small(params_Y%i_1m)
 
     if (l_condition) then
       ! initialize variables which may not have been set
@@ -188,10 +206,7 @@ contains
         end select
       end select
 
-      if (params_X%l_2m) number_X=qfields(k, params_X%i_2m)
-
-      if (params_X%id .eq. cloud_params%id) number_X=number_X/cf_liquid  !just cloud species at the moment
-
+      if (params_X%l_2m) number_X=qfields(k, params_X%i_2m)  / cf_X
 
       n0_X=dist_n0(k,params_X%id)
       mu_X=dist_mu(k,params_X%id)
@@ -206,15 +221,13 @@ contains
         dmass_Y=max(dmass_Y, -mass_Y/dt)
 
         if (params_Y%l_2m) then
-          number_Y=qfields(k, params_Y%i_2m)
-          if (params_Y%id .eq. cloud_params%id) number_Y=number_Y/cf_liquid  !just cloud species at the moment
+          number_Y=qfields(k, params_Y%i_2m) / cf_Y
           dnumber_Y=dmass_Y*number_Y/mass_Y
         end if
 
         if (l_alternate_Z) then ! We move resulting collision to another species.
           if (params_Y%l_2m) then
-            number_Y=qfields(k, params_Y%i_2m)
-            if (params_Y%id .eq. cloud_params%id) number_Y=number_Y/cf_liquid  !just cloud species at the moment
+            number_Y=qfields(k, params_Y%i_2m)  / cf_Y
           else
             ! we need an else in here
           end if
@@ -232,8 +245,7 @@ contains
         end if
       else  ! both species have significant fall velocity
         if (params_Y%l_2m) then
-          number_Y=qfields(k, params_Y%i_2m)
-          if (params_Y%id .eq. cloud_params%id) number_Y=number_Y/cf_liquid  !just cloud species at the moment
+          number_Y=qfields(k, params_Y%i_2m) / cf_Y
         end if
 
         n0_Y=dist_n0(k,params_Y%id)
@@ -257,7 +269,8 @@ contains
 
         if (l_alternate_Z) then ! We move resulting collision to another species.
            !if (l_gamma_online) then 
-              dmass_X=-Eff*binary_collection(n0_Y, lam_Y, mu_Y, n0_X, lam_X, mu_X, params_Y, params_X, rho(k), mass_weight=.true.)
+              dmass_X=-Eff*binary_collection(n0_Y, lam_Y, mu_Y, n0_X, lam_X, mu_X,                     &
+                      params_Y, params_X, rho(k), mass_weight=.true.)
            !else
            !   dmass_X=-Eff*binary_collection_1M2M(n0_Y, lam_Y, n0_X, lam_X, params_Y, params_X, rho(k), mass_weight=.true.)
            !endif
@@ -275,7 +288,8 @@ contains
         dnumber_Y=-number_Y/dt
       end if
       ! If most of the collecting particles are to be removed then remove all of them
-      if (l_alternate_Z .and. (-dmass_X*dt >0.95*mass_X .or. (params_X%l_2m .and. -dnumber_X*dt > 0.95*number_X))) then
+      if (l_alternate_Z .and. (-dmass_X*dt >0.95*mass_X .or.                                          &
+           (params_X%l_2m .and. -dnumber_X*dt > 0.95*number_X))) then
         dmass_X=-mass_X/dt
         dnumber_X=-number_X/dt
         dmass_Z = -1.0*( dmass_X + dmass_Y )
@@ -291,31 +305,38 @@ contains
 
 
 !convert back to grid mean
-!      if(params_Y%id .eq. cloud_params%id) dmass_Y=dmass_Y*cf_liquid
-!      if(params_X%id .eq. cloud_params%id) dmass_X=dmass_X*cf_liquid
-      if(cloud_collided_flag .eq. 1) then
-          dmass_Y=dmass_Y*cf_liquid
-          dmass_X=dmass_X*cf_liquid
-      endif
-!!
+     !use mixed-phase overlap function
+     if (((params_Y%id == cloud_params%id) .OR. (params_X%id == cloud_params%id)) &
+         .OR. ((params_Y%id == rain_params%id) .OR. (params_X%id == rain_params%id)) ) then
+       overlap_cf=min(1.0,max(0.0,mpof*min(cf_X, cf_Y) +  max(0.0,(1.0-mpof)*(cf_X+cf_Y-1.0))))
+     else
+       overlap_cf = min(cf_Y, cf_X)
+     endif
 
-      procs(params_Y%i_1m, iproc%id)%column_data(k)=dmass_Y
+     dmass_Y = dmass_Y * overlap_cf
+     dmass_X = dmass_X * overlap_cf
+     if (params_Y%l_2m) dnumber_Y = dnumber_Y * overlap_cf
+     if (params_X%l_2m) dnumber_X = dnumber_X * overlap_cf
+     if (l_alternate_Z) then
+       dmass_Z = dmass_Z * overlap_cf
+       if (params_Z%l_2m) dnumber_Z = dnumber_Z * overlap_cf
+     endif
+!
+
+      procs(params_Y%i_1m, iproc%id)%column_data(k)=dmass_Y 
       if (params_Y%l_2m) then
-        if(params_Y%id .eq. cloud_params%id) dnumber_Y=dnumber_Y*cf_liquid
-        procs(params_Y%i_2m, iproc%id)%column_data(k)=dnumber_Y
+        procs(params_Y%i_2m, iproc%id)%column_data(k)=dnumber_Y 
       end if
 
-      procs(params_X%i_1m, iproc%id)%column_data(k)=dmass_X
+      procs(params_X%i_1m, iproc%id)%column_data(k)=dmass_X  
       if (params_X%l_2m) then
-        if(params_X%id .eq. cloud_params%id) dnumber_X=dnumber_X*cf_liquid
-        procs(params_X%i_2m, iproc%id)%column_data(k)=dnumber_X
+        procs(params_X%i_2m, iproc%id)%column_data(k)=dnumber_X  
       end if
 
       if (l_alternate_Z) then
-        procs(params_Z%i_1m, iproc%id)%column_data(k)=dmass_Z
+        procs(params_Z%i_1m, iproc%id)%column_data(k)=dmass_Z  
         if (params_Z%l_2m) then
-          if(params_X%id .eq. cloud_params%id) dnumber_Z=dnumber_Z*cf_liquid
-          procs(params_Z%i_2m, iproc%id)%column_data(k)=dnumber_Z
+          procs(params_Z%i_2m, iproc%id)%column_data(k)=dnumber_Z  
         end if
       end if
 

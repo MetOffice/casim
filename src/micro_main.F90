@@ -23,7 +23,8 @@ module micro_main
        iopt_act, iopt_shipway_act, l_prf_cfrac, l_kfsm,l_rain, inv_nsubseds_cloud, inv_nsubseds_ice, inv_nsubseds_rain, &
        inv_nsubseds_snow, inv_nsubseds_graupel, inv_allsubs_cloud, inv_allsubs_ice, inv_allsubs_rain, &
        inv_allsubs_snow, inv_allsubs_graupel,  nsubseds_cloud, nsubseds_ice, nsubseds_rain, &
-       nsubseds_snow, nsubseds_graupel,l_gamma_online, l_subseds_maxv
+       nsubseds_snow, nsubseds_graupel,l_gamma_online, l_subseds_maxv , &
+       i_cfl, i_cfr, i_cfi, i_cfs, i_cfg 
   use passive_fields, only: rexner, min_dz
   use mphys_constants, only: cp, Lv, Ls
   use distributions, only: query_distributions, initialise_distributions, dist_lambda, dist_mu, dist_n0, dist_lams
@@ -89,6 +90,8 @@ module micro_main
   real(wp), allocatable :: dqfields(:,:), qfields(:,:), tend(:,:)
   real(wp), allocatable :: daerofields(:,:), aerofields(:,:), aerosol_tend(:,:)
 
+  real(wp), allocatable :: cffields(:,:) !cloudfraction fields
+
   type(process_rate), allocatable :: procs(:,:)
   type(process_rate), allocatable :: aerosol_procs(:,:)
 
@@ -121,7 +124,7 @@ module micro_main
   public initialise_micromain, finalise_micromain, shipway_microphysics, DTPUD
 
 !PRF
-  public qfields_in, qfields_mod, aerofields_in, aerofields_mod, dqfields, qfields, tend
+  public qfields_in, qfields_mod, aerofields_in, aerofields_mod, dqfields, qfields, tend, cffields
   public daerofields, aerofields, aerosol_tend, procs, aerosol_procs
   public aerophys, aeroact, aerochem, dustact, dustphys, dustchem, aeroice, dustliq
 !PRF
@@ -216,6 +219,9 @@ contains
     !allocate(procs(nz, nprocs))
     allocate(procs(ntotalq, nprocs))
     allocate(tend(nz, nq))
+    
+    allocate(cffields(nz,5)) !5 'cloud' fractions
+    cffields=ZERO_REAL_WP
 
     ! Allocate aerosol storage
     if (aerosol_option > 0) then
@@ -335,7 +341,8 @@ contains
     deallocate(qfields)
     deallocate(tend)
     deallocate(precondition)
-
+    deallocate(cffields)
+    
     ! aerosol fields
     if (l_process) call deallocate_procs(aerosol_procs)
 
@@ -376,7 +383,8 @@ contains
        qv, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12, q13,          &
        theta, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13,       &
        a14, a15, a16, a17, a18, a19, a20,                                   &
-       exner, pressure, rho, w, tke, z_half, z_centre, dz, cfliq, cfice,    &
+       exner, pressure, rho, w, tke, z_half, z_centre, dz,                  &
+       cfliq, cfice, cfsnow, cfrain, cfgr,    &
        dqv, dq1, dq2, dq3, dq4, dq5, dq6, dq7, dq8, dq9, dq10, dq11, dq12,  &
        dq13, dth, da1, da2, da3, da4, da5, da6, da7, da8, da9, da10, da11,  &
        da12, da13, da14, da15, da16, da17,                                  &
@@ -404,6 +412,10 @@ contains
          , q9( kl:ku, il:iu, jl:ju ), q10( kl:ku, il:iu, jl:ju ), q11( kl:ku, il:iu, jl:ju ) &
          , q12( kl:ku, il:iu, jl:ju ), q13( kl:ku, il:iu, jl:ju )
 
+    real(wp) :: cfliq(kl:ku, il:iu, jl:ju ), cfrain(kl:ku, il:iu, jl:ju ), cfice(kl:ku, il:iu, jl:ju ), &
+                cfsnow(kl:ku, il:iu, jl:ju ), cfgr(kl:ku, il:iu, jl:ju )
+
+
 
     real(wp), intent(in) :: qv( kl:ku, il:iu, jl:ju )
     real(wp), intent(in) :: theta( kl:ku, il:iu, jl:ju )
@@ -416,8 +428,6 @@ contains
     real(wp), intent(in) :: z_half( kl-1:ku, il:iu, jl:ju )
     real(wp), intent(in) :: z_centre( kl:ku, il:iu, jl:ju )
 
-    real(wp), intent(in) :: cfliq( kl:ku, il:iu, jl:ju )
-    real(wp), intent(in) :: cfice( kl:ku, il:iu, jl:ju )
 
     ! Aerosol fields in
     real(wp), intent(in) :: a1( kl:ku, il:iu, jl:ju ), a2( kl:ku, il:iu, jl:ju )   &
@@ -560,6 +570,16 @@ contains
           call zero_procs(aerosol_procs, nz)
         end if
 
+
+        !set cloud fraction fields
+        cffields(:,i_cfl)=cfliq(ks:ke,i,j)
+        cffields(:,i_cfr)=cfrain(ks:ke,i,j)
+        cffields(:,i_cfi)=cfice(ks:ke,i,j)
+        cffields(:,i_cfs)=cfsnow(ks:ke,i,j)
+        cffields(:,i_cfg)=cfgr(ks:ke,i,j)
+
+        
+
         ! Set the qfields
         qfields(:, i_qv)=qv(ks:ke,i,j)
         qfields(:, i_th)=theta(ks:ke,i,j)
@@ -642,12 +662,12 @@ contains
         call set_passive_fields(dt, rho(ks:ke,i,j),    &
              pressure(ks:ke,i,j), exner(ks:ke,i,j),            &
              z_half(ks-1:ke,i,j), z_centre(ks:ke,i,j), dz(ks:ke,i,j),     &
-             w(ks:ke,i,j), tke(ks:ke,i,j), qfields, cfliq(ks:ke,i,j), cfice(ks:ke,i,j) )
+             w(ks:ke,i,j), tke(ks:ke,i,j), qfields )
         
         !--------------------------------------------------
         ! Do the business...
         !--------------------------------------------------
-        call microphysics_common(dt, ks, ke, i , j, qfields, dqfields, tend, procs, precip(i,j) &
+        call microphysics_common(dt, ks, ke, i , j, qfields, cffields, dqfields, tend, procs, precip(i,j) &
              , precip_l, precip_r, precip_i, precip_s, precip_g, precip_r1d, precip_s1d &
              , precip_so1d, precip_g1d    &
              , aerophys, aerochem, aeroact                                         &
@@ -749,7 +769,7 @@ contains
         if ( casdiags % l_radar ) then
 
           call tidy_qin(qfields)  !check this is conserving. If i do this here do we need a tidy_ain?
-          call casim_reflec( nz, nq, rho(ks:ke,i,j), TdegK, qfields,           &
+          call casim_reflec( nz, nq, rho(ks:ke,i,j), TdegK, qfields, cffields,           &
                              dbz_tot_c, dbz_g_c, dbz_i_c,                      &
                              dbz_s_c,   dbz_l_c, dbz_r_c  )
 
@@ -829,7 +849,7 @@ contains
 
   end subroutine shipway_microphysics
 
-  subroutine microphysics_common(dt, kl, ku, ix, jy, qfields, dqfields, tend, procs, precip &
+  subroutine microphysics_common(dt, kl, ku, ix, jy, qfields, cffields, dqfields, tend, procs, precip &
        , precip_l, precip_r, precip_i, precip_s, precip_g, precip_r1d, precip_s1d &
        , precip_so1d, precip_g1d      &
        , aerophys, aerochem, aeroact                                          &
@@ -851,6 +871,8 @@ contains
     integer, intent(in) :: kl, ku, ix, jy
     real(wp), intent(in) :: rhcrit_1d(:)
     real(wp), intent(inout) :: qfields(:,:), dqfields(:,:), tend(:,:)
+    real(wp), intent(in) :: cffields(:,:)
+    
     type(process_rate), intent(inout) :: procs(:,:)
     real(wp), intent(out) :: precip
     real(wp), intent(INOUT) :: precip_l
@@ -1015,12 +1037,12 @@ contains
     !---------------------------------------------------------------
     ! Determine (and possibly limit) size distribution
     !---------------------------------------------------------------
-    call query_distributions(cloud_params, qfields_mod, icall=1)
-    call query_distributions(rain_params, qfields_mod, icall=1)
+    call query_distributions(cloud_params, qfields_mod, cffields, icall=1)
+    call query_distributions(rain_params, qfields_mod, cffields, icall=1)
     if (.not. l_warm_loc) then
-      call query_distributions(ice_params, qfields_mod, icall=1)
-      call query_distributions(snow_params, qfields_mod, icall=1)
-      call query_distributions(graupel_params, qfields_mod, icall=1)
+      call query_distributions(ice_params, qfields_mod, cffields, icall=1)
+      call query_distributions(snow_params, qfields_mod, cffields, icall=1)
+      call query_distributions(graupel_params, qfields_mod, cffields, icall=1)
     end if
 
     qfields=qfields_mod
@@ -1080,12 +1102,12 @@ contains
        !-------------------------------
        ! Do the autoconversion to rain
        !-------------------------------
-       if (pswitch%l_praut) call raut(step_length, qfields, aerofields, procs, aerosol_procs)
+       if (pswitch%l_praut) call raut(step_length, qfields, cffields, aerofields, procs, aerosol_procs)
 
        !-------------------------------
        ! Do the rain accreting cloud
        !-------------------------------
-       if (pswitch%l_pracw) call racw(step_length, qfields, aerofields, procs, rain_params, aerosol_procs)
+       if (pswitch%l_pracw) call racw(step_length, qfields, cffields, aerofields, procs, rain_params, aerosol_procs)
 
        !-------------------------------
        ! Do the rain self-collection
@@ -1111,33 +1133,33 @@ contains
               ! Autoconverion to snow
               !------------------------------------------------------
               if (pswitch%l_psaut .and. .not. l_kfsm) &
-                   call saut(step_length, k, qfields, aerofields, procs, aerosol_procs)
+                   call saut(step_length, k, qfields, cffields, aerofields, procs, aerosol_procs)
 
               !------------------------------------------------------
               ! Accretion processes
               !------------------------------------------------------
               ! Ice -> Cloud -> Ice
-              if (pswitch%l_piacw) call iacc(step_length, k, ice_params, cloud_params, ice_params, qfields, &
+              if (pswitch%l_piacw) call iacc(step_length, k, ice_params, cloud_params, ice_params, qfields, cffields, &
                    procs, aeroact, dustliq, aerosol_procs)
               ! Snow -> Cloud -> Snow
               if (l_sg) then
                 if (pswitch%l_psacw .and. .not. l_kfsm) &
                      call iacc(step_length, k, snow_params, cloud_params, snow_params, &
-                     qfields, procs, aeroact, dustliq, aerosol_procs)
+                     qfields, cffields, procs, aeroact, dustliq, aerosol_procs)
                 ! Snow -> Ice -> Snow
                 if (pswitch%l_psaci .and. .not. l_kfsm) &
-                     call iacc(step_length, k, snow_params, ice_params, snow_params, qfields, &
+                     call iacc(step_length, k, snow_params, ice_params, snow_params, qfields, cffields, &
                      procs, aeroact, dustliq, aerosol_procs)
                 if (pswitch%l_praci .and. (.not. l_sigevap(k))) then
                   ! Rain mass dependence to decide if we produce snow or graupel
                   if (qfields(k,i_qr) > thresh_sig(i_qr) .and. l_g .and. l_raci_g) then
                     ! Rain -> Ice -> Graupel
                     call iacc(step_length, k, rain_params, ice_params, graupel_params, &
-                         qfields, procs, aeroact, dustliq, aerosol_procs)
+                         qfields, cffields, procs, aeroact, dustliq, aerosol_procs)
                   else if (.not. l_kfsm) then
                     ! Rain -> Ice -> Snow
                     ! Ignore this process in Kalli's single moment code.
-                    call iacc(step_length, k, rain_params, ice_params, snow_params, qfields, &
+                    call iacc(step_length, k, rain_params, ice_params, snow_params, qfields, cffields, &
                          procs, aeroact, dustliq, aerosol_procs)
                   end if
                 end if
@@ -1146,20 +1168,20 @@ contains
                   if (TdegK(k) < 268.15 .and. l_g) then
                     ! Snow -> Rain -> Graupel
                     call iacc(step_length, k, snow_params, rain_params, graupel_params, &
-                         qfields, procs, aeroact, dustliq, aerosol_procs)
+                         qfields, cffields, procs, aeroact, dustliq, aerosol_procs)
                   else
                     ! Snow -> Rain -> Snow
                     call iacc(step_length, k, snow_params, rain_params, snow_params, &
-                         qfields, procs, aeroact, dustliq, aerosol_procs)
+                         qfields, cffields, procs, aeroact, dustliq, aerosol_procs)
                   end if
                 end if
                 if (l_g) then
                   ! Graupel -> Cloud -> Graupel
                   if (pswitch%l_pgacw)call iacc(step_length, k, graupel_params, cloud_params, &
-                       graupel_params, qfields, procs, aeroact, dustliq, aerosol_procs)
+                       graupel_params, qfields, cffields, procs, aeroact, dustliq, aerosol_procs)
                   ! Graupel -> Rain -> Graupel
                   if (pswitch%l_pgacr .and. (.not. l_sigevap(k)))call iacc(step_length, k,       &
-                       graupel_params, rain_params, graupel_params, qfields,                    &
+                       graupel_params, rain_params, graupel_params, qfields, cffields,                    &
                        procs, aeroact, dustliq, aerosol_procs)
                   ! Graupel -> Ice -> Graupel
                   !                   if(pswitch%l_gsaci)call iacc(step_length, k, graupel_params, ice_params, graupel_params, qfields, &
@@ -1180,7 +1202,7 @@ contains
                 ! Only do this process when Kalli's single moment code is
                 ! not in use; otherwise we ignore it.
                 if (l_g .and. .not. l_onlycollect) then
-                    call graupel_embryos(step_length, k, qfields, procs, &
+                    call graupel_embryos(step_length, k, qfields, cffields, procs, &
                                          aerophys, aerochem, aeroact,    &
                                          aerosol_procs)
                 end if ! l_g
@@ -1193,7 +1215,7 @@ contains
               ! must come after their calculation and before they
               ! are used/rescaled elsewhere
               !------------------------------------------------------
-              if (l_g .and. .not. l_onlycollect .and. (.not. l_sigevap(k))) call wetgrowth(step_length, k, qfields, &
+              if (l_g .and. .not. l_onlycollect .and. (.not. l_sigevap(k))) call wetgrowth(step_length, k, qfields, cffields, &
                    procs, aerophys, aerochem, aeroact, aerosol_procs)
 
               !------------------------------------------------------
@@ -1212,33 +1234,33 @@ contains
               ! Ice multiplication (Hallet-mossop)
               !------------------------------------------------------
               if (pswitch%l_pihal .and. .not. l_kfsm) &
-                   call hallet_mossop(step_length, k, qfields,     &
+                   call hallet_mossop(step_length, k, qfields, cffields,     &
                    procs, aerophys, aerochem, aeroact, aerosol_procs)
 
               !------------------------------------------------------
               ! Homogeneous freezing (rain and cloud)
               !------------------------------------------------------
-              if (pswitch%l_phomr .and. (.not. l_sigevap(k))) call ihom_rain(step_length, k, qfields, &
+              if (pswitch%l_phomr .and. (.not. l_sigevap(k))) call ihom_rain(step_length, k, qfields,  &
                    aeroact, dustliq, procs, aerosol_procs)
-              if (pswitch%l_phomc) call ihom_droplets(step_length, k, qfields, aeroact, dustliq, procs, aerosol_procs)
+              if (pswitch%l_phomc) call ihom_droplets(step_length, k, qfields,  aeroact, dustliq, procs, aerosol_procs)
 
               !------------------------------------------------------
               ! Condensation/immersion/contact nucleation of cloud ice
               !------------------------------------------------------
-              if (pswitch%l_pinuc) call inuc(step_length, k, qfields, procs,     &
+              if (pswitch%l_pinuc) call inuc(step_length, k, qfields, cffields, procs,     &
                    dustphys, dustchem, aeroact, dustliq, aerosol_procs)
 
               !------------------------------------------------------
               ! Deposition/sublimation of ice/snow/graupel
               !------------------------------------------------------
-              if (pswitch%l_pidep) call idep(step_length, k, ice_params, qfields,  &
+              if (pswitch%l_pidep) call idep(step_length, k, ice_params, qfields,   &
                    procs, dustact, aeroice, aerosol_procs)
 
               if (pswitch%l_psdep .and. .not. l_kfsm ) &
-                   call idep(step_length, k, snow_params, qfields, &
+                   call idep(step_length, k, snow_params, qfields,  &
                    procs, dustact, aeroice, aerosol_procs)
 
-              if (pswitch%l_pgdep) call idep(step_length, k, graupel_params, qfields, &
+              if (pswitch%l_pgdep) call idep(step_length, k, graupel_params, qfields,  &
                    procs, dustact, aeroice, aerosol_procs)
 
               if (l_harrington .and. .not. l_onlycollect) call adjust_dep(dt, k, procs, qfields)
@@ -1261,7 +1283,7 @@ contains
                    procs, aeroice, dustact, aerosol_procs)
               if (pswitch%l_pgmlt .and. (.not. l_sigevap(k))) call melting(step_length, k, graupel_params, qfields, &
                    procs, aeroice, dustact, aerosol_procs)
-              if (pswitch%l_pimlt .and. (.not. l_sigevap(k))) call melting(step_length, k, ice_params, qfields, &
+              if (pswitch%l_pimlt .and. (.not. l_sigevap(k))) call melting(step_length, k, ice_params, qfields,     &
                    procs, aeroice, dustact, aerosol_procs)
 
            end if
@@ -1364,12 +1386,12 @@ contains
 
 
          !call update_q(qfields_mod, qfields, tend, l_fixneg=.true.)
-         call query_distributions(cloud_params, qfields, icall=2)
-         call query_distributions(rain_params, qfields, icall=2)
+         call query_distributions(cloud_params, qfields, cffields, icall=2)
+         call query_distributions(rain_params, qfields, cffields, icall=2)
          if (.not. l_warm_loc) then
-           call query_distributions(ice_params, qfields, icall=2)
-           call query_distributions(snow_params, qfields, icall=2)
-           call query_distributions(graupel_params, qfields, icall=2)
+           call query_distributions(ice_params, qfields, cffields, icall=2)
+           call query_distributions(snow_params, qfields, cffields, icall=2)
+           call query_distributions(graupel_params, qfields, cffields, icall=2)
          end if
 
        else ! Not in UM or not using Paul's cloud fraction in UM
@@ -1391,12 +1413,12 @@ contains
       !---------------------------------------------------------------
       ! Re-Determine (and possibly limit) size distribution
       !---------------------------------------------------------------
-        call query_distributions(cloud_params, qfields, icall=2)
-        call query_distributions(rain_params, qfields, icall=2)
+        call query_distributions(cloud_params, qfields, cffields, icall=2)
+        call query_distributions(rain_params, qfields, cffields, icall=2)
         if (.not. l_warm_loc) then
-          call query_distributions(ice_params, qfields, icall=2)
-          call query_distributions(snow_params, qfields, icall=2)
-          call query_distributions(graupel_params, qfields, icall=2)
+          call query_distributions(ice_params, qfields, cffields, icall=2)
+          call query_distributions(snow_params, qfields, cffields, icall=2)
+          call query_distributions(graupel_params, qfields, cffields, icall=2)
         end if
 
         if (l_process) then
@@ -1459,12 +1481,12 @@ contains
                   !---------------------------------------------------------------
                   ! Re-Determine (and possibly limit) size distribution
                   !---------------------------------------------------------------
-                  call query_distributions(cloud_params, qfields, icall=nsed+2)
-                  call query_distributions(rain_params, qfields, icall=nsed+2)
+                  call query_distributions(cloud_params, qfields, cffields, icall=nsed+2)
+                  call query_distributions(rain_params, qfields, cffields, icall=nsed+2)
                   if (.not. l_warm_loc) then
-                     call query_distributions(ice_params, qfields, icall=nsed+2)
-                     call query_distributions(snow_params, qfields, icall=nsed+2)
-                     call query_distributions(graupel_params, qfields, icall=nsed+2)
+                     call query_distributions(ice_params, qfields, cffields, icall=nsed+2)
+                     call query_distributions(snow_params, qfields, cffields, icall=nsed+2)
+                     call query_distributions(graupel_params, qfields, cffields, icall=nsed+2)
                   end if
 
                   !-------------------------------
@@ -1609,7 +1631,7 @@ contains
                      !---------------------------------------------------------------
                      ! Re-Determine (and possibly limit) size distribution
                      !---------------------------------------------------------------
-                     call query_distributions(cloud_params, qfields, icall=nsed+2)
+                     call query_distributions(cloud_params, qfields, cffields, icall=nsed+2)
                      !-------------------------------
                      ! Re-Derive aerosol distribution
                      ! parameters
@@ -1660,7 +1682,7 @@ contains
                      !---------------------------------------------------------------
                      ! Re-Determine (and possibly limit) size distribution
                      !---------------------------------------------------------------
-                     call query_distributions(rain_params, qfields, icall=nsed+2)
+                     call query_distributions(rain_params, qfields, cffields, icall=nsed+2)
                      !-------------------------------
                      ! Re-Derive aerosol distribution
                      ! parameters
@@ -1711,7 +1733,7 @@ contains
                         !---------------------------------------------------------------
                         ! Re-Determine (and possibly limit) size distribution
                         !---------------------------------------------------------------
-                        call query_distributions(ice_params, qfields, icall=nsed+2)
+                        call query_distributions(ice_params, qfields, cffields, icall=nsed+2)
                         !-------------------------------
                         ! Re-Derive aerosol distribution
                         ! parameters
@@ -1758,7 +1780,7 @@ contains
                         !---------------------------------------------------------------
                         ! Re-Determine (and possibly limit) size distribution
                         !---------------------------------------------------------------
-                        call query_distributions(snow_params, qfields, icall=nsed+2)
+                        call query_distributions(snow_params, qfields, cffields, icall=nsed+2)
                         ! !-------------------------------
                         ! ! Re-Derive aerosol distribution
                         ! ! parameters
@@ -1807,7 +1829,7 @@ contains
                         !---------------------------------------------------------------
                         ! Re-Determine (and possibly limit) size distribution
                         !---------------------------------------------------------------
-                        call query_distributions(graupel_params, qfields, icall=nsed+2)
+                        call query_distributions(graupel_params, qfields, cffields, icall=nsed+2)
                         !-------------------------------
                         ! Re-Derive aerosol distribution
                         ! parameters
@@ -1885,12 +1907,12 @@ contains
         !---------------------------------------------------------------
         ! Re-Determine (and possibly limit) size distribution
         !---------------------------------------------------------------
-        call query_distributions(cloud_params, qfields, icall=nsubseds+3)
-        call query_distributions(rain_params, qfields, icall=nsubseds+3)
+        call query_distributions(cloud_params, qfields, cffields, icall=nsubseds+3)
+        call query_distributions(rain_params, qfields, cffields, icall=nsubseds+3)
         if (.not. l_warm_loc) then
-          call query_distributions(ice_params, qfields, icall=nsubseds+3)
-          call query_distributions(snow_params, qfields, icall=nsubseds+3)
-          call query_distributions(graupel_params, qfields, icall=nsubseds+3)
+          call query_distributions(ice_params, qfields, cffields, icall=nsubseds+3)
+          call query_distributions(snow_params, qfields, cffields, icall=nsubseds+3)
+          call query_distributions(graupel_params, qfields, cffields, icall=nsubseds+3)
         end if
      end if
   end do

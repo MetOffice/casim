@@ -4,9 +4,10 @@ module ice_multiplication
   use aerosol_routines, only: aerosol_phys, aerosol_chem, aerosol_active
   use passive_fields, only: TdegC
   use mphys_parameters, only: ice_params, snow_params, graupel_params, dN_hallet_mossop, M0_hallet_mossop
-  use thresholds, only: thresh_small
+  use thresholds, only: thresh_small, cfliq_small
   use m3_incs, only: m3_inc_type2
   use distributions, only: dist_lambda, dist_mu, dist_n0
+  use mphys_switches, only: l_prf_cfrac, i_cfs, i_cfg, i_cfl, mpof
 
   implicit none
 
@@ -25,7 +26,7 @@ contains
   !> AEROSOL: All aerosol sinks/sources are assumed to come from soluble modes
   !
   !> OPTIMISATION POSSIBILITIES:
-  subroutine hallet_mossop(dt, k, qfields, procs, aerophys, aerochem, aeroact , aerosol_procs)
+  subroutine hallet_mossop(dt, k, qfields, cffields, procs, aerophys, aerochem, aeroact , aerosol_procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -36,6 +37,7 @@ contains
     real(wp), intent(in) :: dt
     integer, intent(in) :: k
     real(wp), intent(in), target :: qfields(:,:)
+    real(wp), intent(in) :: cffields(:,:)
     type(process_rate), intent(inout), target :: procs(:,:)
 
     ! aerosol fields
@@ -55,7 +57,8 @@ contains
     real(wp) :: dmass_s, dmass_g      ! mass conversion rate from snow/graupel
     real(wp) :: n0, lam, mu
     real(wp) :: Eff  !< splintering efficiency
-
+    real(wp) :: cf_snow, cf_graupel, cf_liquid, overlap_cfsnow, overlap_cfgraupel
+    
     type(process_name) :: iproc ! processes selected depending on which species we're modifying
 
     character(len=*), parameter :: RoutineName='HALLET_MOSSOP'
@@ -69,20 +72,53 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+
     if (.not. ice_params%l_2m) then
       IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
       return
     end if
+
+    if (l_prf_cfrac) then
+      if (cffields(k,i_cfl) .gt. cfliq_small) then
+        cf_liquid=cffields(k,i_cfl)
+      else
+        cf_liquid=cfliq_small !nonzero value - maybe move cf test higher up
+      endif
+      if (cffields(k,i_cfs) .gt. cfliq_small) then
+        cf_snow=cffields(k,i_cfs)
+      else
+        cf_snow=cfliq_small !nonzero value - maybe move cf test higher up
+      endif
+      if (cffields(k,i_cfg) .gt. cfliq_small) then
+        cf_graupel=cffields(k,i_cfg)
+      else
+        cf_graupel=cfliq_small !nonzero value - maybe move cf test higher up
+      endif
+    else
+      cf_snow=1.0
+      cf_graupel=1.0
+      cf_liquid=1.0
+    endif
+
+
+
+   !use mixed-phase overlap function
+    overlap_cfsnow=min(1.0,max(0.0,mpof*min(cf_liquid, cf_snow) +  max(0.0,(1.0-mpof)*(cf_liquid+cf_snow-1.0))))
+    overlap_cfgraupel=min(1.0,max(0.0,mpof*min(cf_liquid, cf_graupel) +  max(0.0,(1.0-mpof)*(cf_liquid+cf_graupel-1.0))))
+
+
+
 
     Eff=1.0 - abs(TdegC(k) + 5.0)/2.5 ! linear increase between -2.5/-7.5 and -5C
 
     if (Eff > 0.0) then
       sacw=0.0
       gacw=0.0
-      if (snow_params%i_1m > 0)   sacw=procs(snow_params%i_1m, i_sacw%id)%column_data(k)
-      if (graupel_params%i_1m > 0) gacw=procs(graupel_params%i_1m, i_gacw%id)%column_data(k)
+      !! should use cf_overlap as in ice accretion
+      if (snow_params%i_1m > 0)   sacw=procs(snow_params%i_1m, i_sacw%id)%column_data(k)        / overlap_cfsnow  !insnow process rate
+      if (graupel_params%i_1m > 0) gacw=procs(graupel_params%i_1m, i_gacw%id)%column_data(k)    / overlap_cfgraupel ! ingraupel process rate
 
-      if ((sacw + gacw)*dt > thresh_small(snow_params%i_1m)) then
+      if ((sacw*overlap_cfsnow + gacw*overlap_cfgraupel)*dt > thresh_small(snow_params%i_1m)) then
         iproc=i_ihal
 
         dnumber_g=dN_hallet_mossop * Eff * (gacw) ! Number of splinters from graupel
@@ -91,20 +127,24 @@ contains
         dnumber_g=min(dnumber_g, 0.5*gacw/M0_hallet_mossop) ! don't remove more than 50% of rimed liquid
         dnumber_s=min(dnumber_s, 0.5*sacw/M0_hallet_mossop) ! don't remove more than 50% of rimed liquid
 
-        dmass_g=dnumber_g * M0_hallet_mossop
-        dmass_s=dnumber_s * M0_hallet_mossop
+        dmass_g=dnumber_g * M0_hallet_mossop  * overlap_cfgraupel  ! convert back to grid mean
+        dmass_s=dnumber_s * M0_hallet_mossop  * overlap_cfsnow ! convert back to grid mean
+        
+        dnumber_g=dnumber_g * overlap_cfgraupel  ! convert back to grid mean
+        dnumber_s=dnumber_s * overlap_cfsnow  ! convert back to grid mean
+        
 
         !-------------------
         ! Sources for ice...
         !-------------------
-        procs(ice_params%i_1m, iproc%id)%column_data(k)=dmass_g+dmass_s
-        procs(ice_params%i_2m, iproc%id)%column_data(k)=dnumber_g+dnumber_s
+        procs(ice_params%i_1m, iproc%id)%column_data(k)=dmass_g + dmass_s 
+        procs(ice_params%i_2m, iproc%id)%column_data(k)=dnumber_g + dnumber_s
 
         !-------------------
         ! Sinks for snow...
         !-------------------
         if (sacw > 0.0) then
-          procs(snow_params%i_1m, iproc%id)%column_data(k)=-dmass_s
+          procs(snow_params%i_1m, iproc%id)%column_data(k)=-dmass_s 
           procs(snow_params%i_2m, iproc%id)%column_data(k)=0.0
         end if
 
@@ -112,7 +152,7 @@ contains
         ! Sinks for graupel...
         !---------------------
         if (gacw > 0.0) then
-          procs(graupel_params%i_1m, iproc%id)%column_data(k)=-dmass_g
+          procs(graupel_params%i_1m, iproc%id)%column_data(k)=-dmass_g 
           procs(graupel_params%i_2m, iproc%id)%column_data(k)=0.0
         end if
 
