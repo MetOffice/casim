@@ -1,7 +1,7 @@
 module process_routines
   use variable_precision, only: wp
   use type_process, only: process_name, process_rate
-  use mphys_parameters, only: nprocs, naeroprocs, hydro_params, ZERO_REAL_WP
+  use mphys_parameters, only: hydro_params, ZERO_REAL_WP
 
   implicit none
 

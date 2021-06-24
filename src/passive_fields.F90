@@ -12,12 +12,20 @@ module passive_fields
   real(wp), allocatable :: z_half(:), z_centre(:), dz(:)
   real(wp), allocatable :: qws(:), qws0(:), TdegC(:), TdegK(:), w(:), tke(:)
 
+!$OMP THREADPRIVATE(rho, pressure, z, exner, rexner, z_half, z_centre, dz, &
+!$OMP               qws, qws0, TdegC, TdegK, w, tke)
+
   real(wp), allocatable :: rhcrit_1d(:)
+!$OMP THREADPRIVATE(rhcrit_1d)
 
   real(wp), allocatable :: rdz_on_rho(:)
+!$OMP THREADPRIVATE(rdz_on_rho)
+
   real(wp) :: dt
   real(wp) :: min_dz ! minimum vertical resolution
   integer :: kl, ku, nz
+
+!$OMP THREADPRIVATE(dt,min_dz,nz,kl,ku)
 
   character(len=*), parameter, private :: ModuleName='PASSIVE_FIELDS'
 

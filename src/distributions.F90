@@ -23,6 +23,8 @@ module distributions
   real(wp), allocatable :: dist_lams(:,:,:)
   real(wp), dimension(:), allocatable :: m1,m2, m3, m3_old
 
+!$OMP THREADPRIVATE(dist_lambda, dist_mu, dist_n0, dist_lams, m1,m2,m3,m3_old)
+
   public query_distributions, initialise_distributions, dist_lambda, dist_mu, dist_n0, dist_lams
 contains
 
@@ -211,24 +213,27 @@ contains
 
     end do
 
-!     ! If we diagnose a mu out of bounds, then reset m3
+!    ! If we diagnose a mu out of bounds, then reset m3
 !     if (params%l_3m) then
 !       do k=1, nz
 !         if (qfields(k, i1) .gt. 0.0) then
 !           if (dist_mu(k,ispec)<0.0 .or. mu_pass < 0.0) then
 !             mu_old=dist_mu(k,ispec)
 !             dist_mu(k,ispec)=0.0
-!             call get_lam_n0(m1(k), m2(k), params, dist_lambda(k,ispec), dist_n0(k,ispec))
+!             call get_lam_n0(m1(k), m2(k), m3(k), params, dist_mu(k,ispec), dist_lambda(k,ispec), &
+!                  dist_n0(k,ispec))
 !             m3(k)=moment(dist_n0(k,ispec),dist_lambda(k,ispec),dist_mu(k,ispec),params%p3)
 !             qfields(k,i3)=m3(k)
 ! #if VERBOSE==1
 !             write(std_msg, *) 'WARNING: resetting negative mu',  mu_old, m1(k), m2(k), m3(k), m3_old(k)
 !             call throw_mphys_error(warn, ModuleName//':'//RoutineName, std_msg)
 ! #endif
-!           else if (.not. l_limit_psd .and. (dist_mu(k,ispec) + epsilon(1.0) > max_mu .or. mu_pass +epsilon(1.0) > max_mu)) then
+!           else if (.not. l_limit_psd .and. &
+!                (dist_mu(k,ispec) + epsilon(1.0) > max_mu .or. mu_pass +epsilon(1.0) > max_mu)) then
 !             mu_old=dist_mu(k,ispec)
 !             dist_mu(k,ispec)=max_mu
-!             call get_lam_n0(m1(k), m2(k), params, dist_lambda(k,ispec), dist_n0(k,ispec))
+!             call get_lam_n0(m1(k), m2(k), m3(k), params, dist_mu(k,ispec), dist_lambda(k,ispec), &
+!                  dist_n0(k,ispec))
 !             m3(k)=moment(dist_mu(k,ispec),dist_lambda(k,ispec),dist_mu(k,ispec),params%p3)
 !             qfields(k,i3)=m3(k)
 ! #if VERBOSE==1

@@ -103,22 +103,22 @@ contains
              dnumber2 = dnumber1
           endif
 
-!!$          if (l_3mr) then
-!!$             dm1=dt*dmass/rain_params%c_x
-!!$             dm2=dt*dnumber2
-!!$             p1=rain_params%p1
-!!$             p2=rain_params%p2
-!!$             p3=rain_params%p3
-!!$             call m3_inc_type3(p1, p2, p3, dm1, dm2, dm3, mu_aut)
-!!$             dm3=dm3/dt
-!!$          end if
+          ! if (l_3mr) then
+          !    dm1=dt*dmass/rain_params%c_x
+          !    dm2=dt*dnumber2
+          !    p1=rain_params%p1
+          !    p2=rain_params%p2
+          !    p3=rain_params%p3
+          !    call m3_inc_type3(p1, p2, p3, dm1, dm2, dm3, mu_aut)
+          !    dm3=dm3/dt
+          ! end if
 
 !convert back to grid mean
       dmass=dmass*cf_liquid
       dnumber1=dnumber1*cf_liquid
       dnumber2=dnumber2*cf_liquid
       cloud_mass=cloud_mass*cf_liquid !for aerosol processing below
-!!
+
           procs(i_ql, i_praut%id)%column_data(k)=-dmass
           procs(i_qr, i_praut%id)%column_data(k)=dmass
 
@@ -128,9 +128,9 @@ contains
           if (rain_params%l_2m) then
              procs(i_nr, i_praut%id)%column_data(k)=dnumber2
           end if
-!!$          if (rain_params%l_3m) then
-!!$             procs(k, i_praut%id)%source(i_m3r)=dm3
-!!$          end if
+          ! if (rain_params%l_3m) then
+          !    procs(i_m3r, i_praut%id)%column_data(k)=dm3
+          ! end if
           
           if (l_separate_rain) then
              if (l_aaut .and. l_process) then

@@ -16,6 +16,8 @@ module gauss_casim_micro
   real(wp) :: gaussfunc_save_2D(nbins_a,maxq)
   logical :: l_save_2D(nbins_a,maxq) = .false.
 
+!$OMP THREADPRIVATE(gaussfunc_save, gaussfunc_save_2D, l_save_2D)
+
   character(len=*), parameter, private :: ModuleName='GAUSS_CASIM_MICRO'
 
   public gauss_casim_func, gaussfunclookup, gaussfunclookup_2d

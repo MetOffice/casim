@@ -1,5 +1,5 @@
 MODULE casim_moments_mod
-
+!#if DEF_MODEL==UM
 ! Equivalent of lsp_moments on the UM side
 use variable_precision, only: wp
 
@@ -349,4 +349,5 @@ END IF  ! l_psd_global
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 RETURN
 END SUBROUTINE casim_moments
+!#endif
 END MODULE casim_moments_mod

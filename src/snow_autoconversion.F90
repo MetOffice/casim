@@ -136,12 +136,12 @@ contains
       end if
 
       if (dmass*dt * cf_ice > thresh_small(i_qs)) then
-        if (snow_params%l_3m) then
-          dm1=dt*dmass/snow_params%c_x
-          dm2=dt*dnumber
-          call m3_inc_type3(p1, p2, p3, dm1, dm2, dm3, mu_saut)
-          dm3=dm3/dt
-        end if
+        ! if (snow_params%l_3m) then
+        !   dm1=dt*dmass/snow_params%c_x
+        !   dm2=dt*dnumber
+        !   call m3_inc_type3(p1, p2, p3, dm1, dm2, dm3, mu_saut)
+        !   dm3=dm3/dt
+        ! end if
 
         dmass=dmass*cf_ice! convert back to grid box mean
         dnumber=dnumber*cf_ice! convert back to grid box mean
@@ -155,9 +155,9 @@ contains
         if (snow_params%l_2m) then
           procs(i_ns, i_saut%id)%column_data(k)=dnumber   
         end if
-        if (snow_params%l_3m) then
-          procs(i_m3s, i_saut%id)%column_data(k)=dm3
-        end if
+        ! if (snow_params%l_3m) then
+        !   procs(i_m3s, i_saut%id)%column_data(k)=dm3
+        ! end if
       end if
       !==============================
       ! No aerosol processing needed

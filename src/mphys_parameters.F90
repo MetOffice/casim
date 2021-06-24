@@ -7,14 +7,10 @@ module mphys_parameters
   ! some numbers
   integer :: nz ! number of levels
   integer :: nq ! number of q fields
-  integer :: naero ! number of aerosol fields
+
+!$OMP THREADPRIVATE(nz,nq)
+
   integer, parameter :: nspecies = 5 ! Number of different hyrdrometeors
-
-  integer :: nprocs     ! number of process rates stored
-  integer :: naeroprocs ! number of process rates stored
-
-  real(wp) :: parent_dt ! Parent model timestep
-  !$OMP THREADPRIVATE(nprocs, naeroprocs)
 
   type hydro_params
      integer  :: id                 ! identifier unique to species
@@ -311,6 +307,8 @@ module mphys_parameters
   real(wp) :: b_i=1.0
   real(wp), allocatable :: a_s(:)
   real(wp), allocatable :: b_s(:)
+
+!$OMP THREADPRIVATE(a_s, b_s)
 
   ! mass-diameter
   real(wp) :: c_r=pi*997.0/6.0

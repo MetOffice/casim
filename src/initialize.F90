@@ -3,7 +3,7 @@ module initialize
   use variable_precision, only: wp
   use lookup, only: set_mu_lookup, mu_i, mu_g, mu_i_sed, mu_g_sed, nmu
   use derived_constants, only: set_constants
-  use mphys_parameters, only: p1, p2, p3, sp1, sp2, sp3, nprocs, naeroprocs, snow_params
+  use mphys_parameters, only: p1, p2, p3, sp1, sp2, sp3, snow_params
   use mphys_switches, only: option, aerosol_option, l_warm, hydro_complexity, aero_complexity, cloud_params, &
        rain_params, ice_params, snow_params, graupel_params,&
        iopt_act, l_g, l_sg, l_override_checks, i_am10, i_an10, &
@@ -74,9 +74,12 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+!$OMP SINGLE
+
     call check_options()
     call set_constants()
 
+!$OMP END SINGLE
 
     ! Set grid extents to operate on
     if (present(is_in)) is=is_in
@@ -103,13 +106,18 @@ contains
     call initialise_micromain(il, iu, jl, ju, kl, ku, is, ie, js, je, ks, ke, l_tendency_loc)
 
     call initialise_sedr()
-    
+
+!$OMP SINGLE
     call initialise_lookup_tables()
+!$OMP END SINGLE
+
     !Gaussfunc
     call gaussfunclookup(snow_params%id, tmp, a=snow_params%fix_mu, b=snow_params%d_x, init=.true.)
 
+!$OMP SINGLE
     !Initialise the gamma function so not calced on every timestep
     call gamma_initialize()
+!$OMP END SINGLE
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 

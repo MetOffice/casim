@@ -1,7 +1,7 @@
 module micro_main
   use variable_precision, only: wp
-  use mphys_parameters, only: nz, nq, naero, nprocs, naeroprocs, rain_params, cloud_params, ice_params, &
-       snow_params, graupel_params, nspecies, parent_dt, ZERO_REAL_WP, a_s, b_s
+  use mphys_parameters, only: nz, nq, rain_params, cloud_params, ice_params, &
+       snow_params, graupel_params, nspecies, ZERO_REAL_WP, a_s, b_s
   use process_routines, only: process_rate, zero_procs, allocate_procs, deallocate_procs, i_cond, i_praut, &
        i_pracw, i_pracr, i_prevp, i_psedr, i_psedl, i_aact, i_aaut, i_aacw, i_aevp, i_asedr, i_asedl, i_arevp, &
        i_tidy, i_tidy2, i_atidy, i_atidy2, i_inuc, i_idep, i_dnuc, i_dsub, i_saut, i_iacw, i_sacw, i_pseds, &
@@ -9,7 +9,7 @@ module micro_main
        i_gshd, i_ihal, i_smlt, i_gmlt, i_psedi, i_homr, i_homc, i_imlt, i_isub, i_ssub, i_gsub, i_sbrk, i_dssub, &
        i_dgsub, i_dsedi, i_dseds, i_dsedg, i_dimlt, i_dsmlt, i_dgmlt, i_diacw, i_dsacw, i_dgacw, i_dsacr, &
        i_dgacr, i_draci, process_name
-  use sum_process, only: sum_procs, sum_aprocs
+  use sum_process, only: sum_procs, sum_aprocs, tend_temp, aerosol_tend_temp
   use aerosol_routines, only: examine_aerosol, aerosol_phys, aerosol_chem, aerosol_active, allocate_aerosol, &
        deallocate_aerosol
   use mphys_switches, only: hydro_complexity, aero_complexity, i_qv, i_ql, i_nl, i_qr, i_nr, i_m3r, i_th, i_qi, &
@@ -19,12 +19,8 @@ module micro_main
        l_inuc, l_sed, l_condensation, l_iaut, l_imelt, l_iacw, l_idep, aero_index, nq_l, nq_r, nq_i, nq_s, nq_g, &
        l_sg, l_g, l_process, l_halletmossop, max_sed_length, max_step_length, l_harrington, l_passive, ntotala, ntotalq, &
        active_number, isol, iinsol, l_raci_g, l_onlycollect, l_pracr, pswitch, l_isub, l_pos1, l_pos2, l_pos3, l_pos4, &
-       l_pos5, l_pos6, i_hstart, nsubsteps, nsubseds, l_tidy_negonly, inv_nsubsteps, inv_nsubseds, inv_allsubs, &
-       iopt_act, iopt_shipway_act, l_prf_cfrac, l_kfsm,l_rain, inv_nsubseds_cloud, inv_nsubseds_ice, inv_nsubseds_rain, &
-       inv_nsubseds_snow, inv_nsubseds_graupel, inv_allsubs_cloud, inv_allsubs_ice, inv_allsubs_rain, &
-       inv_allsubs_snow, inv_allsubs_graupel,  nsubseds_cloud, nsubseds_ice, nsubseds_rain, &
-       nsubseds_snow, nsubseds_graupel,l_gamma_online, l_subseds_maxv , &
-       i_cfl, i_cfr, i_cfi, i_cfs, i_cfg 
+       l_pos5, l_pos6, i_hstart, l_tidy_negonly, iopt_act, iopt_shipway_act, l_prf_cfrac, l_kfsm,l_rain, &
+       l_gamma_online, l_subseds_maxv, i_cfl, i_cfr, i_cfi, i_cfs, i_cfg 
   use passive_fields, only: rexner, min_dz
   use mphys_constants, only: cp, Lv, Ls
   use distributions, only: query_distributions, initialise_distributions, dist_lambda, dist_mu, dist_n0, dist_lams
@@ -82,42 +78,55 @@ module micro_main
   logical :: l_tendency_loc
   logical :: l_warm_loc
 
+!$OMP THREADPRIVATE(l_tendency_loc, l_warm_loc)
+
   integer :: is, ie ! upper and lower i levels which are to be used
   integer :: js, je ! upper and lower j levels
   integer :: ks, ke ! upper and lower k levels
 
+!$OMP THREADPRIVATE(is,ie,js,je,ks,ke)
+!  integer :: nxny
   real(wp), allocatable, save :: precip(:,:) ! diagnostic for surface precip rate
   real(wp), allocatable :: dqfields(:,:), qfields(:,:), tend(:,:)
   real(wp), allocatable :: daerofields(:,:), aerofields(:,:), aerosol_tend(:,:)
-
   real(wp), allocatable :: cffields(:,:) !cloudfraction fields
+
+!$OMP THREADPRIVATE(precip, dqfields, qfields, cffields, tend,                   &
+!$OMP               daerofields, aerofields, aerosol_tend)
 
   type(process_rate), allocatable :: procs(:,:)
   type(process_rate), allocatable :: aerosol_procs(:,:)
+
+!$OMP THREADPRIVATE(procs, aerosol_procs)
 
   type(aerosol_active), allocatable :: aeroact(:)
   type(aerosol_phys), allocatable   :: aerophys(:)
   type(aerosol_chem), allocatable   :: aerochem(:)
 
+!$OMP THREADPRIVATE(aeroact, aerophys, aerochem)
+
   type(aerosol_active), allocatable :: dustact(:)
   type(aerosol_phys), allocatable   :: dustphys(:)
   type(aerosol_chem), allocatable   :: dustchem(:)
 
+!$OMP THREADPRIVATE(dustact, dustphys, dustchem)
+
   type(aerosol_active), allocatable :: aeroice(:)  ! Soluble aerosol in ice
   type(aerosol_active), allocatable :: dustliq(:)! Insoluble aerosol in liquid
+
+!$OMP THREADPRIVATE(aeroice, dustliq)
 
   real(wp), allocatable :: qfields_in(:,:)
   real(wp), allocatable :: qfields_mod(:,:)
   real(wp), allocatable :: aerofields_in(:,:)
   real(wp), allocatable :: aerofields_mod(:,:)
 
+!$OMP THREADPRIVATE(qfields_in, qfields_mod, aerofields_in, aerofields_mod)
+
   logical, allocatable :: l_Tcold(:) ! temperature below freezing, i.e. .not. l_Twarm
   logical, allocatable :: l_sigevap(:) ! logical to determine significant evaporation
 
-  real(wp) :: sed_length, sed_length_cloud, sed_length_rain, sed_length_ice, sed_length_snow &
-         , sed_length_graupel
-
-  real(wp) :: step_length
+!$OMP THREADPRIVATE(l_Tcold, l_sigevap)
 
   real :: DTPUD ! Time step for puddle diagnostic
 
@@ -158,9 +167,9 @@ contains
 
     integer :: n, k, i, j, imode
 
-    integer :: NTHREADS, TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM
-
-    integer, parameter :: CHUNKSIZE=10
+    integer :: nprocs     ! number of process rates stored
+    integer :: naeroprocs ! number of process rates stored
+    integer :: naero      ! number of aerosol fields
 
     real(wp) :: rain_number
     real(wp) :: rain_mass
@@ -205,6 +214,7 @@ contains
     nq=sum(hydro_complexity%nmoments)+2 ! also includes vapour and theta
     nz=ke-ks+1
     nprocs = hydro_complexity%nprocesses
+    !nxny=(ie-is+1)*(je-js+1)
 
     allocate(precondition(nz))
     precondition=.true. ! Assume all points need to be considered
@@ -219,7 +229,7 @@ contains
     !allocate(procs(nz, nprocs))
     allocate(procs(ntotalq, nprocs))
     allocate(tend(nz, nq))
-    
+    allocate(tend_temp(nz,nq))
     allocate(cffields(nz,5)) !5 'cloud' fractions
     cffields=ZERO_REAL_WP
 
@@ -234,12 +244,14 @@ contains
       ! allocate(aerosol_procs(nz, naeroprocs))
       allocate(aerosol_procs(ntotala, naeroprocs))
       allocate(aerosol_tend(nz, naero))
+      allocate(aerosol_tend_temp(nz, naero))
     else
       ! Dummy arrays required
       allocate(aerofields(1,1))
       allocate(daerofields(1,1))
       allocate(aerosol_procs(1,1))
       allocate(aerosol_tend(1,1))
+      allocate(aerosol_tend_temp(1,1))
     end if
 
     allocate(aerophys(nz))
@@ -254,7 +266,6 @@ contains
 
     allocate(aeroice(nz))
     allocate(dustliq(nz))
-
 
     ! Preserve initial values for non-Shipway activation
     if ( iopt_act == iopt_shipway_act ) then
@@ -303,11 +314,13 @@ contains
     call condevp_initialise()
 ! Here we initialise some things for the Shipway(2015) aerosol activation.
 
+!$OMP SINGLE
     if ( iopt_act == iopt_shipway_act ) then
       call generate_tables()
     end if
 
     call setup_reflec_constants()
+!$OMP END SINGLE
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
@@ -340,6 +353,7 @@ contains
     deallocate(procs)
     deallocate(qfields)
     deallocate(tend)
+    deallocate(tend_temp)
     deallocate(precondition)
     deallocate(cffields)
     
@@ -359,6 +373,7 @@ contains
     deallocate(dustact)
     deallocate(aerosol_procs)
     deallocate(aerosol_tend)
+    deallocate(aerosol_tend_temp)
     deallocate(aerofields)
     deallocate(daerofields)
     deallocate(rhcrit_1d)
@@ -519,10 +534,7 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-    ! Save parent model timestep for later use (e.g. in diagnostics)
-    parent_dt=dt
-
-    if (casim_parent /= parent_kid) casim_time = casim_time + parent_dt
+    if (casim_parent == parent_monc) casim_time = casim_time + dt
     ! (In the KiD model, casim_time is set to variable 'time')
 
 ! #if DEF_MODEL==MODEL_KiD
@@ -543,12 +555,13 @@ contains
 !     !    l_sed=.true.
 !     ! endif
 ! #endif
-    do i=is,ie
 
-      do j=js,je
+    do j=js_in,je_in
 
-        i_here = i
-        j_here = j
+      do i=is_in,ie_in
+
+!        i_here = i
+!        j_here = j
 
         precip_l = 0.0
         precip_r = 0.0
@@ -903,7 +916,10 @@ contains
     type(process_rate), intent(inout), optional :: aerosol_procs(:,:)
 
     real(wp) :: step_length
-    real(wp) :: sed_length
+
+    real(wp) :: sed_length, sed_length_cloud, sed_length_rain, sed_length_ice, sed_length_snow &
+      , sed_length_graupel
+
     integer :: n, k, nsed, iq
 
     logical :: l_Twarm   ! temperature above freezing
@@ -926,6 +942,19 @@ contains
     real(wp) :: precip_g_w1d(nz) ! Graupel precip 1D
     real(wp) :: precip_s_w1d(nz) ! Snow precip
 
+    integer :: nsubsteps, nsubseds
+
+    real :: inv_nsubsteps, inv_nsubseds, inv_allsubs
+    ! inverse number of substeps for each hydrometor
+    real :: inv_nsubseds_cloud, inv_nsubseds_ice, inv_nsubseds_rain,           &
+      inv_nsubseds_snow, inv_nsubseds_graupel
+    real :: inv_allsubs_cloud, inv_allsubs_ice, inv_allsubs_rain,              &
+      inv_allsubs_snow, inv_allsubs_graupel
+
+    ! number of substeps for each hydrometor
+    integer :: nsubseds_cloud, nsubseds_ice, nsubseds_rain,                    &
+      nsubseds_snow, nsubseds_graupel
+
     character(len=*), parameter :: RoutineName='MICROPHYSICS_COMMON'
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
@@ -941,16 +970,18 @@ contains
     qfields_mod=qfields ! Modified initial values of q (may be modified if bad values sent in)
 
     !! AH - Derive the number of microphysical substeps. The default 
-    !!      max_step_length = 10.0 s and is set in mphys_switches 
+    !!      max_step_length = 10.0 s in MONC (default) and 120 s in the UM. 
+    !!      This is set in mphys_switches 
 
     nsubsteps=max(1, ceiling(dt/max_step_length))
     step_length=dt/nsubsteps
     inv_nsubsteps = 1.0 / real(nsubsteps)
 
     
-    !! AH - Derive the maximum number of sedimentation substeps, which . The default
-    !!      are performed every microphysics step. max_sed_length = 2.0 s and 
-    !!      is set in mphys_switches. If timestep is longer than max_sed_length 
+    !! AH - Derive the maximum number of sedimentation substeps, which
+    !!      are performed every microphysics step. max_sed_length = 2.0 s for MONC 
+    !!      and 120 s for the UM and is set in mphys_switches. 
+    !!      If step_length (the microphysical timestep) is longer than max_sed_length 
     !!      then the sedimentation will substep
 
     nsubseds=max(1, ceiling(step_length/max_sed_length))
@@ -1117,8 +1148,13 @@ contains
        !-------------------------------
        ! Do the evaporation of rain
        !-------------------------------
-       if (pswitch%l_prevp) call revp(step_length, nz, qfields, aerofields, aerophys, aerochem, &
-               aeroact, dustliq, procs, aerosol_procs, l_sigevap)
+       if (pswitch%l_prevp) then
+          !! initialise l_sigevap to false for all levels so that previous 
+          !! "trues" are not included when rain_precondition is false
+          l_sigevap(:) = .false.
+          call revp(step_length, nz, qfields, aerofields, aerophys, &
+               aerochem, aeroact, dustliq, procs, aerosol_procs, l_sigevap)
+       endif
 
        !=================================
        !
@@ -2332,18 +2368,6 @@ contains
         casdiags % pracw(i,j,:) = ZERO_REAL_WP
       END IF
     END IF
-
-! #if DEF_MODEL==MODEL_KiD
-!     IF (casdiags % l_pracw) THEN
-!         IF (pswitch%l_pracw) THEN
-!            DO k = ks, ke
-!               kc = k - ks + 1
-!               call save_dg(k, casdiags % pracw(i,j,k) , 'pracw', i_dgtime) 
-!            END DO
-!         END IF
-!      END IF
-! #endif
-
     IF (casdiags % l_prevp) THEN
       IF (pswitch%l_prevp) THEN
         DO k = ks, ke
@@ -2355,6 +2379,61 @@ contains
       END IF
     END IF
 
+! #if DEF_MODEL==MODEL_KiD
+!      IF (casdiags % l_praut) THEN
+!        IF (pswitch%l_praut) THEN
+!           DO k = ks, ke
+!              kc = k - ks + 1
+!              call save_dg(k, casdiags % praut(i,j,k) , 'praut', i_dgtime)
+!           END DO
+!        ENDIF
+!     ENDIF
+    
+!     IF (casdiags % l_pracw) THEN
+!         IF (pswitch%l_pracw) THEN
+!            DO k = ks, ke
+!               kc = k - ks + 1
+!               call save_dg(k, casdiags % pracw(i,j,k) , 'pracw', i_dgtime) 
+!            END DO
+!         END IF
+!      END IF
+
+!      IF (casdiags % l_prevp) THEN
+!         IF (pswitch%l_prevp) THEN
+!            DO k = ks, ke
+!               kc = k - ks + 1
+!               call save_dg(k, casdiags % prevp(i,j,k) , 'prevp', i_dgtime) 
+!             END DO
+!         END IF
+!      END IF
+
+!      IF (casdiags % l_psedr) THEN
+!         IF (pswitch%l_psedr) THEN
+!            DO k = ks, ke
+!               kc = k - ks + 1
+!               call save_dg(k, procs(rain_params%i_1m,i_psedr%id)%column_data(kc) , 'psedr', i_dgtime) 
+!            END DO
+!         END IF
+!      END IF
+
+!      IF (casdiags % l_psedl) THEN
+!         IF (pswitch%l_psedl) THEN
+!            DO k = ks, ke
+!               kc = k - ks + 1
+!               call save_dg(k, procs(cloud_params%i_1m,i_psedl%id)%column_data(kc) , 'psedl', i_dgtime) 
+!            END DO
+!         END IF
+!      END IF
+     
+!      IF (casdiags % l_pracr) THEN
+!         IF (pswitch%l_pracr) THEN
+!            DO k = ks, ke
+!               kc = k - ks + 1
+!               call save_dg(k, procs(rain_params%i_1m,i_pracr%id)%column_data(kc), 'pracr', i_dgtime) 
+!            END DO
+!         END IF
+!      END IF
+! #endif
     IF (casdiags % l_pgacw) THEN
       IF (pswitch%l_pgacw) THEN
         DO k = ks, ke

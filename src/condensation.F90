@@ -35,6 +35,8 @@ module condensation
       real(wp), allocatable :: dnccn_all(:),dmac_all(:)
       real(wp), allocatable :: dnccnd_all(:),dmad_all(:)
 
+!$OMP THREADPRIVATE(dnccn_all, dmac_all, dnccnd_all, dmad_all)
+
   public condevp_initialise, condevp_finalise, condevp
 !PRF
   public dnccn_all, dmac_all, dnccnd_all, dmad_all

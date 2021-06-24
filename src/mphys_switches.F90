@@ -3,7 +3,7 @@ module mphys_switches
   use mphys_parameters, only: cloud_params, rain_params, ice_params,           &
                               rain_params_orig, rain_params_kf,                &
                               ice_params_orig, ice_params_kf,                  &
-                              snow_params, graupel_params, naero, p1,p2,p3
+                              snow_params, graupel_params, p1,p2,p3
   use thresholds, only: thresh_small, th_small, qv_small, ql_small, qr_small, nl_small, nr_small, m3r_small, &
        qi_small, qs_small, ni_small, ns_small, m3s_small, qg_small, ng_small, m3g_small, thresh_tidy, &
        th_tidy, qv_tidy, ql_tidy, qr_tidy, nl_tidy, nr_tidy, m3r_tidy, qi_tidy, qs_tidy, ni_tidy, &
@@ -217,12 +217,6 @@ module mphys_switches
   ! substepping
   real(wp) :: max_step_length = 10.0
   real(wp) :: max_sed_length = 2.0
-
-  integer :: nsubsteps, nsubseds
-
-  ! number of substeps for each hydrometor
-  integer :: nsubseds_cloud, nsubseds_ice, nsubseds_rain, &
-       nsubseds_snow, nsubseds_graupel
   
   ! Switch used to determine whether gamma functions  computed for each timestep (true) 
   ! or at initialisation. Default is false, since precomputing the gamma functions results in 
@@ -245,13 +239,6 @@ module mphys_switches
   real(wp) :: mpof = 0.5 
   
   
-
-  real :: inv_nsubsteps, inv_nsubseds, inv_allsubs
-  ! inverse number of substeps for each hydrometor
-  real :: inv_nsubseds_cloud, inv_nsubseds_ice, inv_nsubseds_rain, &
-       inv_nsubseds_snow, inv_nsubseds_graupel
-  real :: inv_allsubs_cloud, inv_allsubs_ice, inv_allsubs_rain, &
-       inv_allsubs_snow, inv_allsubs_graupel
 
   ! process switches
   ! Some of these switches are obsolete or inactive - review these

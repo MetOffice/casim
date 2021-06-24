@@ -30,13 +30,10 @@ module mphys_tidy
   logical :: l_tidym3 = .false.  ! Don't tidy based on m3 values
 
   real(wp), allocatable :: thresh(:), athresh(:), qin_thresh(:)
-  logical,  allocatable :: l_qpos(:), l_qpresent(:), l_qsmall(:), l_qsneg(:), l_qsig(:)
-  !    l_qpos: q variable is positive
-  !    l_qpresent: q variable is not zero
-  !    l_qsmall:   q variable is positive, but below tidy threshold
-  !    l_qsneg:    q variable is small or negative
-  logical,  allocatable :: l_apos(:), l_apresent(:), l_asmall(:), l_asneg(:), l_asig(:)
-  logical :: l_qice, l_qliquid, current_l_negonly, current_qin_l_negonly
+!$OMP THREADPRIVATE(thresh, athresh, qin_thresh)
+  
+  logical :: current_l_negonly, current_qin_l_negonly
+!$OMP THREADPRIVATE(current_l_negonly, current_qin_l_negonly)
 
   public initialise_mphystidy, finalise_mphystidy, qtidy, ensure_positive, ensure_saturated, tidy_qin, &
        tidy_ain, ensure_positive_aerosol
@@ -60,24 +57,16 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-    allocate(thresh(lbound(thresh_tidy,1):ubound(thresh_tidy,1)), qin_thresh(lbound(thresh_tidy,1):ubound(thresh_tidy,1)), &
-         l_qsig(0:ntotalq), l_qpos(0:ntotalq), l_qsmall(0:ntotalq), l_qsneg(0:ntotalq), l_qpresent(0:ntotalq))
+    allocate(thresh(lbound(thresh_tidy,1):ubound(thresh_tidy,1)), qin_thresh(lbound(thresh_tidy,1):ubound(thresh_tidy,1)))
 
     if (l_process) then
-      allocate(athresh(lbound(thresh_atidy,1):ubound(thresh_atidy,1)), l_asig(ntotala), l_apos(ntotala), &
-           l_asmall(ntotala), l_asneg(ntotala), l_apresent(ntotala))
+      allocate(athresh(lbound(thresh_atidy,1):ubound(thresh_atidy,1)))
     end if
 
     current_l_negonly=.true.
     call recompute_constants(.true.)
     current_qin_l_negonly=.true.
     call recompute_qin_constants(.true.)
-
-    l_qsig(0)=.false.
-    l_qpos(0)=.false.
-    l_qsmall(0)=.false.
-    l_qsneg(0)=.false.
-    l_qpresent(0)=.false.
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
@@ -161,9 +150,9 @@ contains
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     if (l_process) then
-      deallocate(l_asig, l_apresent, l_asneg, l_apos, l_asmall, athresh)
+      deallocate(athresh)
     end if
-    deallocate(l_qsig, l_qpresent, l_qsneg, l_qpos, l_qsmall, thresh, qin_thresh)
+    deallocate(thresh, qin_thresh)
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
@@ -195,6 +184,17 @@ contains
 
     real(wp) :: dmass, dnumber
 
+    logical :: l_qsig(0:ntotalq), l_qpos(0:ntotalq), l_qsmall(0:ntotalq), &
+      l_qsneg(0:ntotalq), l_qpresent(0:ntotalq)
+    !    l_qpos: q variable is positive
+    !    l_qpresent: q variable is not zero
+    !    l_qsmall:   q variable is positive, but below tidy threshold
+    !    l_qsneg:    q variable is small or negative
+
+    logical :: l_qice, l_qliquid
+
+    logical :: l_apos(ntotala), l_apresent(ntotala), l_asmall(ntotala), l_asneg(ntotala), l_asig(ntotala)
+
     integer :: iq, k
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
@@ -205,6 +205,12 @@ contains
     ! End of header, no more declarations beyond here
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+    l_qsig(0)=.false.
+    l_qpos(0)=.false.
+    l_qsmall(0)=.false.
+    l_qsneg(0)=.false.
+    l_qpresent(0)=.false.
     
     do k = 1, nz
     ql_reset=.false.
@@ -306,11 +312,11 @@ contains
       nr_reset=l_qsneg(i_nr) .or. (l_qsig(i_nr) .and. qr_reset)
       qr_reset=qr_reset .or. (l_qsig(i_qr) .and. nr_reset)
     end if
-    if (l_3mr .and. l_tidym3) then
-      m3r_reset=l_qsneg(i_m3r) .or. (l_qsig(i_m3r) .and. (qr_reset .or. nr_reset))
-      nr_reset=nr_reset .or. (l_qsig(i_nr) .and. m3r_reset)
-      qr_reset=qr_reset .or. (l_qsig(i_qr) .and. m3r_reset)
-    end if
+    ! if (l_3mr .and. l_tidym3) then
+    !   m3r_reset=l_qsneg(i_m3r) .or. (l_qsig(i_m3r) .and. (qr_reset .or. nr_reset))
+    !   nr_reset=nr_reset .or. (l_qsig(i_nr) .and. m3r_reset)
+    !   qr_reset=qr_reset .or. (l_qsig(i_qr) .and. m3r_reset)
+    ! end if
 
     if (.not. l_warm) then
       qi_reset=l_qsneg(i_qi)
@@ -324,22 +330,22 @@ contains
         ns_reset=l_qsneg(i_ns) .or. (l_qsig(i_ns) .and. qs_reset)
         qs_reset=qs_reset .or. (l_qsig(i_qs) .and. ns_reset)
       end if
-      if (l_3ms .and. l_tidym3) then
-        m3s_reset=l_qsneg(i_m3s) .or. (l_qsig(i_m3s) .and. (qs_reset .or. ns_reset))
-        ns_reset=ns_reset .or. (l_qsig(i_ns) .and. m3s_reset)
-        qs_reset=qs_reset .or. (l_qsig(i_qs) .and. m3s_reset)
-      end if
+      ! if (l_3ms .and. l_tidym3) then
+      !   m3s_reset=l_qsneg(i_m3s) .or. (l_qsig(i_m3s) .and. (qs_reset .or. ns_reset))
+      !   ns_reset=ns_reset .or. (l_qsig(i_ns) .and. m3s_reset)
+      !   qs_reset=qs_reset .or. (l_qsig(i_qs) .and. m3s_reset)
+      ! end if
 
       qg_reset=l_qsneg(i_qg)
       if (l_2mg) then
         ng_reset=l_qsneg(i_ng) .or. (l_qsig(i_ng) .and. qg_reset)
         qg_reset=qg_reset .or. (l_qsig(i_qg) .and. ng_reset)
       end if
-      if (l_3mg .and. l_tidym3) then
-        m3g_reset=l_qsneg(i_m3g) .or. (l_qsig(i_m3g) .and. (qg_reset .or. ng_reset))
-        ng_reset=ng_reset .or. (l_qsig(i_ng) .and. m3g_reset)
-        qg_reset=qg_reset .or. (l_qsig(i_qg) .and. m3g_reset)
-      end if
+      ! if (l_3mg .and. l_tidym3) then
+      !   m3g_reset=l_qsneg(i_m3g) .or. (l_qsig(i_m3g) .and. (qg_reset .or. ng_reset))
+      !   ng_reset=ng_reset .or. (l_qsig(i_ng) .and. m3g_reset)
+      !   qg_reset=qg_reset .or. (l_qsig(i_qg) .and. m3g_reset)
+      ! end if
     end if
 
     !===========================================================
@@ -448,9 +454,9 @@ contains
         dnumber=qfields(k, i_nr)/dt
         procs(i_nr,i_proc%id)%column_data(k)=-dnumber
       end if
-      ! ! if (l_3mr) then
-      ! !   procs(i_m3r,i_proc%id)%column_data(k)=-qfields(k, i_m3r)/dt
-      ! ! end if
+      ! if (l_3mr) then
+      !   procs(i_m3r,i_proc%id)%column_data(k)=-qfields(k, i_m3r)/dt
+      ! end if
       !--------------------------------------------------
       ! aerosol
       !--------------------------------------------------
@@ -518,9 +524,9 @@ contains
           dnumber=qfields(k, i_ns)/dt
           procs(i_ns,i_proc%id)%column_data(k)=-dnumber
         end if
-        ! ! if (l_3ms) then
-        ! !   procs(i_m3s,i_proc%id)%column_data(k)=-qfields(k, i_m3s)/dt
-        ! ! end if
+        ! if (l_3ms) then
+        !   procs(i_m3s,i_proc%id)%column_data(k)=-qfields(k, i_m3s)/dt
+        ! end if
         !--------------------------------------------------
         ! aerosol
         !--------------------------------------------------
@@ -549,9 +555,9 @@ contains
           dnumber=qfields(k, i_ng)/dt
           procs(i_ng,i_proc%id)%column_data(k)=-dnumber
         end if
-        ! ! if (l_3mg) then
-        ! !   procs(i_m3g,i_proc%id)%column_data(k)=-qfields(k, i_m3g)/dt
-        ! ! end if
+        ! if (l_3mg) then
+        !   procs(i_m3g,i_proc%id)%column_data(k)=-qfields(k, i_m3g)/dt
+        ! end if
         !--------------------------------------------------
         ! aerosol
         !--------------------------------------------------
@@ -680,12 +686,12 @@ contains
         qr_reset=qr_reset .or. (qfields(k, i_qr) > 0.0 .and. qfields(k, i_nr) <= 0.0)
       end if
 
-      if (l_3mr .and. l_tidym3) then
-        m3r_reset=qfields(k, i_m3r) < 0.0 .or. (qfields(k, i_m3r) < qin_thresh(i_m3r) .and. qfields(k, i_m3r) >0) .or. &
-             (qfields(k, i_m3r) > 0.0 .and. (qfields(k, i_qr) <=0.0 .or. qfields(k, i_nr) <=0.0))
-        qr_reset=qr_reset .or. (qfields(k, i_qr) > 0.0 .and. qfields(k, i_m3r) <= 0.0)
-        nr_reset=nr_reset .or. (qfields(k, i_nr) > 0.0 .and. qfields(k, i_m3r) <= 0.0)
-      end if
+      ! if (l_3mr .and. l_tidym3) then
+      !   m3r_reset=qfields(k, i_m3r) < 0.0 .or. (qfields(k, i_m3r) < qin_thresh(i_m3r) .and. qfields(k, i_m3r) >0) .or. &
+      !        (qfields(k, i_m3r) > 0.0 .and. (qfields(k, i_qr) <=0.0 .or. qfields(k, i_nr) <=0.0))
+      !   qr_reset=qr_reset .or. (qfields(k, i_qr) > 0.0 .and. qfields(k, i_m3r) <= 0.0)
+      !   nr_reset=nr_reset .or. (qfields(k, i_nr) > 0.0 .and. qfields(k, i_m3r) <= 0.0)
+      ! end if
 
       if (.not. l_warm) then
         qi_reset=qfields(k, i_qi) < 0.0 .or. (qfields(k, i_qi) < qin_thresh(i_qi) .and. qfields(k, i_qi) > 0.0)
@@ -701,12 +707,12 @@ contains
                (qfields(k, i_ns) > 0.0 .and. qfields(k, i_qs) <= 0.0)
           qs_reset=qs_reset .or. (qfields(k, i_qs) > 0.0 .and. qfields(k, i_ns) <= 0.0)
         end if
-        if (l_3ms .and. l_tidym3) then
-          m3s_reset=qfields(k, i_m3s) < 0.0 .or. (qfields(k, i_m3s) < qin_thresh(i_m3s) .and. qfields(k, i_m3s) >0) .or.&
-               (qfields(k, i_m3s) > 0.0 .and. (qfields(k, i_qs) <=0.0 .or. qfields(k, i_ns) <=0.0))
-          qs_reset=qs_reset .or. (qfields(k, i_qs) > 0.0 .and. qfields(k, i_m3s) <= 0.0)
-          ns_reset=ns_reset .or. (qfields(k, i_ns) > 0.0 .and. qfields(k, i_m3s) <= 0.0)
-        end if
+        ! if (l_3ms .and. l_tidym3) then
+        !   m3s_reset=qfields(k, i_m3s) < 0.0 .or. (qfields(k, i_m3s) < qin_thresh(i_m3s) .and. qfields(k, i_m3s) >0) .or.&
+        !        (qfields(k, i_m3s) > 0.0 .and. (qfields(k, i_qs) <=0.0 .or. qfields(k, i_ns) <=0.0))
+        !   qs_reset=qs_reset .or. (qfields(k, i_qs) > 0.0 .and. qfields(k, i_m3s) <= 0.0)
+        !   ns_reset=ns_reset .or. (qfields(k, i_ns) > 0.0 .and. qfields(k, i_m3s) <= 0.0)
+        ! end if
 
         qg_reset=qfields(k, i_qg) < 0.0 .or. (qfields(k, i_qg) < qin_thresh(i_qg) .and. qfields(k, i_qg) > 0.0)
         if (l_2mg) then
@@ -714,12 +720,12 @@ contains
                (qfields(k, i_ng) > 0.0 .and. qfields(k, i_qg) <= 0.0)
           qg_reset=qg_reset .or. (qfields(k, i_qg) > 0.0 .and. qfields(k, i_ng) <= 0.0)
         end if
-        if (l_3mg .and. l_tidym3) then
-          m3g_reset=qfields(k, i_m3g) < 0.0 .or. (qfields(k, i_m3g) < qin_thresh(i_m3g) .and. qfields(k, i_m3g) >0) .or.&
-               (qfields(k, i_m3g) > 0.0 .and. (qfields(k, i_qg) <=0.0 .or. qfields(k, i_ng) <=0.0))
-          qg_reset=qg_reset .or. (qfields(k, i_qg) > 0.0 .and. qfields(k, i_m3g) <= 0.0)
-          ng_reset=ng_reset .or. (qfields(k, i_ng) > 0.0 .and. qfields(k, i_m3g) <= 0.0)
-        end if
+        ! if (l_3mg .and. l_tidym3) then
+        !   m3g_reset=qfields(k, i_m3g) < 0.0 .or. (qfields(k, i_m3g) < qin_thresh(i_m3g) .and. qfields(k, i_m3g) >0) .or.&
+        !        (qfields(k, i_m3g) > 0.0 .and. (qfields(k, i_qg) <=0.0 .or. qfields(k, i_ng) <=0.0))
+        !   qg_reset=qg_reset .or. (qfields(k, i_qg) > 0.0 .and. qfields(k, i_m3g) <= 0.0)
+        !   ng_reset=ng_reset .or. (qfields(k, i_ng) > 0.0 .and. qfields(k, i_m3g) <= 0.0)
+        ! end if
       end if
 
       !==============================
@@ -741,9 +747,9 @@ contains
         if (l_2mr) then
           qfields(k,i_nr)=0.0
         end if
-        if (l_3mr) then
-          qfields(k,i_m3r)=0.0
-        end if
+        ! if (l_3mr) then
+        !   qfields(k,i_m3r)=0.0
+        ! end if
       end if
 
       if (qi_reset .or. ni_reset) then
@@ -762,9 +768,9 @@ contains
         if (l_2ms) then
           qfields(k,i_ns)=0.0
         end if
-        if (l_3ms) then
-          qfields(k,i_m3s)=0.0
-        end if
+        ! if (l_3ms) then
+        !   qfields(k,i_m3s)=0.0
+        ! end if
       end if
 
       if (qg_reset .or. ng_reset .or. m3g_reset) then
@@ -774,9 +780,9 @@ contains
         if (l_2mg) then
           qfields(k,i_ng)=0.0
         end if
-        if (l_3mg) then
-          qfields(k,i_m3g)=0.0
-        end if
+        ! if (l_3mg) then
+        !   qfields(k,i_m3g)=0.0
+        ! end if
       end if
 
     end do

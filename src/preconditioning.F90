@@ -9,6 +9,9 @@ module Preconditioning
   character(len=*), parameter, private :: ModuleName='PRECONDITIONING'
 
   logical, allocatable :: precondition(:)
+
+!$OMP THREADPRIVATE(precondition)
+
   public precondition, preconditioner
 contains
 

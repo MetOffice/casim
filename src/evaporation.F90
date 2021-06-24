@@ -79,13 +79,13 @@ contains
        qv=qfields(k, i_qv)
        rain_mass=qfields(k, i_qr)
        if (l_2mr)rain_number=qfields(k, i_nr)
-!!$       if (l_3mr)rain_m3=qfields(k, i_m3r)
+       ! if (l_3mr)rain_m3=qfields(k, i_m3r)
        
        if (qv/qws(k) < 1.0-ss_small .and. qfields(k, i_ql) == 0.0 .and. rain_mass > qr_tidy) then
           
           m1=rain_mass/c_r
           if (l_2mr) m2=rain_number
-!!$          if (l_3mr) m3=rain_m3
+          ! if (l_3mr) m3=rain_m3
 
           l_rain_test=.false.
           if (l_2mr) l_rain_test=rain_number>0
@@ -111,7 +111,7 @@ contains
              dnumber=0.0
              if (l_inhom_revp) dnumber=dm1*m2/m1
           end if
-!!$          if (l_3mr) dm3=dm1*m3/m1
+          ! if (l_3mr) dm3=dm1*m3/m1
 
           if (l_2mr) then
              if (dnumber*dt > rain_number .or. dmass*dt >= rain_mass-qr_tidy) then
@@ -129,9 +129,9 @@ contains
           if (l_2mr) then
              procs(i_nr, i_prevp%id)%column_data(k)=-dnumber
           end if
-!!$          if (l_3mr) then
-!!$             procs(k, i_prevp%id)%source(i_m3r)=-dm3
-!!$          end if
+          ! if (l_3mr) then
+          !    procs(i_m3r, i_prevp%id)%column_data(k)=-dm3
+          ! end if
      
       !============================
       ! aerosol processing

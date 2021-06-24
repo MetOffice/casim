@@ -7,7 +7,7 @@ module sum_process
        cloud_params, rain_params
   use passive_fields, only: rexner, rho
   use mphys_constants, only: cp, Lv, Ls
-  use mphys_parameters, only: hydro_params, snow_params, rain_params, graupel_params, parent_dt, ZERO_REAL_WP
+  use mphys_parameters, only: hydro_params, snow_params, rain_params, graupel_params, ZERO_REAL_WP
   use m3_incs, only: m3_inc_type2
   use process_routines, only:  i_cond, i_praut, &
        i_pracw, i_pracr, i_prevp, i_psedr, i_psedl, i_aact, i_aaut, i_aacw, i_aevp, i_asedr, i_asedl, i_arevp, &
@@ -20,9 +20,15 @@ module sum_process
   implicit none
   private
 
+  ! allocated and deallocated in micro_main (initialise and finalise_micromain)
+  real(wp), allocatable :: tend_temp(:,:) ! Temporary storage for accumulated tendendies
+  real(wp), allocatable :: aerosol_tend_temp(:,:) ! Temporary storage for accumulated aerosol tendendies
+
+!$OMP THREADPRIVATE(tend_temp, aerosol_tend_temp)
+
   character(len=*), parameter, private :: ModuleName='SUM_PROCESS'
 
-  public sum_aprocs, sum_procs
+  public sum_aprocs, sum_procs,  tend_temp, aerosol_tend_temp
 contains
 
   subroutine sum_aprocs(dst, procs, tend, iprocs, names, afields)
@@ -41,7 +47,7 @@ contains
     character(20), intent(in) :: names(:)
     real(wp), intent(in), optional :: afields(:,:) ! Required for debugging
 
-    real(wp), allocatable :: tend_temp(:,:) ! Temporary storage for accumulated tendendies
+    !real(wp), allocatable :: tend_temp(:,:) ! Temporary storage for accumulated tendendies
 
     integer :: k, iq, iproc, i, nz, idgproc
     integer :: nproc, index, idg
@@ -58,8 +64,8 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-    allocate(tend_temp(lbound(tend,1):ubound(tend,1), lbound(tend,2):ubound(tend,2)))
-    tend_temp=ZERO_REAL_WP
+    !allocate(tend_temp(lbound(tend,1):ubound(tend,1), lbound(tend,2):ubound(tend,2)))
+    aerosol_tend_temp=ZERO_REAL_WP
 
     nproc=size(iprocs)
     nz=size(procs,1)
@@ -70,7 +76,8 @@ contains
         do iq=1, ntotala
            do k=1,nz
          ! if (.not. all(procs(k,iproc)%source(:)==ZERO_REAL_WP)) then
-              tend_temp(k, iq)=tend_temp(k, iq) + procs(iq,iproc)%column_data(k)*dst
+              aerosol_tend_temp(k, iq)=aerosol_tend_temp(k, iq) + &
+                   procs(iq,iproc)%column_data(k)*dst
             end do
          ! end if
         end do
@@ -78,8 +85,8 @@ contains
     end do
 
     ! Add on tendencies to those already passed in.
-    tend=tend+tend_temp
-    deallocate(tend_temp)
+    tend=tend+aerosol_tend_temp
+    !deallocate(tend_temp)
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
@@ -105,7 +112,7 @@ contains
     logical, intent(in), optional :: l_passive ! If true don't apply final tendency (testing diagnostics with pure sedimentation)
     character(10), intent(in) :: names(:)
 
-    real(wp), allocatable :: tend_temp(:,:) ! Temporary storage for accumulated tendendies
+    !real(wp), allocatable :: tend_temp(:,:) ! Temporary storage for accumulated tendendies
     type(hydro_params) :: params
     real(wp) :: dm1,dm2,dm3,m1,m2,m3
     integer :: k, iq, iproc, isource, nsource, i, idgproc
@@ -144,7 +151,7 @@ contains
 
     ! this allocation is based on the shape of tend, which is (k, proc) originally.
     ! switch tend_temp to be the same. Should this allocation be done here? 
-    allocate(tend_temp(lbound(tend,1):ubound(tend,1), lbound(tend,2):ubound(tend,2)))
+    !allocate(tend_temp(lbound(tend,1):ubound(tend,1), lbound(tend,2):ubound(tend,2)))
     tend_temp=ZERO_REAL_WP
 
     nproc=size(iprocs)
@@ -157,6 +164,99 @@ contains
           enddo
        enddo
     enddo
+  
+    ! if (do_third) then
+    !    ! calculate increment to third moment based on collected increments from
+    !    ! q and n NB This overwrites any previously calculated values
+    !    ! Rain
+    !    params=rain_params
+    !    if (params%l_3m) then
+    !       do k = 1, nz
+    !          m1=qfields(k, params%i_1m)*rho(k)/params%c_x
+    !          m2=qfields(k, params%i_2m)
+    !          m3=qfields(k, params%i_3m)
+    !          dm1=tend_temp(k, params%i_1m)*rho(k)/params%c_x
+    !          dm2=tend_temp(k, params%i_2m)
+    !          if (dm1 < -.99*m1 .or. dm2 < -.99*m2) then
+    !             dm1=-m1
+    !             dm2=-m2
+    !             dm3=-m3
+    !          else
+    !             if (m3> 0.0 .and. m1 > 0.0 .and. m2 > 0.0 .and. (abs(dm1) > 0.0 .or. abs(dm2) > 0.0)) then
+    !                select case (third_type)
+    !                case (2)
+    !                   call m3_inc_type2(m1, m2, m3, params%p1, params%p2, params%p3, dm1, dm2, dm3)
+    !                case default
+    !                   write(std_msg, '(A)') 'rain i_thirdmoment incorrectly set'
+    !                   call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
+    !                        std_msg )
+    !                end select
+    !                tend_temp(k, params%i_3m)=dm3
+    !             end if
+    !          end if
+    !       enddo
+    !    end if
+       
+    !    ! Snow
+    !    params=snow_params
+    !    if (params%l_3m) then
+    !       do k = 1, nz
+    !          m1=qfields(k, params%i_1m)*rho(k)/params%c_x
+    !          m2=qfields(k, params%i_2m)
+    !          m3=qfields(k, params%i_3m)
+    !          dm1=tend_temp(k, params%i_1m)*rho(k)/params%c_x
+    !          dm2=tend_temp(k, params%i_2m)
+    !          if (dm1 < -.99*m1 .or. dm2 < -.99*m2) then
+    !             dm1=-m1
+    !             dm2=-m2
+    !             dm3=-m3
+    !          else
+    !             if (m3> 0.0 .and. m1 > 0.0 .and. m2 > 0.0 .and. (abs(dm1) > 0.0 .or. abs(dm2) > 0.0)) then
+    !                select case (third_type)
+    !                case (2)
+    !                   call m3_inc_type2(m1, m2, m3, params%p1, params%p2, params%p3, dm1, dm2, dm3)
+    !                case default
+    !                   write(std_msg, '(A)') 'snow i_thirdmoment incorrectly set'
+    !                   call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
+    !                        std_msg)
+    !                end select
+    !                tend_temp(k, params%i_3m)=dm3
+    !             end if
+    !          end if
+    !       enddo
+    !    end if
+       
+    !    ! Graupel
+    !    params=graupel_params
+    !    if (params%l_3m) then
+    !       do k = 1, nz
+    !          m1=qfields(k, params%i_1m)*rho(k)/params%c_x
+    !          m2=qfields(k, params%i_2m)
+    !          m3=qfields(k, params%i_3m)
+    !          dm1=tend_temp(k,params%i_1m)*rho(k)/params%c_x
+    !          dm2=tend_temp(k,params%i_2m)
+    !          if (dm1 < -.99*m1 .or. dm2 < -.99*m2) then
+    !             dm1=-m1
+    !             dm2=-m2
+    !             dm3=-m3
+    !          else
+    !             if (m3 > 0.0 .and. m1 > 0.0 .and. m2 > 0.0 .and. (abs(dm1) > 0.0 .or. abs(dm2) > 0.0)) then
+    !                select case (third_type)
+    !                case (2)
+    !                   call m3_inc_type2(m1, m2, m3, params%p1, params%p2, params%p3, dm1, dm2, dm3)
+    !                case default
+    !                   write(std_msg, '(A)') 'graupel i_thirdmoment incorrectly set'
+    !                   call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
+    !                        std_msg)
+    !                end select
+    !                tend_temp(k,params%i_3m)=dm3
+    !             end if
+    !          end if
+    !       enddo
+    !    end if
+
+    ! endif ! endif for l_dothird
+    
     ! Calculate the thermal exchange values
     ! (this overwrites anything that was already stored in the theta tendency)
     if (do_thermal) then
@@ -170,98 +270,10 @@ contains
           end do
        endif
     end if
+
     if (do_update) then
       tend = tend+tend_temp
     endif
-
-    deallocate(tend_temp)   
-!!$          if (do_third) then
-!!$            ! calculate increment to third moment based on collected increments from
-!!$            ! q and n NB This overwrites any previously calculated values
-!!$            ! Rain
-!!$            params=rain_params
-!!$            if (params%l_3m) then
-!!$              m1=qfields(k, params%i_1m)*rho(k)/params%c_x
-!!$              m2=qfields(k, params%i_2m)
-!!$              m3=qfields(k, params%i_3m)
-!!$              dm1=tend_temp(params%i_1m, k)*rho(k)/params%c_x
-!!$              dm2=tend_temp(params%i_2m, k)
-!!$              if (dm1 < -.99*m1 .or. dm2 < -.99*m2) then
-!!$                dm1=-m1
-!!$                dm2=-m2
-!!$                dm3=-m3
-!!$              else
-!!$                if (m3> 0.0 .and. m1 > 0.0 .and. m2 > 0.0 .and. (abs(dm1) > 0.0 .or. abs(dm2) > 0.0)) then
-!!$                  select case (third_type)
-!!$                  case (2)
-!!$                    call m3_inc_type2(m1, m2, m3, params%p1, params%p2, params%p3, dm1, dm2, dm3)
-!!$                  case default
-!!$                    write(std_msg, '(A)') 'rain i_thirdmoment incorrectly set'
-!!$                    call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
-!!$                                           std_msg )
-!!$                  end select
-!!$                  tend_temp(params%i_3m, k)=dm3
-!!$                end if
-!!$              end if
-!!$            end if
-!!$            ! Snow
-!!$            params=snow_params
-!!$            if (params%l_3m) then
-!!$              m1=qfields(k, params%i_1m)*rho(k)/params%c_x
-!!$              m2=qfields(k, params%i_2m)
-!!$              m3=qfields(k, params%i_3m)
-!!$              dm1=tend_temp(params%i_1m, k)*rho(k)/params%c_x
-!!$              dm2=tend_temp(params%i_2m, k)
-!!$              if (dm1 < -.99*m1 .or. dm2 < -.99*m2) then
-!!$                dm1=-m1
-!!$                dm2=-m2
-!!$                dm3=-m3
-!!$              else
-!!$                if (m3> 0.0 .and. m1 > 0.0 .and. m2 > 0.0 .and. (abs(dm1) > 0.0 .or. abs(dm2) > 0.0)) then
-!!$                  select case (third_type)
-!!$                  case (2)
-!!$                    call m3_inc_type2(m1, m2, m3, params%p1, params%p2, params%p3, dm1, dm2, dm3)
-!!$                  case default
-!!$                    write(std_msg, '(A)') 'snow i_thirdmoment incorrectly set'
-!!$                    call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
-!!$                                           std_msg)
-!!$                  end select
-!!$                  tend_temp(params%i_3m, k)=dm3
-!!$                end if
-!!$              end if
-!!$            end if
-!!$            ! Graupel
-!!$            params=graupel_params
-!!$            if (params%l_3m) then
-!!$              m1=qfields(k, params%i_1m)*rho(k)/params%c_x
-!!$              m2=qfields(k, params%i_2m)
-!!$              m3=qfields(k, params%i_3m)
-!!$              dm1=tend_temp(params%i_1m, k)*rho(k)/params%c_x
-!!$              dm2=tend_temp(params%i_2m, k)
-!!$              if (dm1 < -.99*m1 .or. dm2 < -.99*m2) then
-!!$                dm1=-m1
-!!$                dm2=-m2
-!!$                dm3=-m3
-!!$              else
-!!$                if (m3 > 0.0 .and. m1 > 0.0 .and. m2 > 0.0 .and. (abs(dm1) > 0.0 .or. abs(dm2) > 0.0)) then
-!!$                  select case (third_type)
-!!$                  case (2)
-!!$                    call m3_inc_type2(m1, m2, m3, params%p1, params%p2, params%p3, dm1, dm2, dm3)
-!!$                  case default
-!!$                    write(std_msg, '(A)') 'graupel i_thirdmoment incorrectly set'
-!!$                    call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
-!!$                                           std_msg)
-!!$                  end select
-!!$                  tend_temp(params%i_3m, k)=dm3
-!!$                end if
-!!$              end if
-!!$            end if
-!!$
-!!$          end if
-!!$
-!!$        end do
-!!$      end if
-!!$    end do
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 

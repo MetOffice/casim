@@ -59,7 +59,7 @@ contains
        do k = 1, ubound(qfields,1)
           rain_mass=qfields(k, i_qr)
           rain_number=qfields(k, i_nr)
-!!$          if (l_3mr) rain_m3=qfields(k, i_m3r)
+          ! if (l_3mr) rain_m3=qfields(k, i_m3r)
 
           if (rain_mass > qr_small .and. rain_number>0) then
              if (l_beheng) then
@@ -74,17 +74,17 @@ contains
              end if
              procs(i_nr, i_pracr%id)%column_data(k)=-dnumber
 
-!!$             if (l_3mr) then
-!!$                m1=rain_mass/rain_params%c_x
-!!$                m2=rain_number
-!!$                m3=rain_m3
-!!$
-!!$                dm1=0.0
-!!$                dm2=-dt*dnumber
-!!$                call m3_inc_type2(m1, m2, m3, p1, p2, p3, dm1, dm2, dm3)
-!!$                dm3=dm3/dt
-!!$                procs(k, i_pracr%id)%source(i_m3r) = dm3
-!!$             end if
+            ! if (l_3mr) then
+            !    m1=rain_mass/rain_params%c_x
+            !    m2=rain_number
+            !    m3=rain_m3
+            !
+            !    dm1=0.0
+            !    dm2=-dt*dnumber
+            !    call m3_inc_type2(m1, m2, m3, p1, p2, p3, dm1, dm2, dm3)
+            !    dm3=dm3/dt
+            !    procs(i_m3r, i_pracr%id)%column_data(k) = dm3
+            ! end if
           end if
        enddo
     end if

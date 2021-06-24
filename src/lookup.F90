@@ -8,8 +8,9 @@ module lookup
   use mphys_constants, only: fixed_rain_number, fixed_rain_mu
   use special, only: GammaFunc
   use passive_fields, only: rho
+!#if DEF_MODEL==UM
   use casim_moments_mod, only: casim_moments
-
+!#endif
   implicit none
   private
 
@@ -169,13 +170,13 @@ contains
     !   if (l_passive3m) then
     !     m2=number
     !     mu=params%fix_mu
-    !     call get_lam_n0(m1, m2, params, lam, n0)
+    !      call get_lam_n0(m1, m2, params, lam, n0, params%id)
     !   else
     !     m2=number
     !     call get_mu(m1, m2, m3, p1, p2, p3, mu)
     !     call get_lam_n0(m1, m2, m3, params, mu, lam, n0)
     !   end if
-    ! else
+    ! elseif (params%l_2m) then
     if (params%l_2m) then
       m2=number
       mu=params%fix_mu
@@ -251,24 +252,9 @@ contains
 
     end if
 
-    ! if (params%l_3m) then
-    !   if (l_passive3m) then
-    !     m2=number
-    !     mu=params%fix_mu
-    !     call get_lam_n0(m1, m2, p1, p2, mu, lam, n0)
-    !   else
-    !     m2=number
-    !     call get_mu(m1, m2, m3, p1, p2, p3, mu)
-    !     call get_lam_n0(m1, m2, m3, p1, p2, p3, mu, lam, n0)
-    !   end if
-    ! else if (params%l_2m) then
-    if (params%l_2m) then
-      m2=number
-      mu=params%fix_mu
-      call get_lam_n0(m1, m2, params, lam, n0, params%id)
-    else
       mu=params%fix_mu
       n0=params%fix_n0
+!#if DEF_MODEL==UM
 !AH-KID changes - is this needed?
 !prf make n0 fixed param consistent with Field 2017
       if (params%id==3 .and. l_kfsm) then
@@ -279,6 +265,7 @@ contains
       endif
 !prf
 !AH-KID changes 
+!#endif
       call get_lam_n0(m1, params, lam, n0, params%id)
 
       if (l_kfsm) then
@@ -300,7 +287,7 @@ contains
           n0=na*params%gam_1_mu*lam**(nb-1.0-params%fix_mu)
 
         else if (params%id==3) then
-
+!#if DEF_MODEL==UM
           ! Ice: need lsp_moments
           call casim_moments(params,points,rhoa,Ta,qcf,cficei,j1,m_s)
 
@@ -320,12 +307,11 @@ contains
 
           ! lams(1) is the slope, while lams(2) is n0
           call get_lam_n0(m1, ms, params, lams(1), lams(2), params%id)
-
+!#endif
         end if ! params%id
 
       end if ! l_kfsm
 
-    end if
     if (lam <= 0) then
       write(std_msg, *) 'ERROR in lookup', params%id, params%i_2m, m1, number, lam, n0, qcf(1)
       call throw_mphys_error(bad_values, ModuleName//':'//RoutineName, std_msg)

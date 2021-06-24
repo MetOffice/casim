@@ -24,7 +24,6 @@ module sedimentation
   ! lsp_sedim_eulexp_mod is a UM module, so can not be stored in CASIM or MONC repo. 
   ! if required please contact Adrian Hill. With MONC this uses a dummy routine in the CASIM
   ! component
-  ! use lsp_sedim_eulexp_mod, only: lsp_sedim_eulexp
 
   implicit none
   private
@@ -36,6 +35,8 @@ module sedimentation
   real(wp), allocatable :: flux_n2(:)
   real(wp), allocatable :: flux_n3(:)
   real(wp), allocatable :: Grho(:)
+
+!$OMP THREADPRIVATE(flux_n1, flux_n2, flux_n3, Grho)
 
   public sedr, initialise_sedr, finalise_sedr, sedr_1M_2M, terminal_velocity_CFL
 contains
@@ -339,85 +340,9 @@ contains
            
          if (params%l_2m) flux_n2(k)=n2*u2r
         
-!!$        if (params%l_3m) flux_n3(k)=n3*u3r
-
-        ! AH : derive the sedimentation flux
-        ! if (l_sed_eulexp) then ! use the method, which is based on UM and is most appropriate 
-        !                        ! (and stable) for  long timesteps
-        !                        ! This  will not work with 3-moments
-
-        !    flux_fromabove = c_x * flux_n1(k+1)
-        !    mixingratio_fromabove = (flux_fromabove*step_length/dz(k)*(1/rho(k)))
-        !    mixingratio = c_x * n1 * (1.0/rho(k))
-           
-        !    if (mixingratio_fromabove + mixingratio > epsilon(1.0_wp)) then 
-        !       u1w=(u1r*mixingratio + &
-        !            u1r_above*mixingratio_fromabove)/ & 
-        !            (mixingratio_fromabove + mixingratio)
-        !    else
-        !       u1w = 0.0_wp
-              
-        !    endif
-
-        !    if (u1w > 0.0_wp) then 
-              
-        !       flux_n1(k)= flux_fromabove + dz(k)/step_length * &
-        !            (rho(k)*mixingratio - flux_fromabove/u1w) * &
-        !            (1.0-exp(-u1w*step_length/dz(k)))
-              
-        !       flux_n1(k) = flux_n1(k)/c_x
-              
-        !    else
-              
-        !      flux_n1(k) = 0.0
-             
-        !   endif
-              
-        !   u1r_above = u1w
-
-        !   if (flux_n1(k) < epsilon(1.0_wp)) then
-        !      flux_n1(k)=0.0
-        !      u1r_above=0.0
-        !   endif
-           
-        !    if  (params%l_2m) Then
-              
-        !       numberconc = n2 * (1.0/rho(k))
-        !       numberconc_fromabove = (flux_n2(k+1)*step_length/dz(k)*(1/rho(k)))
-
-        !       if (numberconc_fromabove + numberconc > epsilon(1.0_wp)) then 
-        !          u2w=(u2r*numberconc + & 
-        !               u2r_above*numberconc_fromabove/ &
-        !               (numberconc+numberconc_fromabove)) ! PF:number also mass wtd 
-        !                                                 ! AH: no it is not, it is number weighted
-        !       else
-                 
-        !          u2w = 0.0_wp
-                 
-        !       endif
-
-        !       if ( u2w > 0.0_wp ) then 
-              
-        !          flux_n2(k)=flux_n2(k+1) + dz(k)/step_length * &
-        !               (rho(k)*numberconc-flux_n2(k+1)/u2w) * &
-        !               (1.0-exp(-u2w*step_length/dz(k)))
-                 
-        !       else
-                 
-        !          flux_n2(k) = 0.0
-                 
-        !       endif
-
-        !       u2r_above = u2w
-
-        !       if (flux_n2(k) < epsilon(1.0_wp)) then
-        !          flux_n2(k)=0.0
-        !          u2r_above=0.0
-        !       endif
-        !    endif
+        !if (params%l_3m) flux_n3(k)=n3*u3r
 
         precip1d(k) = flux_n1(k)*c_x
-        ! diagnostic for precip
         
      end if
 
@@ -429,7 +354,7 @@ contains
       if (l_fluxout) then !flux out (flux(k+1) will be zero if no flux in)
         dn1=(flux_n1(k+1)-flux_n1(k))*rdz_on_rho(k)
         if (params%l_2m) dn2=(flux_n2(k+1)-flux_n2(k))*rdz_on_rho(k)
-!!$        if (params%l_3m) dn3=(flux_n3(k+1)-flux_n3(k))*rdz_on_rho(k)
+        !if (params%l_3m) dn3=(flux_n3(k+1)-flux_n3(k))*rdz_on_rho(k)
 
         !============================
         ! aerosol processing
@@ -502,7 +427,7 @@ contains
       else if (l_fluxin) then !flux in, but not out
         dn1=flux_n1(k+1)*rdz_on_rho(k)
         if (params%l_2m) dn2=flux_n2(k+1)*rdz_on_rho(k)
-!!$        if (params%l_3m) dn3=flux_n3(k+1)*rdz_on_rho(k)
+        !if (params%l_3m) dn3=flux_n3(k+1)*rdz_on_rho(k)
 
         !============================
         ! aerosol processing
@@ -601,15 +526,15 @@ contains
 
       dm1=dn1
       dm2=dn2
-!!$      dm3=dn3
+      !dm3=dn3
 
       procs(params%i_1m, iproc%id)%column_data(k)=c_x*dm1
 
       if (params%l_2m) procs(params%i_2m, iproc%id)%column_data(k)=dm2
 
-!!$      if (params%l_3m) procs(k, iproc%id)%column_data(params%i_3m)=dm3
+      !if (params%l_3m) procs(params%i_3m, iproc%id)%column_data(k)=dm3
     end do
-!!$      if (params%l_3m) procs(k, iproc%id)%column_data(params%i_3m)=dm3
+
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
   end subroutine sedr
@@ -861,14 +786,14 @@ contains
         else
           if (params%l_2m)u2r=min(u2r,params%maxv)
         end if
-        else
-           u1r = 0.0
-           u2r = 0.0
-        endif
+
         ! fall speeds shouldn't be negative (can happen with original AS formulation)
         u1r=max(u1r,0.0_wp)
         if (params%l_2m)u2r=max(u2r,0.0_wp)
-
+        else 
+          u1r=0.0_wp
+          if (params%l_2m)u2r=0.0_wp
+        endif
         flux_n1(k)=n1*u1r
         
         if (params%l_2m) flux_n2(k)=n2*u2r
