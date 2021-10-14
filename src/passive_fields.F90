@@ -108,7 +108,6 @@ contains
 
     dt=dt_in
 
-
     rho(:)=rho_in(kl:ku)
     pressure(:)=p_in(kl:ku)
     exner(:)=exner_in(kl:ku)

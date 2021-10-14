@@ -142,11 +142,12 @@ contains
     real(wp) :: w_act ! vertical velocity to use for activation
 
     real(wp) :: rmean ! mean aerosol diameter
-
+    real(wp) :: smax,ait_ccn, acc_ccn, tot_ccn, activated_arg, &
+         activated_cloud
     ! local variables for diagnostics cloud scheme (if needed)
     real(wp) :: cloud_mass_new, abs_liquid_t
 
-    real(wp) :: cfrac_dummy
+    real(wp) :: cfrac, cfrac_old
 
     logical :: l_docloud  ! do we want to do the calculation of cond/evap
     integer :: k
@@ -161,7 +162,7 @@ contains
     ! End of header, no more declarations beyond here
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
-    cfrac_dummy=1.0
+    
     tau=dt ! adjust instantaneously
 
     ! Initializations
@@ -175,6 +176,9 @@ contains
     dmac_all=0.0
 
     do k = 1, nz
+
+    cfrac=1.0
+    cfrac_old=1.0
 
     ! Set pointers for convenience
     cloud_mass=qfields(k, i_ql)
@@ -218,7 +222,13 @@ contains
         endif
       endif
     endif ! casim_parent == parent_kid
-
+! AH - set the cloud fraction for new calc of activation
+    if (cloud_mass > epsilon(1.0_wp)) then 
+       cfrac_old = 1.0_wp
+    else 
+       cfrac_old = 0.0_wp
+    endif
+       
     if ((qv/qs > 1.0 - ss_small .or. cloud_mass > 0.0 .or. l_cfrac_casim_diag_scheme) .and. l_docloud) then
 ! DPG - allow the cloud scheme to operate even if we are sub-saturated (since
 ! this is it's purpose!)
@@ -240,15 +250,21 @@ contains
 
       if (dmass > 0.0_wp) then ! condensation
         if (dmass*dt + cloud_mass > ql_small) then ! is it worth bothering with?
+           ! AH - if dmass > 0.0 there is a change in mass, so assume cloud fraction is 1.0
+           ! this assumption is only valid with all-or-nothing scheme and no cloud fraction
+           ! scheme
+          cfrac = 1.0_wp
           if (cloud_params%l_2m) then
-            ! If significant cloud formed then assume minimum velocity of 0.1m/s
-            w_act=max(w(k), 0.1_wp)
+            ! If significant cloud formed then assume minimum velocity of 0.01m/s
+            w_act=max(w(k), 0.01_wp)
 
-            call activate(tau, cloud_mass, cloud_number, w_act, rho(k), dnumber, dmac, &
-                 th*exner(k), pressure(k), cfrac_dummy, aerophys(k), aerochem(k), aeroact(k),   &
-                 dustphys(k), dustchem(k), dustliq(k),           &
-                 dnccn_all, dmac_all, dnumber_d, dmad,           &
-                 dnccnd_all,dmad_all)
+            call activate(tau, cloud_mass, cloud_number, w_act,         &
+                 rho(k), dnumber, dmac, th*exner(k), pressure(k),       &
+                 cfrac, cfrac_old, aerophys(k), aerochem(k),            & 
+                 aeroact(k), dustphys(k), dustchem(k), dustliq(k),      &
+                 dnccn_all, dmac_all, dnumber_d, dmad,                  &
+                 dnccnd_all, dmad_all, smax, ait_ccn, acc_ccn,          &
+                 tot_ccn,activated_arg,activated_cloud)
 
             dnumber_a=dnumber
           end if

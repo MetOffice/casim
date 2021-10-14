@@ -6,7 +6,8 @@ module ice_deposition
        , i_ns, i_ng, iopt_inuc, i_am7, i_an6                   &
        , l_process, l_passivenumbers_ice, l_passivenumbers, active_number &
        , active_ice, iinsol, i_an12 &
-       , i_qr, i_ql, i_qs, i_qg, i_am8, i_am2, i_an11, l_gamma_online
+       , i_qr, i_ql, i_qs, i_qg, i_am8, i_am2, i_an11, l_gamma_online &
+       , l_prf_cfrac
   use type_process, only: process_name
   use process_routines, only: process_rate, i_idep,    &
        i_dsub, i_sdep, i_gdep, i_dssub, i_dgsub &
@@ -15,7 +16,7 @@ module ice_deposition
   use mphys_parameters, only: hydro_params, ice_params, rain_params, cloud_params
   use mphys_constants, only: Ls, cp,  Lv, Lf, ka, Dv, Rv
   use qsat_funs, only: qsaturation, qisaturation
-  use thresholds, only: thresh_small
+  use thresholds, only: thresh_small, cfliq_small
   use aerosol_routines, only: aerosol_phys, aerosol_chem, aerosol_active
 
   use distributions, only: dist_lambda, dist_mu, dist_n0
@@ -36,7 +37,7 @@ contains
   !< Subroutine to determine the deposition/sublimation onto/from
   !< ice, snow and graupel.  There is no source/sink for number
   !< when undergoing deposition, but there is a sink when sublimating.
-  subroutine idep(dt, k, params, qfields, procs, dustact, aeroice, aerosol_procs)
+  subroutine idep(dt, nz, l_Tcold, params, qfields, procs, dustact, aeroice, aerosol_procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -45,7 +46,8 @@ contains
 
     ! Subroutine arguments
     real(wp), intent(IN) :: dt
-    integer, intent(IN) :: k
+    integer, intent(IN) :: nz
+    logical, intent(in) :: l_Tcold(:) 
     type(hydro_params), intent(IN) :: params
     real(wp), intent(IN) :: qfields(:,:)
     type(process_rate), intent(INOUT), target :: procs(:,:)
@@ -76,6 +78,8 @@ contains
 
     logical :: l_suball
 
+    integer :: k
+
     character(len=*), parameter :: RoutineName='IDEP'
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
@@ -87,141 +91,144 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-    l_suball=.false. ! do we want to sublimate everything?
+    do k = 1, nz
+       if (l_Tcold(k)) then 
+          l_suball=.false. ! do we want to sublimate everything?
+          
+          mass=qfields(k, params%i_1m)
+          
+          qv=qfields(k, i_qv)
+          th=qfields(k, i_th)
+          
+          qis=qisaturation(th*exner(k), pressure(k)/100.0)
+          
+          if (qv>qis) then
+             select case (params%id)
+             case (3_iwp) !ice
+                iproc=i_idep
+                iaproc=i_dsub
+                i_acw=i_iacw
+                i_acr=i_raci
+             case (4_iwp) !snow
+                iproc=i_sdep
+                iaproc=i_dssub
+                i_acw=i_sacw
+                i_acr=i_sacr
+             case (5_iwp) !graupel
+                iproc=i_gdep
+                iaproc=i_dgsub
+                i_acw=i_gacw
+                i_acr=i_gacr
+             end select
+          else
+             select case (params%id)
+             case (3_iwp) !ice
+                iproc=i_isub
+                iaproc=i_dsub
+                i_acw=i_iacw
+                i_acr=i_raci
+             case (4_iwp) !snow
+                iproc=i_ssub
+                iaproc=i_dssub
+                i_acw=i_sacw
+                i_acr=i_sacr
+             case (5_iwp) !graupel
+                iproc=i_gsub
+                iaproc=i_dgsub
+                i_acw=i_gacw
+                i_acr=i_gacr
+             end select
+          end if
+          
+          if (mass > thresh_small(params%i_1m)) then ! if no existing ice, we don't grow/deplete it.
+             
+             if (params%l_2m) number=qfields(k, params%i_2m)
+             
+             n0=dist_n0(k,params%id)
+             mu=dist_mu(k,params%id)
+             lam=dist_lambda(k,params%id)
+             
+             if (l_gamma_online) then
+                call ventilation_3M(k, V_x, n0, lam, mu, params)
+             else
+                call ventilation_1M_2M(k, V_x, n0, lam, mu, params)
+             endif
+             
+             AB=1.0/(Ls*Ls/(Rv*ka*TdegK(k)*TdegK(k))*rho(k)+1.0/(Dv*qis))
+             dmass=(qv/qis-1.0)*V_x*AB
+             
+             ! Include latent heat effects of collection of rain and cloud
+             ! as done in Milbrandt & Yau (2005)
+             if (l_latenteffects) then
+                dmass=dmass - Lf*Ls/(Rv*ka*TdegK(k)*TdegK(k))         &
+                     *(procs(cloud_params%i_1m, i_acw%id)%column_data(k) &
+                     + procs(rain_params%i_1m, i_acr%id)%column_data(k))
+             end if
 
-    mass=qfields(k, params%i_1m)
-
-    qv=qfields(k, i_qv)
-    th=qfields(k, i_th)
-
-    qis=qisaturation(th*exner(k), pressure(k)/100.0)
-
-    if (qv>qis) then
-      select case (params%id)
-      case (3_iwp) !ice
-        iproc=i_idep
-        iaproc=i_dsub
-        i_acw=i_iacw
-        i_acr=i_raci
-      case (4_iwp) !snow
-        iproc=i_sdep
-        iaproc=i_dssub
-        i_acw=i_sacw
-        i_acr=i_sacr
-      case (5_iwp) !graupel
-        iproc=i_gdep
-        iaproc=i_dgsub
-        i_acw=i_gacw
-        i_acr=i_gacr
-      end select
-    else
-      select case (params%id)
-      case (3_iwp) !ice
-        iproc=i_isub
-        iaproc=i_dsub
-        i_acw=i_iacw
-        i_acr=i_raci
-      case (4_iwp) !snow
-        iproc=i_ssub
-        iaproc=i_dssub
-        i_acw=i_sacw
-        i_acr=i_sacr
-      case (5_iwp) !graupel
-        iproc=i_gsub
-        iaproc=i_dgsub
-        i_acw=i_gacw
-        i_acr=i_gacr
-      end select
-    end if
-
-    if (mass > thresh_small(params%i_1m)) then ! if no existing ice, we don't grow/deplete it.
-
-      if (params%l_2m) number=qfields(k, params%i_2m)
-
-      n0=dist_n0(k,params%id)
-      mu=dist_mu(k,params%id)
-      lam=dist_lambda(k,params%id)
-      
-      if (l_gamma_online) then
-         call ventilation_3M(k, V_x, n0, lam, mu, params)
-      else
-         call ventilation_1M_2M(k, V_x, n0, lam, mu, params)
-      endif
-
-      AB=1.0/(Ls*Ls/(Rv*ka*TdegK(k)*TdegK(k))*rho(k)+1.0/(Dv*qis))
-      dmass=(qv/qis-1.0)*V_x*AB
-
-      ! Include latent heat effects of collection of rain and cloud
-      ! as done in Milbrandt & Yau (2005)
-      if (l_latenteffects) then
-        dmass=dmass - Lf*Ls/(Rv*ka*TdegK(k)*TdegK(k))         &
-             *(procs(cloud_params%i_1m, i_acw%id)%column_data(k) &
-             + procs(rain_params%i_1m, i_acr%id)%column_data(k))
-      end if
-
-      ! Check we haven't become subsaturated and limit if we have (dep only)
-      ! NB doesn't account for simultaneous ice/snow growth - checked elsewhere
-      if (dmass > 0.0) dmass=min((qv-qis)/dt,dmass)
-      ! Check we don't remove too much (sub only)
-      if (dmass < 0.0) dmass=max(-mass/dt,dmass)
-
-
-      if (params%l_2m) then
-        dnumber=0.0
-        if (dmass < 0.0) dnumber=dmass*number/mass
-      end if
-
-      if (-dmass*dt >0.98*mass .or. (params%l_2m .and. -dnumber*dt > 0.98*number)) then
-        l_suball=.true.
-        dmass=-mass/dt
-        dnumber=-number/dt
-      end if
-
-      procs(i_qv, iproc%id)%column_data(k)=-dmass
-      procs(params%i_1m, iproc%id)%column_data(k)=dmass
-
-      if (params%l_2m) procs(params%i_2m, iproc%id)%column_data(k)=dnumber
-
-      if (dmass < 0.0 .and. l_process) then ! Only process aerosol if sublimating
-        if (iaproc%id==i_dsub%id) then
-          dmad=dnumber*dustact(k)%mact1_mean*dustact(k)%nratio1
-          dnumber_d=dnumber*dustact(k)%nratio1
-        else if (iaproc%id==i_dssub%id) then
-          dmad=dnumber*dustact(k)%mact2_mean*dustact(k)%nratio2
-          dnumber_d=dnumber*dustact(k)%nratio2
-        else if (iaproc%id==i_dgsub%id) then
-          dmad=dnumber*dustact(k)%mact3_mean*dustact(k)%nratio3
-          dnumber_d=dnumber*dustact(k)%nratio3
-        end if
-
-        aerosol_procs(i_am7, iaproc%id)%column_data(k)=dmad
-        aerosol_procs(i_am6, iaproc%id)%column_data(k)=-dmad       ! <WARNING: putting back in coarse mode
-
-        if (iaproc%id==i_dsub%id) then
-          dmad=dnumber*aeroice(k)%mact1_mean*aeroice(k)%nratio1
-          dnumber_a=dnumber*aeroice(k)%nratio1
-        else if (iaproc%id==i_dssub%id) then
-          dmad=dnumber*aeroice(k)%mact2_mean*aeroice(k)%nratio2
-          dnumber_a=dnumber*aeroice(k)%nratio2
-        else if (iaproc%id==i_dgsub%id) then
-          dmad=dnumber*aeroice(k)%mact3_mean*aeroice(k)%nratio3
-          dnumber_a=dnumber*aeroice(k)%nratio3
-        end if
-
-        aerosol_procs(i_am8, iaproc%id)%column_data(k)=dmad
-        aerosol_procs(i_am2, iaproc%id)%column_data(k)=-dmad    ! <WARNING: putting back in accumulation mode
-
-        if (l_passivenumbers_ice) then
-          aerosol_procs(i_an12, iaproc%id)%column_data(k)=dnumber_d
-        end if
-        aerosol_procs(i_an6, iaproc%id)%column_data(k)=-dnumber_d  ! <WARNING: putting back in coarse mode
-
-        if (l_passivenumbers) then
-          aerosol_procs(i_an11, iaproc%id)%column_data(k)=dnumber_a
-        end if
-        aerosol_procs(i_an2, iaproc%id)%column_data(k)=-dnumber_a  ! <WARNING: putting back in accumulation mode
-      end if
-    end if
+             ! Check we haven't become subsaturated and limit if we have (dep only)
+             ! NB doesn't account for simultaneous ice/snow growth - checked elsewhere
+             if (dmass > 0.0) dmass=min((qv-qis)/dt,dmass)
+             ! Check we don't remove too much (sub only)
+             if (dmass < 0.0) dmass=max(-mass/dt,dmass)
+             
+             if (params%l_2m) then
+                dnumber=0.0
+                if (dmass < 0.0) dnumber=dmass*number/mass
+             end if
+             
+             if (-dmass*dt >0.98*mass .or. (params%l_2m .and. -dnumber*dt > 0.98*number)) then
+                l_suball=.true.
+                dmass=-mass/dt
+                dnumber=-number/dt
+             end if
+             
+             procs(i_qv, iproc%id)%column_data(k)=-dmass
+             procs(params%i_1m, iproc%id)%column_data(k)=dmass
+             
+             if (params%l_2m) procs(params%i_2m, iproc%id)%column_data(k)=dnumber
+             
+             if (dmass < 0.0 .and. l_process) then ! Only process aerosol if sublimating
+                if (iaproc%id==i_dsub%id) then
+                   dmad=dnumber*dustact(k)%mact1_mean*dustact(k)%nratio1
+                   dnumber_d=dnumber*dustact(k)%nratio1
+                else if (iaproc%id==i_dssub%id) then
+                   dmad=dnumber*dustact(k)%mact2_mean*dustact(k)%nratio2
+                   dnumber_d=dnumber*dustact(k)%nratio2
+                else if (iaproc%id==i_dgsub%id) then
+                   dmad=dnumber*dustact(k)%mact3_mean*dustact(k)%nratio3
+                   dnumber_d=dnumber*dustact(k)%nratio3
+                end if
+                
+                aerosol_procs(i_am7, iaproc%id)%column_data(k)=dmad
+                aerosol_procs(i_am6, iaproc%id)%column_data(k)=-dmad       ! <WARNING: putting back in coarse mode
+                
+                if (iaproc%id==i_dsub%id) then
+                   dmad=dnumber*aeroice(k)%mact1_mean*aeroice(k)%nratio1
+                   dnumber_a=dnumber*aeroice(k)%nratio1
+                else if (iaproc%id==i_dssub%id) then
+                   dmad=dnumber*aeroice(k)%mact2_mean*aeroice(k)%nratio2
+                   dnumber_a=dnumber*aeroice(k)%nratio2
+                else if (iaproc%id==i_dgsub%id) then
+                   dmad=dnumber*aeroice(k)%mact3_mean*aeroice(k)%nratio3
+                   dnumber_a=dnumber*aeroice(k)%nratio3
+                end if
+                
+                aerosol_procs(i_am8, iaproc%id)%column_data(k)=dmad
+                aerosol_procs(i_am2, iaproc%id)%column_data(k)=-dmad    ! <WARNING: putting back in accumulation mode
+                
+                if (l_passivenumbers_ice) then
+                   aerosol_procs(i_an12, iaproc%id)%column_data(k)=dnumber_d
+                end if
+                aerosol_procs(i_an6, iaproc%id)%column_data(k)=-dnumber_d  ! <WARNING: putting back in coarse mode
+                
+                if (l_passivenumbers) then
+                   aerosol_procs(i_an11, iaproc%id)%column_data(k)=dnumber_a
+                end if
+                aerosol_procs(i_an2, iaproc%id)%column_data(k)=-dnumber_a  ! <WARNING: putting back in accumulation mode
+             end if
+          end if
+       end if
+    enddo
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 

@@ -22,7 +22,7 @@ contains
   !< NB: Aerosol mass is not modified by this process
   !
   !< OPTIMISATION POSSIBILITIES: strip out shape parameters
-  subroutine ice_breakup(dt, k, params, qfields, procs)
+  subroutine ice_breakup(dt, nz, l_Tcold, params, qfields, procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -31,7 +31,8 @@ contains
 
     ! Subroutine arguments
     real(wp), intent(in) :: dt
-    integer, intent(in) :: k
+    integer, intent(in) :: nz
+    logical, intent(in) :: l_Tcold(:)
     type(hydro_params), intent(in) :: params
     real(wp), intent(in), target :: qfields(:,:)
     type(process_rate), intent(inout), target :: procs(:,:)
@@ -42,7 +43,9 @@ contains
     real(wp) :: number, mass, m1, m2
     real(wp) :: lam, mu
     real(wp) :: Dm ! Mass-weighted mean diameter
-
+    
+    integer :: k
+    
     character(len=*), parameter :: RoutineName='ICE_BREAKUP'
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
@@ -54,24 +57,29 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-    select case (params%id)
-    case (4_iwp) !snow
-      iproc=i_sbrk
-    end select
+    do k = 1, nz
+       if (l_Tcold(k)) then
 
-    mass=qfields(k, params%i_1m)
+          select case (params%id)
+          case (4_iwp) !snow
+             iproc=i_sbrk
+          end select
 
-    if (mass > thresh_small(params%i_1m) .and. params%l_2m) then ! if no existing ice, we don't bother
-      number=qfields(k, params%i_2m)
-      mu=dist_mu(k,params%id)
-      lam=dist_lambda(k,params%id)
-      Dm=(1.0 + params%d_x + mu)/lam
+          mass=qfields(k, params%i_1m)
 
-      if (Dm > DSbrk) then ! Mean size exceeds threshold
-        dnumber=(Dm/DSbrk - 1.0)**params%d_x * number / tau_sbrk
-        procs(params%i_2m, iproc%id)%column_data(k)=dnumber
-      end if
-    end if
+          if (mass > thresh_small(params%i_1m) .and. params%l_2m) then ! if no existing ice, we don't bother
+             number=qfields(k, params%i_2m)
+             mu=dist_mu(k,params%id)
+             lam=dist_lambda(k,params%id)
+             Dm=(1.0 + params%d_x + mu)/lam
+             
+             if (Dm > DSbrk) then ! Mean size exceeds threshold
+                dnumber=(Dm/DSbrk - 1.0)**params%d_x * number / tau_sbrk
+                procs(params%i_2m, iproc%id)%column_data(k)=dnumber
+             end if
+          end if
+       end if
+    enddo
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 

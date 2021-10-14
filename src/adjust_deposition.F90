@@ -19,7 +19,7 @@ module adjust_deposition
   public adjust_dep
 contains
 
-  subroutine adjust_dep(dt, k, procs, qfields)
+  subroutine adjust_dep(dt, nz, l_Tcold, procs, qfields)
     ! only grow ice which is not autoconverted to
     ! snow, c.f. Harrington et al (1995)
     ! This assumes that mu_ice==0, so the fraction becomes
@@ -33,7 +33,8 @@ contains
     ! Subroutine arguments
 
     real(wp), intent(in) :: dt
-    integer, intent(in) :: k
+    integer, intent(in) :: nz
+    logical, intent(in) :: l_Tcold(:)
     type(process_rate), intent(inout), target :: procs(:,:)
     real(wp), intent(in) :: qfields(:,:)
 
@@ -43,6 +44,8 @@ contains
     real(wp) :: lam, frac, dmass
     integer :: i_pqi, i_pqai, i_pqs, i_pns, i_pm3s
     real(wp) :: m1,m2,m3,dm1,dm2,dm3
+
+    integer :: k
 
     character(len=*), parameter :: RoutineName='ADJUST_DEP'
 
@@ -55,15 +58,20 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+    do k = 1, nz
+       if (l_Tcold(k)) then
+          if (procs(ice_params%i_1m, i_saut%id)%column_data(k) > 0) then
+             lam=dist_lambda(k,ice_params%id)
+             frac=1.0-exp(-lam*DImax)*(1.0+lam*DImax)
+             dmass=frac*procs(ice_params%i_1m, i_idep%id)%column_data(k)
 
-    if (procs(ice_params%i_1m, i_saut%id)%column_data(k) > 0) then
-      lam=dist_lambda(k,ice_params%id)
-      frac=1.0-exp(-lam*DImax)*(1.0+lam*DImax)
-      dmass=frac*procs(ice_params%i_1m, i_idep%id)%column_data(k)
-
-      procs(ice_params%i_1m, i_idep%id)%column_data(k)=procs(ice_params%i_1m, i_idep%id)%column_data(k)-dmass
-      procs(snow_params%i_1m,i_sdep%id)%column_data(k)=procs(snow_params%i_1m,i_sdep%id)%column_data(k)+dmass
-    end if
+             procs(ice_params%i_1m, i_idep%id)%column_data(k)= &
+                  procs(ice_params%i_1m, i_idep%id)%column_data(k)-dmass
+             procs(snow_params%i_1m,i_sdep%id)%column_data(k)= &
+                  procs(snow_params%i_1m,i_sdep%id)%column_data(k)+dmass
+          end if
+       end if
+    enddo
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 

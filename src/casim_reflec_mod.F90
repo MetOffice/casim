@@ -94,9 +94,14 @@ USE distributions,        ONLY: dist_lambda, dist_mu, dist_n0
 USE mphys_parameters,     ONLY: cloud_params, rain_params, ice_params,   &
                                 snow_params, graupel_params
 
-USE mphys_switches,       ONLY: l_g, l_warm, l_cfrac_casim_diag_scheme, l_prf_cfrac, i_cfl, i_cfr, i_cfi, i_cfs, i_cfg
+USE mphys_switches,       ONLY: l_g, l_warm, l_cfrac_casim_diag_scheme, &
+                                l_prf_cfrac, i_cfl, i_cfr, i_cfi,       &
+                                i_cfs, i_cfg
 USE special,              ONLY: Gammafunc
 USE mphys_die,            ONLY: throw_mphys_error, warn, std_msg
+
+!!use thresholds, only: cfliq_small ! 
+!! not used now removed due to comment in #374
 
 USE distributions,        ONLY: query_distributions, dist_lambda, dist_mu, dist_n0, dist_lams
 

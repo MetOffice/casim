@@ -8,7 +8,8 @@ module sedimentation
   use mphys_switches, only: hydro_complexity, l_abelshipway, l_sed_3mdiff, l_cons, &
        i_an2, i_am2, i_am4, l_ased, i_am5, i_am7, i_am8, i_am9, i_ql, l_process, l_passivenumbers, l_passivenumbers_ice,   &
        active_cloud, active_rain, isol, iinsol, active_ice, active_number, i_an11, i_an12, &
-       l_separate_rain, l_warm, i_aerosed_method, l_sed_icecloud_as_1m, l_kfsm, max_sed_length, & 
+       l_separate_rain, l_warm, i_aerosed_method, l_sed_icecloud_as_1m, l_sed_rain_1m, l_sed_snow_1m, &
+       l_sed_graupel_1m, l_kfsm, max_sed_length, & 
        cfl_vt_max, l_sed_eulexp
   use mphys_constants, only: rhow, rho0, cp
   use process_routines, only: process_rate, i_psedr, i_asedr, i_asedl, i_psedl, &
@@ -785,6 +786,18 @@ contains
           end if
         else
           if (params%l_2m)u2r=min(u2r,params%maxv)
+        end if
+
+        if (params%id==rain_params%id .and. l_sed_rain_1m) then 
+           if (params%l_2m)u2r=u1r
+        end if
+
+        if (params%id==snow_params%id .and. l_sed_snow_1m) then 
+           if (params%l_2m)u2r=u1r
+        end if
+
+        if (params%id==graupel_params%id .and. l_sed_graupel_1m) then 
+           if (params%l_2m)u2r=u1r
         end if
 
         ! fall speeds shouldn't be negative (can happen with original AS formulation)

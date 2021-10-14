@@ -62,7 +62,7 @@ module mphys_switches
 
   logical :: l_adjust_D0 = .true.  !adjust the psd in distributions
   
-  logical :: l_kk00 = .false.  ! true=use KK2000 autoconv+accretion, false=use KK2013
+  logical :: l_kk00 = .true.  ! true=use KK2000 autoconv+accretion, false=use KK2013
 
 ! Flag to decide whether to transfer the evaporating aerosol based on whether 
 ! it is less or more than halfway between the sizes of accum and coarse modes
@@ -93,6 +93,10 @@ module mphys_switches
   ! index to determine if something is a soluble(ccn) or insoluble(IN) (NB currently can't be both)
   integer :: isol=1
   integer :: iinsol=2
+  ! ONLY for ARG. 0: don't activate in-cloud, 1: activate in-cloud as per
+  ! ARG default. 2: use smaller smax out of ARG smax and the smax calculated
+  ! from existing cloud droplets
+  integer :: activate_in_cloud=2
 
   ! standard hydrometeor indices
   integer :: i_qv  = 0 ! water vapour
@@ -234,10 +238,10 @@ module mphys_switches
 
   real(wp) :: cfl_vt_max = 1.0
   
-  
   !mixed-phase overlap factor (1=max overlap, 0=min overlap) for cloud fraction
   real(wp) :: mpof = 0.5 
   
+  logical :: l_srg = .false. ! if true snow collecting rain makes graupel, otherwise makes snow
   
 
   ! process switches
@@ -246,7 +250,11 @@ module mphys_switches
 
   logical :: l_abelshipway=.true.
   logical :: l_sed_3mdiff=.false.
+  ! logicals to set 1M sedimentation for 2M or 3M configurations
   logical :: l_sed_icecloud_as_1m=.false.
+  logical :: l_sed_rain_1m = .false.
+  logical :: l_sed_snow_1m = .false.
+  logical :: l_sed_graupel_1m = .false.
   logical :: l_cons=.false.
   logical :: l_inuc=.true.
 
@@ -298,7 +306,7 @@ module mphys_switches
   logical, target :: l_psaci   = .true.  ! snow accreting ice
   logical, target :: l_praci   = .true.  ! rain accreting ice
   logical, target :: l_psacr   = .true.  ! snow accreting rain
-  logical, target :: l_pgacr   = .true.  ! graupel accreting rain
+  logical, target :: l_pgacr   = .false.  ! graupel accreting rain
   logical, target :: l_pgacw   = .true.  ! graupel accreting cloud water
   logical, target :: l_pgaci   = .true.  ! graupel accreting ice
   logical, target :: l_pgacs   = .true.  ! graupel accreting snow
@@ -376,7 +384,7 @@ module mphys_switches
   ! (I l_limit_psd=.true.)
   real(wp) :: fix_mu = 2.5 ! Fixed value for shape parameter (1M/2M)
 
-  logical :: l_inhom_revp = .false.  ! Inhomogeneous evaporation of raindrop
+  logical :: l_inhom_revp = .true.  ! Inhomogeneous evaporation of raindrop
 
   ! Aerosol-cloud switches
   integer :: aerosol_option = 0 ! Determines how many aerosol modes to use
@@ -1139,18 +1147,18 @@ contains
       ! Kalli's single moment scheme in use, so we need to switch off
       ! all of the process rates which are not required.
 
-      !l_psaut = .false.
-      !l_psdep = .false.
-      !l_psacw = .false.
-      !l_pseds = .false.
-      !l_psaci = .false.
-      !l_psacr = .false.
-      !l_pgacs = .false.
-      !l_psagg = .false.
-      !l_psbrk = .false.
-      !l_pihal = .false.
-      !l_psmlt = .false.
-      !l_pssub = .false.
+      l_psaut = .false.
+      l_psdep = .false.
+      l_psacw = .false.
+      l_pseds = .false.
+      l_psaci = .false.
+      l_psacr = .false.
+      l_pgacs = .false.
+      l_psagg = .false.
+      l_psbrk = .false.
+      l_pihal = .false.
+      l_psmlt = .false.
+      l_pssub = .false.
 
       ! But we need to turn on ice and snow sedimentation as these
       ! are on in his runs.

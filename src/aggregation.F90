@@ -64,12 +64,13 @@ contains
           if (rain_mass > qr_small .and. rain_number>0) then
              if (l_beheng) then
                 Dr=(.75/pi)*(rain_mass/rain_number/rhow)**(1.0/d_r)
-                if ( Dr < 600.0e-6) then
-                   ! Modified from original
-                   Eff=.5
-                else
-                   Eff=0.0
-                end if
+!!                if ( Dr < 600.0e-6) then
+!!                   ! Modified from original
+!!                   Eff=.5
+!!                else
+!!                   Eff=0.0
+!!                end if
+                Eff=1.0 !Beheng 1994 Atmos. Res.
                 dnumber=Eff*8.0*rain_number*rain_mass*rho(k)
              end if
              procs(i_nr, i_pracr%id)%column_data(k)=-dnumber
@@ -100,7 +101,7 @@ contains
   !< NB: Aerosol mass is not modified by this process
   !
   !< CODE TIDYING: Move efficiencies into parameters
-  subroutine ice_aggregation(dt, k, params, qfields, procs)
+  subroutine ice_aggregation(dt, nz, l_Tcold, params, qfields, procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -109,7 +110,8 @@ contains
 
     ! Subroutine arguments
     real(wp), intent(in) :: dt
-    integer, intent(in) :: k
+    integer, intent(in) :: nz
+    logical, intent(in) :: l_Tcold(:)   
     type(hydro_params), intent(in) :: params
     real(wp), intent(in), target :: qfields(:,:)
     type(process_rate), intent(inout), target :: procs(:,:)
@@ -120,6 +122,8 @@ contains
     real(wp) :: Eff ! collection efficiencies need to re-evaluate these and put them in properly to mphys_parameters
     real(wp) :: mass, m1, m2, gaussterm
     real(wp) :: n0, lam, mu
+
+    integer :: k
 
     character(len=*), parameter :: RoutineName='ICE_AGGREGATION'
 
@@ -132,34 +136,39 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-    Eff=min(1.0_wp, 0.2*exp(0.08*TdegC(k)))
-    select case (params%id)
-    case (3_iwp) !ice
-      iproc=i_iagg
-    case (4_iwp) !snow
-      iproc=i_sagg
-    case (5_iwp) !graupel
-      iproc=i_gagg
-    end select
+    do k = 1, nz
+       if (l_Tcold(k)) then 
+          Eff=min(1.0_wp, 0.2*exp(0.08*TdegC(k)))
+          select case (params%id)
+          case (3_iwp) !ice
+             iproc=i_iagg
+          case (4_iwp) !snow
+             iproc=i_sagg
+             Eff=0.1 ! Field and Heymsfield 2003 JAS , Field etal. 2007 JAS
+          case (5_iwp) !graupel
+             iproc=i_gagg
+          end select
+          
+          mass=qfields(k, params%i_1m)
 
-    mass=qfields(k, params%i_1m)
+          if (mass > thresh_small(params%i_1m) .and. params%l_2m) then ! if no significant ice, we don't bother
 
-    if (mass > thresh_small(params%i_1m) .and. params%l_2m) then ! if no significant ice, we don't bother
+             n0=dist_n0(k,params%id)
+             mu=dist_mu(k,params%id)
+             lam=dist_lambda(k,params%id)
 
-      n0=dist_n0(k,params%id)
-      mu=dist_mu(k,params%id)
-      lam=dist_lambda(k,params%id)
-
-      if (params%l_3m) then
-        !gaussterm = gauss_casim_func(mu, params%b_x)
-        call gaussfunclookup_2d(params%id, gaussterm, mu, params%b_x)
-      else
-        call gaussfunclookup(params%id, gaussterm)
-      end if
-
-      dnumber=-1.0*gaussterm * pi*0.125*(rho0/rho(k))**params%g_x*params%a_x*n0*n0*Eff*lam**(-(4.0 + 2.0*mu + params%b_x))
-      procs(params%i_2m, iproc%id)%column_data(k)=dnumber
-    end if
+             if (params%l_3m) then
+                !gaussterm = gauss_casim_func(mu, params%b_x)
+                call gaussfunclookup_2d(params%id, gaussterm, mu, params%b_x)
+             else
+                call gaussfunclookup(params%id, gaussterm)
+             end if
+             
+             dnumber=-1.0*gaussterm * pi*0.125*(rho0/rho(k))**params%g_x*params%a_x*n0*n0*Eff*lam**(-(4.0 + 2.0*mu + params%b_x))
+             procs(params%i_2m, iproc%id)%column_data(k)=dnumber
+          end if
+       end if
+    enddo
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 

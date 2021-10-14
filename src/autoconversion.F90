@@ -67,7 +67,7 @@ contains
 
     else ! l_prf_cfrac
 
-      cf_liquid = 1.0
+      cf_liquid = 1.0_wp
 
     end if
 
@@ -79,7 +79,8 @@ contains
       cloud_number=fixed_cloud_number
     end if
 
-    if (cloud_mass *cf_liquid> ql_small .and. cloud_number * cf_liquid > nl_small) then
+    if (cloud_mass *cf_liquid> ql_small .and. &
+         cloud_number * cf_liquid > nl_small) then
       if (l_kk00) then
          dmass = 1350.*cloud_mass**2.47*  &
               (cloud_number/1.e6*rho(k))**(-1.79)
@@ -88,11 +89,17 @@ contains
          dmass = 7.98e10*cloud_mass**4.22*  &
               (cloud_number/1.e6*rho(k))**(-3.01)
       endif
-!      dmass=1350.0*cloud_mass**2.47*(cloud_number/1.0e6*rho(k))**(-1.79)
+
       dmass=min(.25*cloud_mass/dt, dmass)
       if (l_preventsmall .and. dmass < qr_small) dmass=0.0
       if (l_2mc) dnumber1=dmass/(cloud_mass/cloud_number)
       mu_qc=min(15.0_wp, (1000.0E6/cloud_number + 2.0))
+      ! The following line is correct for l_kk00 = .true., i.e. use KK2000 for 
+      ! autoconversion and accretion, which is the default switch in 
+      ! mphys_switches. However, need to confirm this is 
+      ! correct for Kogan (k13), i.e. l_kk00 = .false., since if the 50.0E-6
+      ! is the notional diameter threshold for autoconversion it needs to 
+      ! be changed 
       if (l_2mr) dnumber2=dmass/(rain_params%c_x*(mu_qc/3.0)*(50.0E-6)**3)
 
           ! AH - found that at the cloud edges rain number produced 

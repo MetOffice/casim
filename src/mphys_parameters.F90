@@ -65,7 +65,7 @@ module mphys_parameters
        997.0,                               & ! density
        -999,         -999,    -999,         & ! moment indices (set elsewhere)
        .false.,      .false.,    .false.,   & ! moment logicals (set elsewhere)
-       .01e-6,       50.0e-6,               & ! size limits (m)
+       .01e-6,       200.0e-6,               & ! size limits (m)
        2.5,          50.0e6,                & ! fixed parameter values for lower order representations
        .2,                                   & ! Maximum realistic bulk fall speed (m/s)
        ! Initialise all gamma functions to 0
@@ -231,17 +231,15 @@ module mphys_parameters
        4,                                   & ! identifier unique to species
        2.0,             0.0,      4.0,      & ! moments used
        2.0,             0.0,      4.0,      & ! sedimentation moments
-!       0.023,     2.0,      0.0,     & ! mass-diameter relation
        0.026,     2.0,      0.0,     & ! mass-diameter relation
-       15.0,         0.5,   0.0,    .5,  & ! fallspeed
+       12.0,         0.5,   0.0,    .5,     & ! fallspeed
        0.0,           0.0,     0.0,         & ! fallspeed Abel-Shipway
        100.0,                               & ! density
        -999,         -999,    -999,         & ! moment indices (set elsewhere)
        .false.,      .false.,    .false.,   & ! moment logicals (set elsewhere)
-       0.1e-6,       0.005,                 & ! size limits (m)
-       0.0,          0.1e6,                 & ! fixed parameter values for lower order representations   !!mu=2 from field et al. 2007
+       100e-6,       0.005,                 & ! size limits (m)
+       2.0,          0.1e6,                 & ! fixed parameter values for lower order representations   !!mu=2 from field et al. 2007
       10.0,                                 & ! Maximum realistic bulk fall speed (m/s)
-!       3.0,                                 & ! Maximum realistic bulk fall speed (m/s)
        ! Initialise all gamma functions to 0
        0.0,             0.0,                & ! gamma for moments p1 and p2
        0.0,             0.0,                & ! gamma for sedimentation moments sp1 and sp2
@@ -277,7 +275,6 @@ module mphys_parameters
        0.1e-6,       .005,                  & ! size limits (m)
        2.5,          0.02e6,                & ! fixed parameter values for lower order representations
        20.0,                                &  ! Maximum realistic bulk fall speed (m/s)
-!       4.0,                                &  ! Maximum realistic bulk fall speed (m/s)
        ! Initialise all gamma functions to 0
        0.0,             0.0,                & ! gamma for moments p1 and p2
        0.0,             0.0,                & ! gamma for sedimentation moments sp1 and sp2

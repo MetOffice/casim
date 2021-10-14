@@ -4,14 +4,14 @@ module snow_autoconversion
   use mphys_switches, only: iopt_auto,   &
        i_qi, i_qs, i_ni, i_ns, i_m3s, hydro_complexity, &
        l_dsaut, i_qv, i_th, &
-       l_harrington, i_cfi, i_cfs, l_prf_cfrac
+       l_harrington
   use mphys_constants, only: rhow, fixed_ice_number,   &
        Ls, cp,  Lv,ka, Dv, Rv
   use mphys_parameters, only: mu_saut, snow_params, ice_params,   &
        DImax, tau_saut, DI2S
   use process_routines, only: process_rate, i_saut
   use qsat_funs, only: qsaturation, qisaturation
-  use thresholds, only: thresh_small, cfliq_small
+  use thresholds, only: thresh_small
   use special, only: pi
   use m3_incs, only: m3_inc_type2, m3_inc_type3
 
@@ -26,7 +26,7 @@ module snow_autoconversion
   public saut
 contains
 
-  subroutine saut(dt, k, qfields, cffields, aerofields, procs, aerosol_procs)
+  subroutine saut(dt, nz, l_Tcold, qfields, aerofields, procs, aerosol_procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -36,8 +36,9 @@ contains
     character(len=*), parameter :: RoutineName='SAUT'
 
     real(wp), intent(in) :: dt
-    integer, intent(in) :: k
-    real(wp), intent(in) :: qfields(:,:), aerofields(:,:), cffields(:,:)
+    integer, intent(in) :: nz
+    logical, intent(in) :: l_Tcold(:) 
+    real(wp), intent(in) :: qfields(:,:), aerofields(:,:)
     type(process_rate), intent(inout), target :: procs(:,:)
     type(process_rate), intent(inout), target :: aerosol_procs(:,:)
 
@@ -50,8 +51,7 @@ contains
     real(wp) :: qv
     real(wp) :: p1, p2, p3
     real(wp) :: lami_min , AB, qis
-    integer :: i
-    real(wp) :: cf_ice
+    integer :: i, k
 
     logical :: l_condition ! logical condition to switch on process
 
@@ -64,105 +64,93 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+    do k = 1, nz
+       if (l_Tcold(k)) then
+          l_condition=.true.
+          lami_min=0.0
+          
+          ice_mass=qfields(k, i_qi)
+          if (ice_params%l_2m) then
+             ice_number=qfields(k, i_ni)
+          else
+             ice_number=fixed_ice_number
+          end if
+          
+          if (ice_mass < thresh_small(i_qi) .or. ice_number < thresh_small(i_ni)) then
+             l_condition=.false.
+          else
+             ice_mu=dist_mu(k,ice_params%id)
+             ice_lam=dist_lambda(k,ice_params%id)
+             
+             lami_min=(1.0 + ice_mu)/DImax
+             
+          end if
+          
+          if (l_condition) then
+             if (l_harrington) then
+                qv=qfields(k, i_qv)
+                th=qfields(k, i_th)
+                qis=qisaturation(th*exner(k), pressure(k)/100.0)
+                l_condition=qv > qis
+             else
+                l_condition=ice_lam < lami_min ! LEM autconversion
+             end if
+          end if
+          
+          if (l_condition) then
+             
+             p1=snow_params%p1
+             p2=snow_params%p2
+             p3=snow_params%p3
+             
+             if (l_harrington) then
+                !< AB This is used elsewhere, so we should do it more efficiently.
+                AB=1.0/(Lv*Lv/(Rv*ka*TdegK(k)*TdegK(k))*rho(k)+1.0/(Dv*qis))
+                dnumber=4.0/DImax/ice_params%density*(qv-qis)*rho(k)*ice_number*exp(-ice_lam*DImax)*Dv/AB
+                dnumber=min(dnumber,0.9*ice_number/dt)
+                dmass=pi/6.0*ice_params%density*DImax**3*dnumber
+                dmass=min(dmass, 0.7*ice_mass/dt)
+             else ! LEM version
+                dmass=((lami_min/ice_lam)**ice_params%d_x - 1.0)*ice_mass/tau_saut
+                if (ice_mass < dmass*dt) then
+                   dmass=.5*ice_mass/dt
+                end if
+                dmass=min(dmass, .5*ice_mass/dt)
+                dnumber=dmass/(ice_params%c_x*DI2S**ice_params%d_x)
+             end if
+             
+             if (ice_number < dnumber*dt) then
+                dnumber=dmass/ice_mass * ice_number
+             end if
+             
 
-    if (l_prf_cfrac) then
-      if (cffields(k,i_cfi) .gt. cfliq_small) then
-        ! only doing liquid cloud fraction at the moment
-        cf_ice=cffields(k,i_cfi)
-      else
-        cf_ice=cfliq_small !nonzero value 
-      endif
-    else
-      cf_ice=1.0
-    endif
-
-
-
-    l_condition=.true.
-    lami_min=0.0
-
-    ice_mass=qfields(k, i_qi) / cf_ice
-    if (ice_params%l_2m) then
-      ice_number=qfields(k, i_ni) / cf_ice
-    else
-      ice_number=fixed_ice_number / cf_ice
-    end if
-
-    if (ice_mass * cf_ice < thresh_small(i_qi) .or. ice_number * cf_ice < thresh_small(i_ni)) then
-      l_condition=.false.
-    else
-      ice_mu=dist_mu(k,ice_params%id)
-      ice_lam=dist_lambda(k,ice_params%id)
-
-      lami_min=(1.0 + ice_mu)/DImax
-
-    end if
-
-    if (l_condition) then
-      if (l_harrington) then
-        qv=qfields(k, i_qv)
-        th=qfields(k, i_th)
-        qis=qisaturation(th*exner(k), pressure(k)/100.0)
-        l_condition=qv > qis
-      else
-        l_condition=ice_lam < lami_min ! LEM autconversion
-      end if
-    end if
-
-    if (l_condition) then
-
-      p1=snow_params%p1
-      p2=snow_params%p2
-      p3=snow_params%p3
-
-      if (l_harrington) then
-        !< AB This is used elsewhere, so we should do it more efficiently.
-        AB=1.0/(Lv*Lv/(Rv*ka*TdegK(k)*TdegK(k))*rho(k)+1.0/(Dv*qis))
-        dnumber=4.0/DImax/ice_params%density*(qv-qis)*rho(k)*ice_number*exp(-ice_lam*DImax)*Dv/AB
-        dnumber=min(dnumber,0.9*ice_number/dt)
-        dmass=pi/6.0*ice_params%density*DImax**3*dnumber
-        dmass=min(dmass, 0.7*ice_mass/dt)
-      else ! LEM version
-        dmass=((lami_min/ice_lam)**ice_params%d_x - 1.0)*ice_mass/tau_saut
-        if (ice_mass < dmass*dt) then
-          dmass=.5*ice_mass/dt
-        end if
-        dmass=min(dmass, .5*ice_mass/dt)
-        dnumber=dmass/(ice_params%c_x*DI2S**ice_params%d_x)
-      end if
-
-      if (ice_number < dnumber*dt) then
-        dnumber=dmass/ice_mass * ice_number
-      end if
-
-      if (dmass*dt * cf_ice > thresh_small(i_qs)) then
-        ! if (snow_params%l_3m) then
-        !   dm1=dt*dmass/snow_params%c_x
-        !   dm2=dt*dnumber
-        !   call m3_inc_type3(p1, p2, p3, dm1, dm2, dm3, mu_saut)
-        !   dm3=dm3/dt
-        ! end if
-
-        dmass=dmass*cf_ice! convert back to grid box mean
-        dnumber=dnumber*cf_ice! convert back to grid box mean
-
-        procs(i_qi, i_saut%id)%column_data(k)=-dmass  
-        procs(i_qs, i_saut%id)%column_data(k)=dmass   
-
-        if (ice_params%l_2m) then
-          procs(i_ni, i_saut%id)%column_data(k)=-dnumber  
-        end if
-        if (snow_params%l_2m) then
-          procs(i_ns, i_saut%id)%column_data(k)=dnumber   
-        end if
-        ! if (snow_params%l_3m) then
-        !   procs(i_m3s, i_saut%id)%column_data(k)=dm3
-        ! end if
-      end if
-      !==============================
-      ! No aerosol processing needed
-      !==============================
-   end if
+             if (dmass*dt > thresh_small(i_qs)) then
+                ! if (snow_params%l_3m) then
+                !   dm1=dt*dmass/snow_params%c_x
+                !   dm2=dt*dnumber
+                !   call m3_inc_type3(p1, p2, p3, dm1, dm2, dm3, mu_saut)
+                !   dm3=dm3/dt
+                ! end if
+                
+                procs(i_qi, i_saut%id)%column_data(k)=-dmass
+                procs(i_qs, i_saut%id)%column_data(k)=dmass
+                
+                if (ice_params%l_2m) then
+                   procs(i_ni, i_saut%id)%column_data(k)=-dnumber
+                end if
+                if (snow_params%l_2m) then
+                   procs(i_ns, i_saut%id)%column_data(k)=dnumber
+                end if
+                ! if (snow_params%l_3m) then
+                !   procs(i_m3s, i_saut%id)%column_data(k)=dm3
+                ! end if
+             end if
+             !==============================
+             ! No aerosol processing needed
+             !==============================
+          end if
+       end if
+    enddo
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 

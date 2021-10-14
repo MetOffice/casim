@@ -19,8 +19,9 @@ module micro_main
        l_inuc, l_sed, l_condensation, l_iaut, l_imelt, l_iacw, l_idep, aero_index, nq_l, nq_r, nq_i, nq_s, nq_g, &
        l_sg, l_g, l_process, l_halletmossop, max_sed_length, max_step_length, l_harrington, l_passive, ntotala, ntotalq, &
        active_number, isol, iinsol, l_raci_g, l_onlycollect, l_pracr, pswitch, l_isub, l_pos1, l_pos2, l_pos3, l_pos4, &
-       l_pos5, l_pos6, i_hstart, l_tidy_negonly, iopt_act, iopt_shipway_act, l_prf_cfrac, l_kfsm,l_rain, &
-       l_gamma_online, l_subseds_maxv, i_cfl, i_cfr, i_cfi, i_cfs, i_cfg 
+       l_pos5, l_pos6, i_hstart, l_tidy_negonly,  &
+       iopt_act, iopt_shipway_act, l_prf_cfrac, l_kfsm, l_rain, l_gamma_online, l_subseds_maxv, &
+       i_cfl, i_cfr, i_cfi, i_cfs, i_cfg 
   use passive_fields, only: rexner, min_dz
   use mphys_constants, only: cp, Lv, Ls
   use distributions, only: query_distributions, initialise_distributions, dist_lambda, dist_mu, dist_n0, dist_lams
@@ -560,9 +561,6 @@ contains
 
       do i=is_in,ie_in
 
-!        i_here = i
-!        j_here = j
-
         precip_l = 0.0
         precip_r = 0.0
         precip_i = 0.0
@@ -583,15 +581,12 @@ contains
           call zero_procs(aerosol_procs, nz)
         end if
 
-
         !set cloud fraction fields
         cffields(:,i_cfl)=cfliq(ks:ke,i,j)
         cffields(:,i_cfr)=cfrain(ks:ke,i,j)
         cffields(:,i_cfi)=cfice(ks:ke,i,j)
         cffields(:,i_cfs)=cfsnow(ks:ke,i,j)
         cffields(:,i_cfg)=cfgr(ks:ke,i,j)
-
-        
 
         ! Set the qfields
         qfields(:, i_qv)=qv(ks:ke,i,j)
@@ -680,9 +675,9 @@ contains
         !--------------------------------------------------
         ! Do the business...
         !--------------------------------------------------
-        call microphysics_common(dt, ks, ke, i , j, qfields, cffields, dqfields, tend, procs, precip(i,j) &
-             , precip_l, precip_r, precip_i, precip_s, precip_g, precip_r1d, precip_s1d &
-             , precip_so1d, precip_g1d    &
+        call microphysics_common(dt, ks, ke, i , j, qfields, cffields, dqfields, tend, procs &
+             , precip(i,j), precip_l, precip_r, precip_i, precip_s, precip_g       &
+             , precip_r1d, precip_s1d, precip_so1d, precip_g1d                     &
              , aerophys, aerochem, aeroact                                         &
              , dustphys, dustchem, dustact                                         &
              , aeroice, dustliq                                                    &
@@ -862,9 +857,9 @@ contains
 
   end subroutine shipway_microphysics
 
-  subroutine microphysics_common(dt, kl, ku, ix, jy, qfields, cffields, dqfields, tend, procs, precip &
-       , precip_l, precip_r, precip_i, precip_s, precip_g, precip_r1d, precip_s1d &
-       , precip_so1d, precip_g1d      &
+  subroutine microphysics_common(dt, kl, ku, ix, jy, qfields, cffields, dqfields, tend & 
+       , procs, precip, precip_l, precip_r, precip_i, precip_s, precip_g      & 
+       , precip_r1d, precip_s1d, precip_so1d, precip_g1d                      &
        , aerophys, aerochem, aeroact                                          &
        , dustphys, dustchem, dustact                                          &
        , aeroice, dustliq                                                     &
@@ -1133,17 +1128,23 @@ contains
        !-------------------------------
        ! Do the autoconversion to rain
        !-------------------------------
-       if (pswitch%l_praut) call raut(step_length, qfields, cffields, aerofields, procs, aerosol_procs)
+       if (pswitch%l_praut) then
+          call raut(step_length, qfields, cffields, aerofields, procs, aerosol_procs)
+       end if
 
        !-------------------------------
        ! Do the rain accreting cloud
        !-------------------------------
-       if (pswitch%l_pracw) call racw(step_length, qfields, cffields, aerofields, procs, rain_params, aerosol_procs)
+       if (pswitch%l_pracw) then
+          call racw(step_length, qfields, cffields, aerofields, procs, rain_params, aerosol_procs)
+       end if
 
        !-------------------------------
        ! Do the rain self-collection
        !-------------------------------
-       if (pswitch%l_pracr) call racr(step_length, qfields, procs)
+       if (pswitch%l_pracr) then
+          call racr(step_length, qfields, procs)
+       end if
 
        !-------------------------------
        ! Do the evaporation of rain
@@ -1161,205 +1162,228 @@ contains
        ! ICE MICROPHYSICAL PROCESSES....
        !
        !=================================
-       do k=1, nz
+       ! Start of all ice processes that occur at T < 0C
+       !
+       if (.not. l_warm_loc) then
           
-          if (.not. l_warm_loc) then
-            if (l_Tcold(k)) then
-              !------------------------------------------------------
-              ! Autoconverion to snow
-              !------------------------------------------------------
-              if (pswitch%l_psaut .and. .not. l_kfsm) &
-                   call saut(step_length, k, qfields, cffields, aerofields, procs, aerosol_procs)
+          !------------------------------------------------------
+          ! Condensation/immersion/contact nucleation of cloud ice
+          !------------------------------------------------------
+          if (pswitch%l_pinuc) then 
+             call inuc(step_length, nz, l_Tcold, qfields, cffields, procs,     &
+                  dustphys, dustchem, aeroact, dustliq, aerosol_procs)
+          end if
 
-              !------------------------------------------------------
-              ! Accretion processes
-              !------------------------------------------------------
-              ! Ice -> Cloud -> Ice
-              if (pswitch%l_piacw) call iacc(step_length, k, ice_params, cloud_params, ice_params, qfields, cffields, &
-                   procs, aeroact, dustliq, aerosol_procs)
-              ! Snow -> Cloud -> Snow
-              if (l_sg) then
-                if (pswitch%l_psacw .and. .not. l_kfsm) &
-                     call iacc(step_length, k, snow_params, cloud_params, snow_params, &
-                     qfields, cffields, procs, aeroact, dustliq, aerosol_procs)
-                ! Snow -> Ice -> Snow
-                if (pswitch%l_psaci .and. .not. l_kfsm) &
-                     call iacc(step_length, k, snow_params, ice_params, snow_params, qfields, cffields, &
-                     procs, aeroact, dustliq, aerosol_procs)
-                if (pswitch%l_praci .and. (.not. l_sigevap(k))) then
-                  ! Rain mass dependence to decide if we produce snow or graupel
-                  if (qfields(k,i_qr) > thresh_sig(i_qr) .and. l_g .and. l_raci_g) then
-                    ! Rain -> Ice -> Graupel
-                    call iacc(step_length, k, rain_params, ice_params, graupel_params, &
-                         qfields, cffields, procs, aeroact, dustliq, aerosol_procs)
-                  else if (.not. l_kfsm) then
-                    ! Rain -> Ice -> Snow
-                    ! Ignore this process in Kalli's single moment code.
-                    call iacc(step_length, k, rain_params, ice_params, snow_params, qfields, cffields, &
-                         procs, aeroact, dustliq, aerosol_procs)
-                  end if
+          !------------------------------------------------------
+          ! Autoconverion to snow
+          !------------------------------------------------------
+          if (pswitch%l_psaut .and. .not. l_kfsm) then
+             call saut(step_length, nz, l_Tcold, qfields, aerofields, procs, aerosol_procs)
+          end if
+          !------------------------------------------------------
+          ! Accretion processes
+          !------------------------------------------------------
+          ! Ice -> Cloud -> Ice
+          if (pswitch%l_piacw) then 
+             call iacc(step_length, nz, l_Tcold, ice_params, cloud_params, ice_params, qfields, &
+                  cffields, procs, l_sigevap, aeroact, dustliq, aerosol_procs)
+          end if
+          ! Snow -> Cloud -> Snow
+          if (l_sg) then
+             if (pswitch%l_psacw .and. .not. l_kfsm) then
+                call iacc(step_length, nz,  l_Tcold,snow_params, cloud_params, snow_params, &
+                     qfields, cffields, procs, l_sigevap, aeroact, dustliq, aerosol_procs)
+             end if
+             !
+             ! Snow -> Ice -> Snow
+             if (pswitch%l_psaci .and. .not. l_kfsm) then
+                call iacc(step_length, nz, l_Tcold, snow_params, ice_params, snow_params, qfields, &
+                     cffields, procs, l_sigevap, aeroact, dustliq, aerosol_procs)
+             end if
+             !
+             if (pswitch%l_praci) then
+                ! Rain -> Ice -> Graupel AND Rain -> Ice -> snow, decision made in iacc
+                call iacc(step_length, nz,  l_Tcold, rain_params, ice_params, graupel_params, &
+                     qfields, cffields, procs, l_sigevap, aeroact, dustliq, aerosol_procs, snow_params)
+                ! only one call needed and the decision of graupel or snow is made within iacc
+                ! NOTE: this will break kfsm!!
+                
+             end if
+             if (pswitch%l_psacr .and. .not. l_kfsm) then 
+                ! Snow -> Rain -> Graupel AND Snow -> Rain -> Snow, decision made in iacc
+                call iacc(step_length, nz,  l_Tcold, snow_params, rain_params, graupel_params, &
+                     qfields, cffields, procs, l_sigevap, aeroact, dustliq, aerosol_procs, &
+                     snow_params)
+             end if
+             if (l_g) then
+                ! Graupel -> Cloud -> Graupel
+                if (pswitch%l_pgacw) then
+                   call iacc(step_length, nz,  l_Tcold, graupel_params, cloud_params, &
+                        graupel_params, qfields, cffields, procs, l_sigevap, aeroact, dustliq, &
+                        aerosol_procs)
                 end if
-                if (pswitch%l_psacr .and. (.not. l_sigevap(k)) .and. .not. l_kfsm) then
-                  ! Temperature dependence to decide if we produce snow or graupel
-                  if (TdegK(k) < 268.15 .and. l_g) then
-                    ! Snow -> Rain -> Graupel
-                    call iacc(step_length, k, snow_params, rain_params, graupel_params, &
-                         qfields, cffields, procs, aeroact, dustliq, aerosol_procs)
-                  else
-                    ! Snow -> Rain -> Snow
-                    call iacc(step_length, k, snow_params, rain_params, snow_params, &
-                         qfields, cffields, procs, aeroact, dustliq, aerosol_procs)
-                  end if
-                end if
-                if (l_g) then
-                  ! Graupel -> Cloud -> Graupel
-                  if (pswitch%l_pgacw)call iacc(step_length, k, graupel_params, cloud_params, &
-                       graupel_params, qfields, cffields, procs, aeroact, dustliq, aerosol_procs)
                   ! Graupel -> Rain -> Graupel
-                  if (pswitch%l_pgacr .and. (.not. l_sigevap(k)))call iacc(step_length, k,       &
-                       graupel_params, rain_params, graupel_params, qfields, cffields,                    &
-                       procs, aeroact, dustliq, aerosol_procs)
-                  ! Graupel -> Ice -> Graupel
-                  !                   if(pswitch%l_gsaci)call iacc(step_length, k, graupel_params, ice_params, graupel_params, qfields, &
-                  !                       procs, aeroact, dustliq, aerosol_procs)
-                  ! Graupel -> Snow -> Graupel
-                  !                   if(pswitch%l_gsacs)call iacc(step_length, k, graupel_params, snow_params, graupel_params, qfields, &
-                  !                       procs, aeroact, dustliq, aerosol_procs)
+                if (pswitch%l_pgacr) then
+                   call iacc(step_length, nz,  l_Tcold, graupel_params, rain_params, &
+                        graupel_params, qfields, cffields,  &
+                        procs, l_sigevap, aeroact, dustliq, aerosol_procs)
                 end if
-              end if
+                ! Graupel -> Ice -> Graupel
+                !                   if(pswitch%l_gsaci)call iacc(step_length, k, graupel_params, ice_params, graupel_params, qfields, &
+                !                       procs, aeroact, dustliq, aerosol_procs)
+                ! Graupel -> Snow -> Graupel
+                !                   if(pswitch%l_gsacs)call iacc(step_length, k, graupel_params, snow_params, graupel_params, qfields, &
+                !                       procs, aeroact, dustliq, aerosol_procs)
+             end if
+          end if
+          
+          !------------------------------------------------------
+          ! Small snow accreting cloud should be sent to graupel
+          ! (Ikawa & Saito 1991)
+          !------------------------------------------------------
+          if (.not. l_kfsm) then
+             ! Only do this process when Kalli's single moment code is
+             ! not in use; otherwise we ignore it.
+             if (l_g .and. .not. l_onlycollect) then
+                call graupel_embryos(step_length, nz, l_Tcold, qfields, cffields, & 
+                     procs, aerophys, aerochem, aeroact,    &
+                     aerosol_procs)
+             end if ! l_g
+          end if ! not l_kfsm and precondition
+          
+          !------------------------------------------------------
+          ! Wet deposition/shedding (resulting from graupel
+          ! accretion processes)
+          ! NB This alters some of the accretion processes, so
+          ! must come after their calculation and before they
+          ! are used/rescaled elsewhere
+          !------------------------------------------------------
+          if (l_g .and. .not. l_onlycollect) then  
+             call wetgrowth(step_length, nz, l_Tcold, qfields, cffields, &
+                  procs, l_sigevap, aerophys, aerochem, aeroact, aerosol_procs)
+          end if
+          
+          !------------------------------------------------------
+          ! Aggregation (self-collection)
+          !------------------------------------------------------
+          if (pswitch%l_psagg .and. .not. l_kfsm) then 
+             call ice_aggregation(step_length, nz, l_Tcold, snow_params, qfields, procs)
+          end if
 
+          !------------------------------------------------------
+          ! Break up (snow only)
+          !------------------------------------------------------
+          if (pswitch%l_psbrk .and. .not. l_kfsm) then 
+             call ice_breakup(step_length, nz, l_Tcold, snow_params, qfields, procs)
+          end if
 
-              !------------------------------------------------------
-              ! Small snow accreting cloud should be sent to graupel
-              ! (Ikawa & Saito 1991)
-              !------------------------------------------------------
+          !------------------------------------------------------
+          ! Ice multiplication (Hallet-mossop)
+          !------------------------------------------------------
+          if (pswitch%l_pihal .and. .not. l_kfsm) then 
+             call hallet_mossop(step_length, nz, l_Tcold, qfields, cffields, &
+                  procs, aerophys, aerochem, aeroact, aerosol_procs)
+          end if
+          
+          !------------------------------------------------------
+          ! Homogeneous freezing (rain and cloud)
+          !------------------------------------------------------
+          if (pswitch%l_phomr) then 
+             call ihom_rain(step_length, nz, l_Tcold, qfields, &
+                  l_sigevap, aeroact, dustliq, procs, aerosol_procs)
+          end if
 
-              if (.not. l_kfsm) then
-                ! Only do this process when Kalli's single moment code is
-                ! not in use; otherwise we ignore it.
-                if (l_g .and. .not. l_onlycollect) then
-                    call graupel_embryos(step_length, k, qfields, cffields, procs, &
-                                         aerophys, aerochem, aeroact,    &
-                                         aerosol_procs)
-                end if ! l_g
-              end if ! not l_kfsm
+          if (pswitch%l_phomc) then
+             call ihom_droplets(step_length, nz, l_Tcold, qfields, aeroact, & 
+                  dustliq, procs, aerosol_procs)
+          endif
+          !------------------------------------------------------
+          ! Deposition/sublimation of ice/snow/graupel
+          !------------------------------------------------------
+          if (pswitch%l_pidep) then
+             call idep(step_length, nz,  l_Tcold, ice_params, qfields,  &
+                  procs, dustact, aeroice, aerosol_procs)
+          end if
 
-              !------------------------------------------------------
-              ! Wet deposition/shedding (resulting from graupel
-              ! accretion processes)
-              ! NB This alters some of the accretion processes, so
-              ! must come after their calculation and before they
-              ! are used/rescaled elsewhere
-              !------------------------------------------------------
-              if (l_g .and. .not. l_onlycollect .and. (.not. l_sigevap(k))) call wetgrowth(step_length, k, qfields, cffields, &
-                   procs, aerophys, aerochem, aeroact, aerosol_procs)
+          if (pswitch%l_psdep .and. .not. l_kfsm ) then
+             call idep(step_length, nz, l_Tcold,  snow_params, qfields, &
+                  procs, dustact, aeroice, aerosol_procs)
+          end if
 
-              !------------------------------------------------------
-              ! Aggregation (self-collection)
-              !------------------------------------------------------
-              if (pswitch%l_psagg .and. .not. l_kfsm) &
-                   call ice_aggregation(step_length, k, snow_params, qfields, procs)
+          if (pswitch%l_pgdep) then 
+             call idep(step_length, nz,  l_Tcold, graupel_params, qfields, &
+                  procs, dustact, aeroice, aerosol_procs)
+          end if
 
-              !------------------------------------------------------
-              ! Break up (snow only)
-              !------------------------------------------------------
-              if (pswitch%l_psbrk .and. .not. l_kfsm) & 
-                   call ice_breakup(step_length, k, snow_params, qfields, procs)
+          if (l_harrington .and. .not. l_onlycollect) then  
+             call adjust_dep(dt, nz,  l_Tcold, procs, qfields)
+          end if
 
-              !------------------------------------------------------
-              ! Ice multiplication (Hallet-mossop)
-              !------------------------------------------------------
-              if (pswitch%l_pihal .and. .not. l_kfsm) &
-                   call hallet_mossop(step_length, k, qfields, cffields,     &
-                   procs, aerophys, aerochem, aeroact, aerosol_procs)
-
-              !------------------------------------------------------
-              ! Homogeneous freezing (rain and cloud)
-              !------------------------------------------------------
-              if (pswitch%l_phomr .and. (.not. l_sigevap(k))) call ihom_rain(step_length, k, qfields,  &
-                   aeroact, dustliq, procs, aerosol_procs)
-              if (pswitch%l_phomc) call ihom_droplets(step_length, k, qfields,  aeroact, dustliq, procs, aerosol_procs)
-
-              !------------------------------------------------------
-              ! Condensation/immersion/contact nucleation of cloud ice
-              !------------------------------------------------------
-              if (pswitch%l_pinuc) call inuc(step_length, k, qfields, cffields, procs,     &
-                   dustphys, dustchem, aeroact, dustliq, aerosol_procs)
-
-              !------------------------------------------------------
-              ! Deposition/sublimation of ice/snow/graupel
-              !------------------------------------------------------
-              if (pswitch%l_pidep) call idep(step_length, k, ice_params, qfields,   &
-                   procs, dustact, aeroice, aerosol_procs)
-
-              if (pswitch%l_psdep .and. .not. l_kfsm ) &
-                   call idep(step_length, k, snow_params, qfields,  &
-                   procs, dustact, aeroice, aerosol_procs)
-
-              if (pswitch%l_pgdep) call idep(step_length, k, graupel_params, qfields,  &
-                   procs, dustact, aeroice, aerosol_procs)
-
-              if (l_harrington .and. .not. l_onlycollect) call adjust_dep(dt, k, procs, qfields)
-
-              !-----------------------------------------------------------
-              ! Make sure we don't remove more than saturation allows
-              !-----------------------------------------------------------
-              if (l_idep) call ensure_saturated(k, step_length, qfields, procs, (/i_idep, i_sdep, i_gdep/))
-              !-----------------------------------------------------------
-              ! Make sure we don't put back more than saturation allows
-              !-----------------------------------------------------------
-              if (l_isub) call ensure_saturated(k, step_length, qfields, procs, (/i_isub, i_ssub, i_gsub/))
-
-            else ! T is  above freezing
+          !-----------------------------------------------------------
+          ! Make sure we don't remove more than saturation allows
+          !-----------------------------------------------------------
+          if (l_idep) then 
+             call ensure_saturated(nz, l_Tcold, step_length, qfields, procs, &
+               (/i_idep, i_sdep, i_gdep/))
+          end if
+          !-----------------------------------------------------------
+          ! Make sure we don't put back more than saturation allows
+          !-----------------------------------------------------------
+          if (l_isub) then 
+             call ensure_saturated(nz, l_Tcold,  step_length, qfields, procs, &
+                  (/i_isub, i_ssub, i_gsub/))
+          end if
+          ! END all processes at T < 0C
+          !
+          ! start all ice processes that occur T > 0C, i.e. melting
               !------------------------------------------------------
               ! Melting of ice/snow/graupel
               !------------------------------------------------------
-              if (pswitch%l_psmlt .and. (.not. l_sigevap(k)) .and. .not. l_kfsm) &
-                   call melting(step_length, k, snow_params, qfields, &
-                   procs, aeroice, dustact, aerosol_procs)
-              if (pswitch%l_pgmlt .and. (.not. l_sigevap(k))) call melting(step_length, k, graupel_params, qfields, &
-                   procs, aeroice, dustact, aerosol_procs)
-              if (pswitch%l_pimlt .and. (.not. l_sigevap(k))) call melting(step_length, k, ice_params, qfields,     &
-                   procs, aeroice, dustact, aerosol_procs)
-
-           end if
-        end if
-      enddo
-
+          if (pswitch%l_psmlt .and. .not. l_kfsm) then
+             call melting(step_length, nz, snow_params, qfields, &
+                  procs, l_sigevap, aeroice, dustact, aerosol_procs)
+          end if
+          if (pswitch%l_pgmlt) then
+             call melting(step_length, nz, graupel_params, qfields, &
+                  procs, l_sigevap, aeroice, dustact, aerosol_procs)
+          end if
+          if (pswitch%l_pimlt) then  
+             call melting(step_length, nz, ice_params, qfields, &
+                  procs, l_sigevap, aeroice, dustact, aerosol_procs)
+          end if
+      end if ! end if .not. warm_loc
       !-----------------------------------------------------------
       ! Make sure we don't remove more than we have to start with
       !-----------------------------------------------------------
-      do k=1,nz
         if (.not. l_warm_loc) then
-           if (l_pos1) call ensure_positive(k, step_length, qfields, procs, cloud_params, &
+         if (l_pos1) call ensure_positive(nz, step_length, qfields, procs, cloud_params, &
                 (/i_praut, i_pracw, i_iacw, i_sacw, i_gacw, i_homc, i_inuc/),  &
                 aeroprocs=aerosol_procs, iprocs_dependent=(/i_aaut, i_aacw/))
               
-           if (l_pos2) call ensure_positive(k, step_length, qfields, procs, ice_params, &
+         if (l_pos2) call ensure_positive(nz, step_length, qfields, procs, ice_params, &
                 (/i_raci, i_saci, i_gaci, i_saut, i_isub, i_imlt/), &
                 (/i_ihal, i_gshd, i_inuc, i_homc, i_iacw, i_idep/))
            
-           if (l_pos3) call ensure_positive(k, step_length, qfields, procs, rain_params, &
+         if (l_pos3) call ensure_positive(nz, step_length, qfields, procs, rain_params, &
                 (/i_prevp, i_sacr, i_gacr, i_homr/), &
                 (/i_praut, i_pracw, i_raci, i_gshd, i_smlt, i_gmlt/), &
                 aeroprocs=aerosol_procs, iprocs_dependent=(/i_arevp/))
               
-           if (l_pos4) call ensure_positive(k, step_length, qfields, procs, snow_params, &
+         if (l_pos4) call ensure_positive(nz, step_length, qfields, procs, snow_params, &
                 (/i_gacs, i_smlt, i_sacr, i_ssub /), &
                 (/i_sdep, i_sacw, i_saut, i_saci, i_raci, i_gshd, i_ihal/))              
         else
            if (pswitch%l_praut .and. pswitch%l_pracw) then
-              if (l_pos5) call ensure_positive(k, step_length, qfields, procs, cloud_params, (/i_praut, i_pracw/), &
+            if (l_pos5) call ensure_positive(nz, step_length, qfields, procs, cloud_params, (/i_praut, i_pracw/), &
                    aeroprocs=aerosol_procs, iprocs_dependent=(/i_aaut, i_aacw/))
            end if
 
            if (pswitch%l_prevp) then
-              if (l_pos6) call ensure_positive(k, step_length, qfields, procs, rain_params, (/i_prevp/), (/i_praut, i_pracw/) &
+            if (l_pos6) call ensure_positive(nz, step_length, qfields, procs, rain_params, (/i_prevp/), (/i_praut, i_pracw/) &
                    , aerosol_procs, (/i_arevp/))
            end if
 
         end if
-     end do ! loop over model levels, k.
       
       !-------------------------------
       ! Collect terms we have so far

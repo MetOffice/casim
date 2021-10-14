@@ -2,7 +2,9 @@ module distributions
   use variable_precision, only: wp
   use mphys_parameters, only: hydro_params, nz, rain_params, ice_params, a_s, b_s
   use mphys_switches, only: i_th, hydro_names, l_limit_psd, l_passive3m, &
-                            max_mu, max_mu_frac, l_kfsm, l_prf_cfrac, i_cfl, i_cfr, i_cfi, i_cfs, i_cfg, l_adjust_D0
+                            max_mu, max_mu_frac, l_kfsm, l_prf_cfrac,    &
+                            i_cfl, i_cfr, i_cfi, i_cfs, i_cfg,           &
+                            l_adjust_D0
   use lookup, only: get_slope_generic, get_slope_generic_kf, get_n0,     &
                     moment, get_mu, get_lam_n0
   use special, only: GammaFunc
@@ -64,7 +66,7 @@ contains
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
-
+    
     implicit none
 
     ! Subroutine arguments
@@ -255,7 +257,8 @@ contains
 !               ! Adjust mu/m3 necessary
 !               !-----------------------              
 !               dist_mu(k,ispec)=(dist_mu(k,ispec) + mu_maxes_calc)*0.5
-!               call get_lam_n0(m1(k), m2(k), params, dist_lambda(k,ispec), dist_n0(k,ispec))
+!               call get_lam_n0(m1(k), m2(k), m3(k), params, dist_mu(k,ispec), dist_lambda(k,ispec), &
+!                    dist_n0(k,ispec))
 !               m3_old(k)=m3(k)
 !               m3(k)=moment(dist_n0(k,ispec),dist_lambda(k,ispec),dist_mu(k,ispec),params%p3)
 !               qfields(k,i3) = m3(k)
@@ -273,86 +276,91 @@ contains
       ! Adjust D0 if necessary
       ! only conserves mass - not number
       !-----------------------
-      if (l_adjust_D0) then  !skip limit lam
+      if (l_adjust_D0) then  
+      ! Adjust the PSD to limit to the Dmax hydrometeor, default is true
         !D0 = (m1/m2)**(1./(params%p1-params%p2))
-        do k=1, nz
-          if (qfields(k, i1) .gt. 0.0) then
-            D0=(1+dist_mu(k,ispec))/dist_lambda(k,ispec)
-            if (D0 > params%Dmax) then
+         do k=1, nz
+            if (qfields(k, i1) .gt. 0.0) then
+               D0=(1+dist_mu(k,ispec))/dist_lambda(k,ispec)
+               if (D0 > params%Dmax) then
 #if VERBOSE==1
-              mu_old=dist_mu(k,ispec)
-              lam_old=dist_lambda(k,ispec)
-              n0_old=dist_n0(k,ispec)
+                  mu_old=dist_mu(k,ispec)
+                  lam_old=dist_lambda(k,ispec)
+                  n0_old=dist_n0(k,ispec)
 #endif
-              alpha=D0/params%Dmax
-              dist_lambda(k,ispec)=alpha*dist_lambda(k,ispec)
-              dist_n0(k,ispec)=alpha**(params%p1)*dist_n0(k,ispec)
-
-              qfields(k,i2)=dist_n0(k,ispec)
-  !             if (params%l_3m) then
-  !               m3(k)=moment(dist_n0(k,ispec),dist_lambda(k,ispec),dist_mu(k,ispec),params%p3)
-  !               qfields(k,i3)=m3(k)
-  !             end if
-  ! #if VERBOSE==1
-  !             write(std_msg,*) 'WARNING: adjusting number and m3',  params%id, n0_old,     &
-  !                               dist_n0(k,ispec), m3_old(k), m3(k), 'new m1, m2, m3 are: ', &
-  !                               m1(k), m2(k), m3(k)
-  !             call throw_mphys_error(warn, ModuleName//':'//RoutineName, std_msg)
-  ! #endif
-            end if
-            if (D0 < params%Dmin) then
+                  alpha=D0/params%Dmax
+                  dist_lambda(k,ispec)=alpha*dist_lambda(k,ispec)
+                  dist_n0(k,ispec)=alpha**(params%p1)*dist_n0(k,ispec)
+                  
+                  qfields(k,i2)=dist_n0(k,ispec)*cf  !grid mean
+                  !             if (params%l_3m) then
+                  !               m3(k)=moment(dist_n0(k,ispec),dist_lambda(k,ispec),dist_mu(k,ispec),params%p3)
+                  !               qfields(k,i3)=m3(k)
+                  !             end if
+                  ! #if VERBOSE==1
+                  !             write(std_msg,*) 'WARNING: adjusting number and m3',  params%id, n0_old,     &
+                  !                               dist_n0(k,ispec), m3_old(k), m3(k), 'new m1, m2, m3 are: ', &
+                  !                               m1(k), m2(k), m3(k)
+                  !             call throw_mphys_error(warn, ModuleName//':'//RoutineName, std_msg)
+                  ! #endif
+               end if
+               if (D0 < params%Dmin) then
 #if VERBOSE==1
-              mu_old=dist_mu(k,ispec)
-              lam_old=dist_lambda(k,ispec)
-              n0_old=dist_n0(k,ispec)
+                  mu_old=dist_mu(k,ispec)
+                  lam_old=dist_lambda(k,ispec)
+                  n0_old=dist_n0(k,ispec)
 #endif
-              alpha=D0/params%Dmin
-              dist_lambda(k,ispec)=alpha*dist_lambda(k,ispec)
-              dist_n0(k,ispec)=alpha**(params%p1)*dist_n0(k,ispec)
-
-              qfields(k,i2)=dist_n0(k,ispec)
-  !             if (params%l_3m) then
-  !                m3(k)=moment(dist_n0(k,ispec),dist_lambda(k,ispec),dist_mu(k,ispec),params%p3)
-  !                qfields(k,i3)=m3(k)
-  !             end if
-  ! #if VERBOSE==1
-  !             write(std_msg,*) 'WARNING: adjusting number and m3',  params%id, n0_old,      &
-  !                               dist_n0(k,ispec), m3_old(k), m3(k), 'new m1, m2, m3 are: ',  &
-  !                               m1(k), m2(k), m3(k)
-  !             call throw_mphys_error(warn, ModuleName//':'//RoutineName, std_msg)
-  ! #endif
-
+                  alpha=D0/params%Dmin
+                  dist_lambda(k,ispec)=alpha*dist_lambda(k,ispec)
+                  dist_n0(k,ispec)=alpha**(params%p1)*dist_n0(k,ispec)
+                  
+                  qfields(k,i2)=dist_n0(k,ispec)  *cf  !grid mean
+                  !             if (params%l_3m) then
+                  !                m3(k)=moment(dist_n0(k,ispec),dist_lambda(k,ispec),dist_mu(k,ispec),params%p3)
+                  !                qfields(k,i3)=m3(k)
+                  !             end if
+                  ! #if VERBOSE==1
+                  !             write(std_msg,*) 'WARNING: adjusting number and m3',  params%id, n0_old,      &
+                  !                               dist_n0(k,ispec), m3_old(k), m3(k), 'new m1, m2, m3 are: ',  &
+                  !                               m1(k), m2(k), m3(k)
+                  !             call throw_mphys_error(warn, ModuleName//':'//RoutineName, std_msg)
+                  ! #endif
+                  
+               end if
             end if
-          end if
-        end do
+         end do
+      endif ! end adjust PSD
       
-      endif !skip limit lam
+   end if
       
-    end if
+
+
+
 
     ! Final check that distributions do actually make sense.
-    do k = 1, nz
+   do k = 1, nz
 
       if ( m1(k) > 0.0 ) then
-        if (params % l_1m .and. dist_lambda(k, ispec) <= 0.0) then
-          write(std_msg, '(A,F7.2)')'Unexpected zero or negative lambda: lambda =', dist_lambda(k, ispec)
-          call throw_mphys_error(bad_values, ModuleName//':'//RoutineName, std_msg)
-        end if
-
-        if (params % l_2m .and. dist_n0(k, ispec) <= 0.0) then
-          write(std_msg, '(A,F7.2)')'Unexpected zero or negative n0: n0 =', dist_n0(k, ispec)
-          call throw_mphys_error(bad_values, ModuleName//':'//RoutineName, std_msg)
-        end if
-
-        ! if (params % l_3m .and. dist_mu(k, ispec) < 0.0) then
-        !   write(std_msg, '(A,F7.2)')'Unexpected zero or negative mu: mu =', dist_mu(k, ispec)
-        !   call throw_mphys_error(bad_values, ModuleName//':'//RoutineName, std_msg)
-        ! end if
+         if (params % l_1m .and. dist_lambda(k, ispec) <= 0.0) then
+            write(std_msg, '(A,F7.2)')'Unexpected zero or negative lambda: lambda =', dist_lambda(k, ispec)
+            call throw_mphys_error(bad_values, ModuleName//':'//RoutineName, std_msg)
+         end if
+         
+         if (params % l_2m .and. dist_n0(k, ispec) <= 0.0) then
+            write(std_msg, '(A,F7.2)')'Unexpected zero or negative n0: n0 =', dist_n0(k, ispec)
+            call throw_mphys_error(bad_values, ModuleName//':'//RoutineName, std_msg)
+         end if
+         
+         ! if (params % l_3m .and. dist_mu(k, ispec) < 0.0) then
+         !   write(std_msg, '(A,F7.2)')'Unexpected zero or negative mu: mu =', dist_mu(k, ispec)
+         !   call throw_mphys_error(bad_values, ModuleName//':'//RoutineName, std_msg)
+         ! end if
       end if ! m1(k) > 0
+      
+   end do ! k
 
-    end do ! k
+   IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
-    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+ end subroutine query_distributions
 
-  end subroutine query_distributions
 end module distributions

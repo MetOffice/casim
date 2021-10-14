@@ -497,7 +497,7 @@ contains
           procs(i_ni,i_proc%id)%column_data(k)=-dnumber
         end if
         !--------------------------------------------------
-        ! aerosol
+        !aerosol
         !--------------------------------------------------
         if (l_process) then
           if (.not. am7_reset) then
@@ -851,7 +851,7 @@ contains
   ! Subroutine to ensure parallel processes don't remove more
     ! mass than is available and then rescales all processes
     ! (including number and other terms)
-  subroutine ensure_positive(k, dt, qfields, procs, params, iprocs_scalable, iprocs_nonscalable &
+  subroutine ensure_positive(nz, dt, qfields, procs, params, iprocs_scalable, iprocs_nonscalable &
        , aeroprocs, iprocs_dependent, iprocs_dependent_ns)
 
     USE yomhook, ONLY: lhook, dr_hook
@@ -861,7 +861,7 @@ contains
 
     character(len=*), parameter :: RoutineName='ENSURE_POSITIVE'
 
-    integer, intent(in) :: k
+    integer, intent(in) :: nz
     real(wp), intent(in) :: dt
     real(wp), intent(in) :: qfields(:,:)
     type(process_rate), intent(inout) :: procs(:,:)         ! microphysical process rates
@@ -882,7 +882,7 @@ contains
          iprocs_dependent_ns(:)   ! list of aerosol processes which
     ! are dependent on rescaled processes but
     ! we don't want to rescale
-    integer :: iproc, id, iq
+    integer :: iproc, id, iq, k
     real(wp) :: delta_scalable, delta_nonscalable, ratio, maxratio
     integer :: i_1m, i_2m, i_3m
     logical :: l_rescaled
@@ -895,7 +895,8 @@ contains
     ! End of header, no more declarations beyond here
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
-
+    
+    do k=1,nz
     i_1m=params%i_1m
     if (params%l_2m) i_2m=params%i_2m
     if (params%l_3m) i_3m=params%i_3m
@@ -1143,7 +1144,8 @@ contains
         end if
       end if
     end if
-
+    end do
+  
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
   end subroutine ensure_positive
@@ -1211,7 +1213,7 @@ contains
 
     ! Modified so it can also prevent sublimation processes from putting
     ! back too much vapour and so become supersaturated
-  subroutine ensure_saturated(k, dt, qfields, procs, iprocs_scalable)
+  subroutine ensure_saturated(nz, l_Tcold, dt, qfields, procs, iprocs_scalable)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -1220,13 +1222,14 @@ contains
 
     character(len=*), parameter :: RoutineName='ENSURE_SATURATED'
 
-    integer, intent(in) :: k
+    integer, intent(in) :: nz
+    logical, intent(in) :: l_Tcold(:) 
     real(wp), intent(in) :: dt
     real(wp), intent(in) :: qfields(:,:)
     type(process_rate), intent(inout) :: procs(:,:)         ! microphysical process rates
     type(process_name), intent(in) :: iprocs_scalable(:)    ! list of processes to rescale
 
-    integer :: iproc, id, iq
+    integer :: iproc, id, iq, k
     real(wp) :: delta_scalable, ratio, delta_sat
     real(wp) :: th, qis
 
@@ -1239,6 +1242,9 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+    do k=1, nz
+    if (l_Tcold(k)) then
+   
     delta_scalable=0.0
     do iproc=1, size(iprocs_scalable)
       if (iprocs_scalable(iproc)%on) then
@@ -1268,6 +1274,8 @@ contains
         end do
       end if
     end if
+    end if
+    end do
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 

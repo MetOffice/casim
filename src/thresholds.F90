@@ -14,7 +14,7 @@ module thresholds
   real(wp) :: qv_small = 1.0e-9   ! small vapour
   real(wp) :: ql_small = 1.0e-9   ! small cloud mass
   real(wp) :: qr_small = 1.0e-9   ! small rain mass
-  real(wp) :: nl_small = 100.0    ! small cloud number
+  real(wp) :: nl_small = 1e-6    ! small cloud number
   real(wp) :: nr_small = 10.0     ! small rain number
   real(wp) :: m3r_small = 1.0e-25 ! small rain moment 3! obsolete
   real(wp) :: qi_small = 1.0e-10   ! small ice mass
@@ -26,7 +26,7 @@ module thresholds
   real(wp) :: ng_small = 1.0e-6   ! small graupel number
   real(wp) :: m3g_small = 1.0e-25 ! small graupel moment 3
 
-  real(wp) :: cfliq_small=1e-6 !small liquid cloudfraction
+  real(wp) :: cfliq_small=1e-3 !small liquid cloudfraction
 
   ! Thresholds for tidying up small numbers...
   ! (values below which may want to remove and ignore)
@@ -45,7 +45,7 @@ module thresholds
   real(wp) :: qg_tidy = 1.0e-10   ! tidy graupel mass
   real(wp) :: ng_tidy = 1.0e-6   ! tidy graupel number
   real(wp) :: m3g_tidy = 1.0e-30 ! tidy graupel moment 3 ! obsolete
-  real(wp) :: ccn_tidy = 0.1e+6  ! tidy ccn number
+  real(wp) :: ccn_tidy = 0.1e0  ! tidy ccn number
   !(NB if ccn_tidy is too small, this can result in
   ! very large values of rd (mean radius).)
 
