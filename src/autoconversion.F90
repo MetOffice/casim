@@ -1,15 +1,16 @@
 module autoconversion
   use variable_precision, only: wp
   use passive_fields, only: rho
-  use mphys_switches, only: i_ql, i_qr, i_nl, i_nr, i_m3r, hydro_complexity, l_2mc, &
-       l_2mr, l_3mr, l_aaut, i_am4, i_am5, cloud_params, rain_params, l_process, &
+  use mphys_switches, only: i_ql, i_qr, i_nl, i_nr, l_2mc, &
+       l_2mr, l_aaut, i_am4, i_am5, cloud_params, rain_params, l_process, &
        l_separate_rain, l_preventsmall, l_prf_cfrac, i_cfl, l_kk00
-  use mphys_constants, only: rhow, fixed_cloud_number
-  use mphys_parameters, only: mu_aut, rain_params
+! use mphys_switches, only: m3r, l_3mr
+  use mphys_constants, only: fixed_cloud_number
+  use mphys_parameters, only: rain_params
+! use mphys_parameters, only: mu_aut
   use process_routines, only: process_rate, i_praut, i_aaut
-  use thresholds, only: ql_small, nl_small, qr_small, qr_sig, cfliq_small
-  use special, only: pi
-  use m3_incs, only: m3_inc_type2, m3_inc_type3
+  use thresholds, only: ql_small, nl_small, qr_small, cfliq_small
+! use m3_incs, only: m3_inc_type3
 
   implicit none
 
@@ -35,16 +36,15 @@ contains
 
     ! Local variables
     real(wp) :: dmass, dnumber1, dnumber2, damass
-    real(wp) :: dm1,dm2,dm3
-    real(wp) :: n0, lam, mu
+!   real(wp) :: dm1,dm2,dm3
     real(wp) :: cloud_mass
     real(wp) :: cloud_number
-    real(wp) :: p1, p2, p3
-    real(wp) :: k1, k2, k3
+!   real(wp) :: p1, p2, p3
+!   real(wp) :: k1, k2, k3
     real(wp) :: mu_qc ! < cloud shape parameter (currently only used diagnostically here)
     real(wp) :: cf_liquid
 
-    integer :: i, k
+    integer :: k
     character(len=*), parameter :: RoutineName='RAUT'
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0

@@ -1,12 +1,10 @@
 module ice_multiplication
   use variable_precision, only: wp, iwp
   use process_routines, only: process_rate, process_name, i_gacw, i_sacw, i_ihal
-  use aerosol_routines, only: aerosol_phys, aerosol_chem, aerosol_active
   use passive_fields, only: TdegC
   use mphys_parameters, only: ice_params, snow_params, graupel_params, dN_hallet_mossop, M0_hallet_mossop
   use thresholds, only: thresh_small, cfliq_small
   use m3_incs, only: m3_inc_type2
-  use distributions, only: dist_lambda, dist_mu, dist_n0
   use mphys_switches, only: l_prf_cfrac, i_cfs, i_cfg, i_cfl, mpof
 
   implicit none
@@ -26,8 +24,7 @@ contains
   !> AEROSOL: All aerosol sinks/sources are assumed to come from soluble modes
   !
   !> OPTIMISATION POSSIBILITIES:
-  subroutine hallet_mossop(dt, nz, l_Tcold, qfields, cffields, procs, aerophys, aerochem, &
-                           aeroact , aerosol_procs)
+  subroutine hallet_mossop(dt, nz, cffields, procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -37,27 +34,13 @@ contains
     ! Subroutine arguments
     real(wp), intent(in) :: dt
     integer, intent(in) :: nz
-    logical, intent(in) :: l_Tcold(:)
-    real(wp), intent(in), target :: qfields(:,:)
     real(wp), intent(in) :: cffields(:,:)
     type(process_rate), intent(inout), target :: procs(:,:)
 
-    ! aerosol fields
-    type(aerosol_phys), intent(in) :: aerophys(:)
-    type(aerosol_chem), intent(in) :: aerochem(:)
-    type(aerosol_active), intent(in) :: aeroact(:)
-
-    ! optional aerosol fields to be processed
-    type(process_rate), intent(inout), optional :: aerosol_procs(:,:)
-
-
     ! Local variables
-    real(wp) :: dnumber, dm1, dm2, dm3
-    real(wp) :: number, mass, m1, m2, m3
     real(wp) :: gacw, sacw  ! accretion process rates
     real(wp) :: dnumber_s, dnumber_g  ! number conversion rate from snow/graupel
     real(wp) :: dmass_s, dmass_g      ! mass conversion rate from snow/graupel
-    real(wp) :: n0, lam, mu
     real(wp) :: Eff  !< splintering efficiency
     real(wp) :: cf_snow, cf_graupel, cf_liquid, overlap_cfsnow, overlap_cfgraupel
 

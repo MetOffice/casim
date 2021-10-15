@@ -4,26 +4,27 @@ module micro_main
        snow_params, graupel_params, nspecies, ZERO_REAL_WP, a_s, b_s
   use process_routines, only: process_rate, zero_procs, allocate_procs, deallocate_procs, i_cond, i_praut, &
        i_pracw, i_pracr, i_prevp, i_psedr, i_psedl, i_aact, i_aaut, i_aacw, i_aevp, i_asedr, i_asedl, i_arevp, &
-       i_tidy, i_tidy2, i_atidy, i_atidy2, i_inuc, i_idep, i_dnuc, i_dsub, i_saut, i_iacw, i_sacw, i_pseds, &
-       i_sdep, i_saci, i_raci, i_sacr, i_gacw, i_gacr, i_gaci, i_gacs, i_gdep, i_psedg, i_iagg, i_sagg, i_gagg, &
+       i_tidy2, i_atidy2, i_inuc, i_idep, i_dnuc, i_dsub, i_saut, i_iacw, i_sacw, i_pseds, &
+       i_sdep, i_saci, i_raci, i_sacr, i_gacw, i_gacr, i_gaci, i_gacs, i_gdep, i_psedg, i_sagg, &
        i_gshd, i_ihal, i_smlt, i_gmlt, i_psedi, i_homr, i_homc, i_imlt, i_isub, i_ssub, i_gsub, i_sbrk, i_dssub, &
        i_dgsub, i_dsedi, i_dseds, i_dsedg, i_dimlt, i_dsmlt, i_dgmlt, i_diacw, i_dsacw, i_dgacw, i_dsacr, &
-       i_dgacr, i_draci, process_name
+       i_dgacr, i_draci
   use sum_process, only: sum_procs, sum_aprocs, tend_temp, aerosol_tend_temp
   use aerosol_routines, only: examine_aerosol, aerosol_phys, aerosol_chem, aerosol_active, allocate_aerosol, &
        deallocate_aerosol
   use mphys_switches, only: hydro_complexity, aero_complexity, i_qv, i_ql, i_nl, i_qr, i_nr, i_m3r, i_th, i_qi, &
        i_qs, i_qg, i_ni, i_ns, i_ng, i_m3s, i_m3g, i_am1, i_an1, i_am2, i_an2, i_am3, i_an3, i_am4, i_am5, i_am6, &
        i_an6, i_am7, i_am8 , i_am9, i_am10, i_an10, i_an11, i_an12, i_ak1, i_ak2, i_ak3, &
-       hydro_names, aero_names,  aerosol_option, l_warm, &
-       l_inuc, l_sed, l_condensation, l_iaut, l_imelt, l_iacw, l_idep, aero_index, nq_l, nq_r, nq_i, nq_s, nq_g, &
-       l_sg, l_g, l_process, l_halletmossop, max_sed_length, max_step_length, l_harrington, l_passive, ntotala, ntotalq, &
-       active_number, isol, iinsol, l_raci_g, l_onlycollect, l_pracr, pswitch, l_isub, l_pos1, l_pos2, l_pos3, l_pos4, &
+       aerosol_option, l_warm, &
+       l_sed, l_idep, aero_index, nq_l, nq_r, nq_i, nq_s, nq_g, &
+       l_sg, l_g, l_process, max_sed_length, max_step_length, l_harrington, l_passive, ntotala, ntotalq, &
+       l_onlycollect, pswitch, l_isub, l_pos1, l_pos2, l_pos3, l_pos4, &
        l_pos5, l_pos6, i_hstart, l_tidy_negonly,  &
-       iopt_act, iopt_shipway_act, l_prf_cfrac, l_kfsm, l_rain, l_gamma_online, l_subseds_maxv, &
+       iopt_act, iopt_shipway_act, l_prf_cfrac, l_kfsm, l_gamma_online, l_subseds_maxv, &
        i_cfl, i_cfr, i_cfi, i_cfs, i_cfg 
+! use mphys_switches, only: l_rain
   use passive_fields, only: rexner, min_dz
-  use mphys_constants, only: cp, Lv, Ls
+  use mphys_constants, only: cp, Lv
   use distributions, only: query_distributions, initialise_distributions, dist_lambda, dist_mu, dist_n0, dist_lams
   use passive_fields, only: initialise_passive_fields, set_passive_fields, TdegK, rhcrit_1d
   use autoconversion, only: raut
@@ -43,10 +44,7 @@ module micro_main
   use ice_melting, only: melting
   use homogeneous, only: ihom_rain, ihom_droplets
   use adjust_deposition, only: adjust_dep
-  use lookup, only: get_slope_generic, moment
-  use thresholds, only: qr_small, nr_small, m3r_small, thresh_sig, thresh_tidy
-  use mphys_constants, only:  fixed_aerosol_number, fixed_aerosol_rm, &
-       fixed_aerosol_sigma, fixed_aerosol_density
+  use mphys_constants, only: fixed_aerosol_sigma, fixed_aerosol_density
 
   use mphys_tidy, only: initialise_mphystidy, finalise_mphystidy, qtidy, ensure_positive, &
        ensure_saturated, tidy_qin, tidy_ain, ensure_positive_aerosol
@@ -58,8 +56,8 @@ module micro_main
 
   use generic_diagnostic_variables, only: casdiags
 
-  use casim_runtime, only: i_here, j_here, k_here, casim_time
-  use casim_parent_mod, only: casim_parent, parent_kid, parent_monc
+  use casim_runtime, only: casim_time
+  use casim_parent_mod, only: casim_parent, parent_monc
 
 ! #if DEF_MODEL==MODEL_KiD
 !   ! Kid modules
@@ -164,28 +162,14 @@ contains
     logical, intent(in) :: l_tendency
 
     ! Local variables
-    real(wp) :: p1, p2, p3
 
-    integer :: n, k, i, j, imode
+    integer :: k
 
     integer :: nprocs     ! number of process rates stored
     integer :: naeroprocs ! number of process rates stored
     integer :: naero      ! number of aerosol fields
 
-    real(wp) :: rain_number
-    real(wp) :: rain_mass
-    real(wp) :: rain_m3
-    real(wp) :: n0,lam,mu
-    real(wp) :: m1,m2,m3
     real(wp) :: beta_init
-
-    !diagnostics
-    real(wp) :: field, res
-    character(100) :: units, name
-    integer :: im
-    character(1) :: char
-
-    integer :: iproc, iq
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -478,33 +462,19 @@ contains
     integer, intent(in), optional :: is_in, ie_in ! upper and lower i levels which are to be used
     integer, intent(in), optional :: js_in, je_in ! upper and lower j levels
     integer, intent(in), optional :: ks_in, ke_in ! upper and lower k levels
+    !! ks_in and ke_in are not used in this routine so generate compile warnings
 
     ! New optional l_tendency logical added...
     ! if true then a tendency is returned (i.e. units/s)
     ! if false then an increment is returned (i.e. units/timestep)
     logical, intent(in), optional :: l_tendency
+    !! l_tendency is not used in this routine so generates a compile warning
 
     ! Local variables
 
-    real(wp) :: p1, p2, p3
-
-    integer :: n, k, i, j, imode
-
-    integer :: NTHREADS, TID, OMP_GET_NUM_THREADS, OMP_GET_THREAD_NUM
-
-    integer, parameter :: CHUNKSIZE=10
-
-    real(wp) :: rain_number
-    real(wp) :: rain_mass
-    real(wp) :: rain_m3
-    real(wp) :: n0,lam,mu
-    real(wp) :: m1,m2,m3
+    integer :: k, i, j
 
     !diagnostics
-    real(wp) :: field, res
-    character(100) :: units, name
-    integer :: im
-    character(1) :: char
 
     real(wp) :: precip_l
     real(wp) :: precip_r
@@ -575,10 +545,10 @@ contains
         precip_so1d(:) = 0.0
 
         tend=ZERO_REAL_WP
-        call zero_procs(procs, nz)
+        call zero_procs(procs)
         aerosol_tend=ZERO_REAL_WP
         if (l_process) then
-          call zero_procs(aerosol_procs, nz)
+          call zero_procs(aerosol_procs)
         end if
 
         !set cloud fraction fields
@@ -675,7 +645,7 @@ contains
         !--------------------------------------------------
         ! Do the business...
         !--------------------------------------------------
-        call microphysics_common(dt, ks, ke, i , j, qfields, cffields, dqfields, tend, procs &
+        call microphysics_common(dt, i , j, qfields, cffields, dqfields, tend, procs &
              , precip(i,j), precip_l, precip_r, precip_i, precip_s, precip_g       &
              , precip_r1d, precip_s1d, precip_so1d, precip_g1d                     &
              , aerophys, aerochem, aeroact                                         &
@@ -777,7 +747,7 @@ contains
         if ( casdiags % l_radar ) then
 
           call tidy_qin(qfields)  !check this is conserving. If i do this here do we need a tidy_ain?
-          call casim_reflec( nz, nq, rho(ks:ke,i,j), TdegK, qfields, cffields,           &
+          call casim_reflec( nz, nq, rho(ks:ke,i,j), qfields, cffields,           &
                              dbz_tot_c, dbz_g_c, dbz_i_c,                      &
                              dbz_s_c,   dbz_l_c, dbz_r_c  )
 
@@ -857,7 +827,7 @@ contains
 
   end subroutine shipway_microphysics
 
-  subroutine microphysics_common(dt, kl, ku, ix, jy, qfields, cffields, dqfields, tend & 
+  subroutine microphysics_common(dt, ix, jy, qfields, cffields, dqfields, tend & 
        , procs, precip, precip_l, precip_r, precip_i, precip_s, precip_g      & 
        , precip_r1d, precip_s1d, precip_so1d, precip_g1d                      &
        , aerophys, aerochem, aeroact                                          &
@@ -873,10 +843,8 @@ contains
 
     implicit none
 
-    integer :: iiproc
-
     real(wp), intent(in) :: dt  ! timestep from parent model
-    integer, intent(in) :: kl, ku, ix, jy
+    integer, intent(in) :: ix, jy
     real(wp), intent(in) :: rhcrit_1d(:)
     real(wp), intent(inout) :: qfields(:,:), dqfields(:,:), tend(:,:)
     real(wp), intent(in) :: cffields(:,:)
@@ -894,7 +862,7 @@ contains
     real(wp), INTENT(INOUT) :: precip_so1d(:)
     real(wp), INTENT(INOUT) :: precip_g1d(:)
 
-    real(wp) :: g_maxfallspeed, r_maxfallspeed, r_mindz, g_mindz, mindz
+    real(wp) :: mindz
 
     ! Aerosol fields
     type(aerosol_phys), intent(inout)   :: aerophys(:)
@@ -1153,7 +1121,7 @@ contains
           !! initialise l_sigevap to false for all levels so that previous 
           !! "trues" are not included when rain_precondition is false
           l_sigevap(:) = .false.
-          call revp(step_length, nz, qfields, aerofields, aerophys, &
+          call revp(step_length, nz, qfields, aerophys, &
                aerochem, aeroact, dustliq, procs, aerosol_procs, l_sigevap)
        endif
 
@@ -1171,14 +1139,14 @@ contains
           !------------------------------------------------------
           if (pswitch%l_pinuc) then 
              call inuc(step_length, nz, l_Tcold, qfields, cffields, procs,     &
-                  dustphys, dustchem, aeroact, dustliq, aerosol_procs)
+                  dustphys, aeroact, dustliq, aerosol_procs)
           end if
 
           !------------------------------------------------------
           ! Autoconverion to snow
           !------------------------------------------------------
           if (pswitch%l_psaut .and. .not. l_kfsm) then
-             call saut(step_length, nz, l_Tcold, qfields, aerofields, procs, aerosol_procs)
+             call saut(step_length, nz, l_Tcold, qfields, procs)
           end if
           !------------------------------------------------------
           ! Accretion processes
@@ -1246,8 +1214,7 @@ contains
              ! not in use; otherwise we ignore it.
              if (l_g .and. .not. l_onlycollect) then
                 call graupel_embryos(step_length, nz, l_Tcold, qfields, cffields, & 
-                     procs, aerophys, aerochem, aeroact,    &
-                     aerosol_procs)
+                     procs)
              end if ! l_g
           end if ! not l_kfsm and precondition
           
@@ -1259,30 +1226,30 @@ contains
           ! are used/rescaled elsewhere
           !------------------------------------------------------
           if (l_g .and. .not. l_onlycollect) then  
-             call wetgrowth(step_length, nz, l_Tcold, qfields, cffields, &
-                  procs, l_sigevap, aerophys, aerochem, aeroact, aerosol_procs)
+             call wetgrowth(nz, l_Tcold, qfields, cffields, &
+                  procs, l_sigevap)
           end if
           
           !------------------------------------------------------
           ! Aggregation (self-collection)
           !------------------------------------------------------
           if (pswitch%l_psagg .and. .not. l_kfsm) then 
-             call ice_aggregation(step_length, nz, l_Tcold, snow_params, qfields, procs)
+             call ice_aggregation(nz, l_Tcold, snow_params, qfields, procs)
           end if
 
           !------------------------------------------------------
           ! Break up (snow only)
           !------------------------------------------------------
           if (pswitch%l_psbrk .and. .not. l_kfsm) then 
-             call ice_breakup(step_length, nz, l_Tcold, snow_params, qfields, procs)
+             call ice_breakup(nz, l_Tcold, snow_params, qfields, procs)
           end if
 
           !------------------------------------------------------
           ! Ice multiplication (Hallet-mossop)
           !------------------------------------------------------
           if (pswitch%l_pihal .and. .not. l_kfsm) then 
-             call hallet_mossop(step_length, nz, l_Tcold, qfields, cffields, &
-                  procs, aerophys, aerochem, aeroact, aerosol_procs)
+             call hallet_mossop(step_length, nz, cffields, &
+                  procs)
           end if
           
           !------------------------------------------------------
@@ -1316,7 +1283,7 @@ contains
           end if
 
           if (l_harrington .and. .not. l_onlycollect) then  
-             call adjust_dep(dt, nz,  l_Tcold, procs, qfields)
+             call adjust_dep(nz,  l_Tcold, procs)
           end if
 
           !-----------------------------------------------------------
@@ -1357,8 +1324,7 @@ contains
       !-----------------------------------------------------------
         if (.not. l_warm_loc) then
          if (l_pos1) call ensure_positive(nz, step_length, qfields, procs, cloud_params, &
-                (/i_praut, i_pracw, i_iacw, i_sacw, i_gacw, i_homc, i_inuc/),  &
-                aeroprocs=aerosol_procs, iprocs_dependent=(/i_aaut, i_aacw/))
+                (/i_praut, i_pracw, i_iacw, i_sacw, i_gacw, i_homc, i_inuc/))
               
          if (l_pos2) call ensure_positive(nz, step_length, qfields, procs, ice_params, &
                 (/i_raci, i_saci, i_gaci, i_saut, i_isub, i_imlt/), &
@@ -1366,21 +1332,19 @@ contains
            
          if (l_pos3) call ensure_positive(nz, step_length, qfields, procs, rain_params, &
                 (/i_prevp, i_sacr, i_gacr, i_homr/), &
-                (/i_praut, i_pracw, i_raci, i_gshd, i_smlt, i_gmlt/), &
-                aeroprocs=aerosol_procs, iprocs_dependent=(/i_arevp/))
+                (/i_praut, i_pracw, i_raci, i_gshd, i_smlt, i_gmlt/))
               
          if (l_pos4) call ensure_positive(nz, step_length, qfields, procs, snow_params, &
                 (/i_gacs, i_smlt, i_sacr, i_ssub /), &
                 (/i_sdep, i_sacw, i_saut, i_saci, i_raci, i_gshd, i_ihal/))              
         else
            if (pswitch%l_praut .and. pswitch%l_pracw) then
-            if (l_pos5) call ensure_positive(nz, step_length, qfields, procs, cloud_params, (/i_praut, i_pracw/), &
-                   aeroprocs=aerosol_procs, iprocs_dependent=(/i_aaut, i_aacw/))
+            if (l_pos5) call ensure_positive(nz, step_length, qfields, procs, cloud_params, (/i_praut, i_pracw/))  
+                   
            end if
 
            if (pswitch%l_prevp) then
-            if (l_pos6) call ensure_positive(nz, step_length, qfields, procs, rain_params, (/i_prevp/), (/i_praut, i_pracw/) &
-                   , aerosol_procs, (/i_arevp/))
+            if (l_pos6) call ensure_positive(nz, step_length, qfields, procs, rain_params, (/i_prevp/), (/i_praut, i_pracw/))
            end if
 
         end if
@@ -1390,7 +1354,7 @@ contains
       !-------------------------------
 
       call sum_procs(step_length, nz, procs, tend, (/i_praut, i_pracw, i_pracr, i_prevp/)     &
-           , hydro_names, l_thermalexchange=.true., qfields=qfields , l_passive=l_passive)
+           , l_thermalexchange=.true., qfields=qfields , l_passive=l_passive)
 
 
       if (.not. l_warm_loc) then
@@ -1399,10 +1363,10 @@ contains
              (/i_idep, i_sdep, i_gdep, i_iacw, i_sacr, i_sacw, i_saci, i_raci,&
              i_gacw, i_gacr, i_gaci, i_gacs, i_ihal, i_gshd, i_sbrk,&
              i_saut, i_sagg, i_isub, i_ssub, i_gsub/),        &
-             hydro_names, l_thermalexchange=.true., qfields=qfields,&
+             l_thermalexchange=.true., qfields=qfields,&
              l_passive=l_passive, i_thirdmoment=2)
         call sum_procs(step_length, nz, procs, tend,      &
-             (/i_inuc, i_imlt, i_smlt, i_gmlt, i_homr, i_homc/), hydro_names,     &
+             (/i_inuc, i_imlt, i_smlt, i_gmlt, i_homr, i_homc/),     &
              l_thermalexchange=.true., qfields=qfields , l_passive=l_passive)
       end if
 
@@ -1417,12 +1381,12 @@ contains
         end do
 
         call sum_aprocs(step_length, aerosol_procs, aerosol_tend,      &
-             (/i_aaut, i_aacw, i_aevp, i_arevp/), aero_names, aerofields)
+             (/i_aaut, i_aacw, i_aevp, i_arevp/), aerofields)
 
         if (.not. l_warm) then
           call sum_aprocs(step_length, aerosol_procs, aerosol_tend,      &
                (/i_dnuc, i_dsub, i_dssub, i_dgsub, i_dimlt, i_dsmlt, i_dgmlt,     &
-               i_diacw, i_dsacw, i_dgacw, i_dsacr, i_dgacr, i_draci /), aero_names, aerofields)
+               i_diacw, i_dsacw, i_dgacw, i_dsacr, i_dgacr, i_draci /), aerofields)
         end if
 
         call update_q(aerofields_mod, aerofields, aerosol_tend, l_aerosol=.true.,l_fixneg=.true.)
@@ -1456,7 +1420,7 @@ contains
 
        else ! Not in UM or not using Paul's cloud fraction in UM
         if (pswitch%l_pcond)then
-            call condevp(step_length, nz, qfields, aerofields,     &
+            call condevp(step_length, nz, qfields,                 &
                procs, aerophys, aerochem, aeroact, dustphys, dustchem, dustliq, &
                aerosol_procs, rhcrit_1d)
         !-------------------------------
@@ -1464,7 +1428,7 @@ contains
         !-------------------------------
         call sum_procs(step_length, nz, procs, tend,      &
              (/i_cond/)     &
-             , hydro_names, l_thermalexchange=.true., qfields=qfields     &
+             , l_thermalexchange=.true., qfields=qfields     &
              , l_passive=l_passive)
 
           call update_q(qfields_mod, qfields, tend, l_fixneg=.true.)
@@ -1483,7 +1447,7 @@ contains
 
         if (l_process) then
           call sum_aprocs(step_length, aerosol_procs, aerosol_tend,      &
-             (/i_aact /), aero_names, aerofields)
+             (/i_aact /), aerofields)
 
           call update_q(aerofields_mod, aerofields, aerosol_tend, l_aerosol=.true.)
 
@@ -1536,8 +1500,8 @@ contains
                   ! are to be re-used
                   !-------------------------------
                   !call zero_procs_exp(procs)
-                  call zero_procs(procs, nz)
-                  if (l_process) call zero_procs(aerosol_procs, nz)
+                  call zero_procs(procs)
+                  if (l_process) call zero_procs(aerosol_procs)
                   !---------------------------------------------------------------
                   ! Re-Determine (and possibly limit) size distribution
                   !---------------------------------------------------------------
@@ -1564,10 +1528,10 @@ contains
                !       This is computationally much more efficient (on CPU and GPU).
                if (pswitch%l_psedl) then
                   if (l_gamma_online) then
-                     call sedr(sed_length, qfields, aerofields, aeroact, dustliq, tend, cloud_params, &
+                     call sedr(qfields, aeroact, dustliq, cloud_params, &
                           procs, aerosol_procs, precip1d, l_process)
                   else
-                     call sedr_1M_2M(sed_length, qfields, aerofields, aeroact, dustliq, tend, cloud_params, &
+                     call sedr_1M_2M(sed_length, qfields, aeroact, dustliq, cloud_params, &
                           procs, aerosol_procs, precip1d, l_process)
                   endif
                   
@@ -1577,16 +1541,16 @@ contains
                      precip_l_w1d(k) = precip_l_w1d(k) + precip1d(k)
                   end do
                   
-                  call sum_procs(sed_length, nz, procs, tend, (/i_psedl/), hydro_names, qfields=qfields)
+                  call sum_procs(sed_length, nz, procs, tend, (/i_psedl/), qfields=qfields)
                   
                end if
 
                if (pswitch%l_psedr) then
                   if (l_gamma_online) then
-                     call sedr(sed_length, qfields, aerofields, aeroact, dustliq, tend, rain_params, &
+                     call sedr(qfields, aeroact, dustliq, rain_params, &
                           procs, aerosol_procs, precip1d, l_process)
                   else
-                     call sedr_1M_2M(sed_length, qfields, aerofields, aeroact, dustliq, tend, rain_params, &
+                     call sedr_1M_2M(sed_length, qfields, aeroact, dustliq, rain_params, &
                           procs, aerosol_procs, precip1d, l_process)
                   endif
                   
@@ -1596,7 +1560,7 @@ contains
                      precip_r_w1d(k) = precip_r_w1d(k) + precip1d(k)
                   end do
 
-                  call sum_procs(sed_length, nz, procs, tend, (/i_psedr/), hydro_names, qfields=qfields)
+                  call sum_procs(sed_length, nz, procs, tend, (/i_psedr/), qfields=qfields)
 
                end if
 
@@ -1604,10 +1568,10 @@ contains
                   
                   if (pswitch%l_psedi) then
                      if (l_gamma_online) then 
-                        call sedr(sed_length, qfields, aerofields, aeroice, dustact, tend, ice_params, &
+                        call sedr(qfields, aeroice, dustact, ice_params, &
                              procs, aerosol_procs, precip1d, l_process)
                      else
-                        call sedr_1M_2M(sed_length, qfields, aerofields, aeroice, dustact, tend, ice_params, &
+                        call sedr_1M_2M(sed_length, qfields, aeroice, dustact, ice_params, &
                              procs, aerosol_procs, precip1d, l_process)
                      endif
                      precip_i_w = precip_i_w + precip1d(level1)
@@ -1616,15 +1580,15 @@ contains
                         precip_i_w1d(k) = precip_i_w1d(k) + precip1d(k)
                      end do
                      
-                     call sum_procs(sed_length, nz, procs, tend, (/i_psedi/), hydro_names, qfields=qfields)
+                     call sum_procs(sed_length, nz, procs, tend, (/i_psedi/), qfields=qfields)
 
                   end if
                   if (pswitch%l_pseds .and. .not. l_kfsm) then
                      if (l_gamma_online) then 
-                        call sedr(sed_length, qfields, aerofields, aeroice, dustact, tend, snow_params, &
+                        call sedr(qfields, aeroice, dustact, snow_params, &
                              procs, aerosol_procs, precip1d, l_process)
                      else
-                        call sedr_1M_2M(sed_length, qfields, aerofields, aeroice, dustact, tend, snow_params, &
+                        call sedr_1M_2M(sed_length, qfields, aeroice, dustact, snow_params, &
                              procs, aerosol_procs, precip1d, l_process) 
                      endif
                      precip_s_w = precip_s_w + precip1d(level1)
@@ -1633,15 +1597,15 @@ contains
                         precip_s_w1d(k) = precip_s_w1d(k) + precip1d(k)
                      end do
                      
-                     call sum_procs(sed_length, nz, procs, tend, (/ i_pseds /), hydro_names, qfields=qfields)
+                     call sum_procs(sed_length, nz, procs, tend, (/ i_pseds /), qfields=qfields)
 
                   end if
                   if (pswitch%l_psedg) then
                      if (l_gamma_online) then
-                        call sedr(sed_length, qfields, aerofields, aeroice, dustact, tend, graupel_params, &
+                        call sedr(qfields,  aeroice, dustact, graupel_params, &
                              procs, aerosol_procs, precip1d, l_process)
                      else
-                        call sedr_1M_2M(sed_length, qfields, aerofields, aeroice, dustact, tend, graupel_params, &
+                        call sedr_1M_2M(sed_length, qfields, aeroice, dustact, graupel_params, &
                              procs, aerosol_procs, precip1d, l_process)
                      endif
                      precip_g_w = precip_g_w + precip1d(level1)
@@ -1650,24 +1614,24 @@ contains
                         precip_g_w1d(k) = precip_g_w1d(k) + precip1d(k)
                      end do
                      
-                     call sum_procs(sed_length, nz, procs, tend, (/i_psedg/), hydro_names, qfields=qfields)
+                     call sum_procs(sed_length, nz, procs, tend, (/i_psedg/), qfields=qfields)
 
                   end if
                   
-                  !!call sum_procs(sed_length, nz, procs, tend, (/i_psedi, i_pseds, i_psedg/), hydro_names, qfields=qfields)
+                  !!call sum_procs(sed_length, nz, procs, tend, (/i_psedi, i_pseds, i_psedg/), qfields=qfields)
                end if
 
                call update_q(qfields_mod, qfields, tend, l_fixneg=.true.)
 
                if (l_process) then
                   call sum_aprocs(sed_length, aerosol_procs, aerosol_tend, (/i_asedr, i_asedl/),&
-                       aero_names, aerofields)
+                       aerofields)
                   
                   call update_q(aerofields_mod, aerofields, aerosol_tend, l_aerosol=.true.)
                   
                   if (l_process .and. .not. l_warm) then
                      call sum_aprocs(sed_length, aerosol_procs, aerosol_tend, (/i_dsedi, i_dseds, i_dsedg/),&
-                          aero_names, aerofields)
+                          aerofields)
                      
                      call update_q(aerofields_mod, aerofields, aerosol_tend, l_aerosol=.true.)
                   end if
@@ -1701,10 +1665,10 @@ contains
                      
                   endif
                   if (l_gamma_online) then
-                     call sedr(sed_length_cloud, qfields, aerofields, aeroact, dustliq, tend, cloud_params, &
+                     call sedr(qfields, aeroact, dustliq, cloud_params, &
                           procs, aerosol_procs, precip1d, l_process)
                   else
-                     call sedr_1M_2M(sed_length_cloud, qfields, aerofields, aeroact, dustliq, tend, cloud_params, &
+                     call sedr_1M_2M(sed_length_cloud, qfields, aeroact, dustliq, cloud_params, &
                        procs, aerosol_procs, precip1d, l_process)
                   endif
                   
@@ -1718,21 +1682,21 @@ contains
                      call gather_process_diagnostics(ix, jy, ks, ke,ncall=1)
                   end if
                   
-                  call sum_procs(sed_length_cloud, nz, procs, tend, (/i_psedl/), hydro_names, qfields=qfields)
+                  call sum_procs(sed_length_cloud, nz, procs, tend, (/i_psedl/), qfields=qfields)
 
                   call update_q(qfields_mod, qfields, tend, l_fixneg=.true.)
 
                   if (l_process) then
                      call sum_aprocs(sed_length, aerosol_procs, aerosol_tend, (/i_asedl/),&
-                          aero_names, aerofields)                  
+                          aerofields)                  
                      call update_q(aerofields_mod, aerofields, aerosol_tend, l_aerosol=.true.)
                   endif
                   ! !-------------------------------
                   ! ! Reset process rates if they
                   ! ! are to be re-used
                   ! !-------------------------------
-                  call zero_procs(procs, nz, (/i_psedl/)) 
-                  if (l_process) call zero_procs(aerosol_procs, nz, (/i_asedl/))
+                  call zero_procs(procs, (/i_psedl/)) 
+                  if (l_process) call zero_procs(aerosol_procs, (/i_asedl/))
                enddo
             end if
                
@@ -1751,10 +1715,10 @@ contains
                           , dustphys, dustchem, dustact, aeroice, dustliq, icall=2)
                   endif
                   if (l_gamma_online) then
-                     call sedr(sed_length_rain, qfields, aerofields, aeroact, dustliq, tend, rain_params, &
+                     call sedr(qfields, aeroact, dustliq, rain_params, &
                           procs, aerosol_procs, precip1d, l_process)
                   else
-                     call sedr_1M_2M(sed_length_rain, qfields, aerofields, aeroact, dustliq, tend, rain_params, &
+                     call sedr_1M_2M(sed_length_rain, qfields, aeroact, dustliq, rain_params, &
                           procs, aerosol_procs, precip1d, l_process)
                   endif
 
@@ -1768,19 +1732,19 @@ contains
                      call gather_process_diagnostics(ix, jy, ks, ke,ncall=1)
                   end if
                   
-                  call sum_procs(sed_length_rain, nz, procs, tend, (/i_psedr/), hydro_names, qfields=qfields)
+                  call sum_procs(sed_length_rain, nz, procs, tend, (/i_psedr/), qfields=qfields)
                   call update_q(qfields_mod, qfields, tend, l_fixneg=.true.)
                   if (l_process) then
                      call sum_aprocs(sed_length, aerosol_procs, aerosol_tend, (/i_asedr, i_asedl/),&
-                          aero_names, aerofields)
+                          aerofields)
                      call update_q(aerofields_mod, aerofields, aerosol_tend, l_aerosol=.true.)
                   endif
                   !-------------------------------
                   ! Reset process rates if they
                   ! are to be re-used
                   !-------------------------------
-                  call zero_procs(procs, nz, (/i_psedr/))
-                  if (l_process) call zero_procs(aerosol_procs,  nz, (/i_asedr/))
+                  call zero_procs(procs, (/i_psedr/))
+                  if (l_process) call zero_procs(aerosol_procs, (/i_asedr/))
                   
                enddo
             endif
@@ -1802,10 +1766,10 @@ contains
                               , dustphys, dustchem, dustact, aeroice, dustliq, icall=2)
                      endif
                      if (l_gamma_online) then
-                        call sedr(sed_length_ice, qfields, aerofields, aeroice, dustact, tend, ice_params, &
+                        call sedr(qfields, aeroice, dustact, ice_params, &
                              procs, aerosol_procs, precip1d, l_process)
                      else
-                        call sedr_1M_2M(sed_length_ice, qfields, aerofields, aeroice, dustact, tend, ice_params, &
+                        call sedr_1M_2M(sed_length_ice, qfields, aeroice, dustact, ice_params, &
                              procs, aerosol_procs, precip1d, l_process)
                      endif
                      
@@ -1819,19 +1783,19 @@ contains
                         call gather_process_diagnostics(ix, jy, ks, ke,ncall=1)
                      end if
                      
-                     call sum_procs(sed_length_ice, nz, procs, tend, (/i_psedi/), hydro_names, qfields=qfields)
+                     call sum_procs(sed_length_ice, nz, procs, tend, (/i_psedi/), qfields=qfields)
                      call update_q(qfields_mod, qfields, tend, l_fixneg=.true.)
                      if (l_process) then
                         call sum_aprocs(sed_length, aerosol_procs, aerosol_tend, (/i_dsedi/),&
-                             aero_names, aerofields)
+                             aerofields)
                         call update_q(aerofields_mod, aerofields, aerosol_tend, l_aerosol=.true.)
                      endif
                      !-------------------------------
                      ! Reset process rates if they
                      ! are to be re-used
                      !-------------------------------
-                     call zero_procs(procs, nz, (/i_psedi/))
-                     if (l_process) call zero_procs(aerosol_procs, nz, (/i_dsedi/))
+                     call zero_procs(procs, (/i_psedi/))
+                     if (l_process) call zero_procs(aerosol_procs, (/i_dsedi/))
                   enddo
                end if
                if (pswitch%l_pseds) then
@@ -1850,10 +1814,10 @@ contains
                      endif
                      
                      if (l_gamma_online) then
-                        call sedr(sed_length_snow, qfields, aerofields, aeroice, dustact, tend, snow_params, &
+                        call sedr(qfields, aeroice, dustact, snow_params, &
                              procs, aerosol_procs, precip1d, l_process) 
                      else
-                        call sedr_1M_2M(sed_length_snow, qfields, aerofields, aeroice, dustact, tend, snow_params, &
+                        call sedr_1M_2M(sed_length_snow, qfields, aeroice, dustact, snow_params, &
                              procs, aerosol_procs, precip1d, l_process) 
                      endif
 
@@ -1867,19 +1831,19 @@ contains
                         call gather_process_diagnostics(ix, jy, ks, ke,ncall=1)
                      end if
                      
-                     call sum_procs(sed_length_snow, nz, procs, tend, (/i_pseds/), hydro_names, qfields=qfields)
+                     call sum_procs(sed_length_snow, nz, procs, tend, (/i_pseds/), qfields=qfields)
                      call update_q(qfields_mod, qfields, tend, l_fixneg=.true.)
                      if (l_process) then
                         call sum_aprocs(sed_length, aerosol_procs, aerosol_tend, (/i_dseds/),&
-                             aero_names, aerofields)
+                             aerofields)
                         call update_q(aerofields_mod, aerofields, aerosol_tend, l_aerosol=.true.)
                      endif
                      !-------------------------------
                      ! Reset process rates if they
                      ! are to be re-used
                      !-------------------------------
-                     call zero_procs(procs, nz, (/i_pseds/))
-                     if (l_process) call zero_procs(aerosol_procs, nz, (/i_dseds/))
+                     call zero_procs(procs, (/i_pseds/))
+                     if (l_process) call zero_procs(aerosol_procs, (/i_dseds/))
                   enddo
                end if
                
@@ -1898,10 +1862,10 @@ contains
                              , dustphys, dustchem, dustact, aeroice, dustliq, icall=2)
                      endif
                      if (l_gamma_online) then
-                        call sedr(sed_length_graupel, qfields, aerofields, aeroice, dustact, tend, &
+                        call sedr(qfields, aeroice, dustact, &
                              graupel_params, procs, aerosol_procs, precip1d, l_process)
                      else
-                        call sedr_1M_2M(sed_length_graupel, qfields, aerofields, aeroice, dustact, tend, &
+                        call sedr_1M_2M(sed_length_graupel, qfields, aeroice, dustact, &
                              graupel_params, procs, aerosol_procs, precip1d, l_process)
                      endif
                      
@@ -1915,12 +1879,12 @@ contains
                         call gather_process_diagnostics(ix, jy, ks, ke,ncall=1)
                      end if
 
-                     call sum_procs(sed_length_graupel, nz, procs, tend, (/i_psedg/), hydro_names, &
+                     call sum_procs(sed_length_graupel, nz, procs, tend, (/i_psedg/), &
                        qfields=qfields)
                      call update_q(qfields_mod, qfields, tend, l_fixneg=.true.)
                      if (l_process) then
                         call sum_aprocs(sed_length_graupel, aerosol_procs, aerosol_tend, (/i_dsedg/),&
-                             aero_names, aerofields)
+                             aerofields)
                      
                         call update_q(aerofields_mod, aerofields, aerosol_tend, l_aerosol=.true.)
                      endif
@@ -1928,8 +1892,8 @@ contains
                      ! Reset process rates if they
                      ! are to be re-used
                      !-------------------------------
-                     call zero_procs(procs, nz, (/i_psedg/))
-                     if (l_process) call zero_procs(aerosol_procs, nz, (/i_dsedg/))
+                     call zero_procs(procs, (/i_psedg/))
+                     if (l_process) call zero_procs(aerosol_procs, (/i_dsedg/))
                   enddo
                end if
             endif
@@ -1962,8 +1926,8 @@ contains
         ! are to be re-used
         !-------------------------------
         !call zero_procs_exp(procs) 
-        call zero_procs(procs, nz)
-        if (l_process) call zero_procs(aerosol_procs, nz)
+        call zero_procs(procs)
+        if (l_process) call zero_procs(aerosol_procs)
         !---------------------------------------------------------------
         ! Re-Determine (and possibly limit) size distribution
         !---------------------------------------------------------------
@@ -2010,12 +1974,12 @@ contains
        call qtidy(step_length, nz, qfields, procs, aerofields, aeroact, dustact, &
             aeroice, dustliq , aerosol_procs, i_tidy2, i_atidy2, l_negonly=l_tidy_negonly)
 
-      call sum_procs(step_length, nz, procs, tend, (/i_tidy2/), hydro_names, qfields=qfields, l_passive=l_passive)
+      call sum_procs(step_length, nz, procs, tend, (/i_tidy2/), qfields=qfields, l_passive=l_passive)
 
       call update_q(qfields_mod, qfields, tend)
 
       if (l_process) then
-        call sum_aprocs(step_length, aerosol_procs, aerosol_tend, (/i_atidy2/), aero_names, aerofields )
+        call sum_aprocs(step_length, aerosol_procs, aerosol_tend, (/i_atidy2/), aerofields )
         call update_q(aerofields_mod, aerofields, aerosol_tend, l_aerosol=.true.)
       end if
     end if
@@ -2128,49 +2092,6 @@ contains
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
   end subroutine update_q
-
-  subroutine update_tend(dt, qfields, dqfields, tend)
-
-    USE yomhook, ONLY: lhook, dr_hook
-    USE parkind1, ONLY: jprb, jpim
-
-    implicit none
-
-    real(wp) :: dt
-    real(wp), intent(in) :: qfields(:,:)
-    real(wp), intent(in) :: dqfields(:,:)
-    real(wp), intent(inout) :: tend(:,:)
-
-    real(wp), allocatable :: tmp(:,:)
-
-    integer :: k, iqx
-
-    character(len=*), parameter :: RoutineName='UPDATE_TEND'
-
-    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-    REAL(KIND=jprb)               :: zhook_handle
-
-    !--------------------------------------------------------------------------
-    ! End of header, no more declarations beyond here
-    !--------------------------------------------------------------------------
-    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
-
-    ! Using tmp for premultiplication seems to optimize
-    ! the loop much better for some compilers
-    allocate(tmp(ubound(dqfields,1), lbound(dqfields,2):ubound(dqfields,2)))
-    tmp=dt*dqfields
-
-    do iqx=1, ubound(tend,2)
-      do k=lbound(tend,1), ubound(tend,1)
-        tend(k,iqx) = tend(k,iqx) + tmp(k,iqx)
-      end do
-    end do
-    deallocate(tmp)
-
-    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-
-  end subroutine update_tend
 
   subroutine gather_process_diagnostics(i, j, ks, ke,ncall)
 

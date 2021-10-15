@@ -1,20 +1,20 @@
 module sedimentation
   use mphys_die, only: throw_mphys_error, incorrect_opt, std_msg
-  use variable_precision, only: sp, wp, iwp, defp
+  use variable_precision, only: wp, iwp
   use mphys_parameters, only: nz, hydro_params, cloud_params, rain_params   &
        , ice_params, snow_params, graupel_params, a_s, b_s
-  use passive_fields, only: rho, rdz_on_rho, dz, z_half, z_centre, min_dz
+  use passive_fields, only: rho, rdz_on_rho, dz
   use type_process, only: process_name
-  use mphys_switches, only: hydro_complexity, l_abelshipway, l_sed_3mdiff, l_cons, &
-       i_an2, i_am2, i_am4, l_ased, i_am5, i_am7, i_am8, i_am9, i_ql, l_process, l_passivenumbers, l_passivenumbers_ice,   &
-       active_cloud, active_rain, isol, iinsol, active_ice, active_number, i_an11, i_an12, &
+  use mphys_switches, only: l_abelshipway, l_sed_3mdiff, &
+       i_am4, l_ased, i_am5, i_am7, i_am8, i_am9, l_passivenumbers, l_passivenumbers_ice,   &
+       i_an11, i_an12, &
        l_separate_rain, l_warm, i_aerosed_method, l_sed_icecloud_as_1m, l_sed_rain_1m, l_sed_snow_1m, &
-       l_sed_graupel_1m, l_kfsm, max_sed_length, & 
+       l_sed_graupel_1m, l_kfsm, & 
        cfl_vt_max, l_sed_eulexp
-  use mphys_constants, only: rhow, rho0, cp
+  use mphys_constants, only: rho0
   use process_routines, only: process_rate, i_psedr, i_asedr, i_asedl, i_psedl, &
        i_pseds, i_psedi, i_psedg, i_dsedi, i_dseds, i_dsedg
-  use thresholds, only: ql_small, qr_small, nr_small, m3r_small, thresh_small
+  use thresholds, only: thresh_small
   use special, only: Gammafunc
 
   use lookup, only: moment
@@ -31,7 +31,6 @@ module sedimentation
 
   character(len=*), parameter, private :: ModuleName='SEDIMENTATION'
 
-  character*(2) :: qchar
   real(wp), allocatable :: flux_n1(:)
   real(wp), allocatable :: flux_n2(:)
   real(wp), allocatable :: flux_n3(:)
@@ -91,8 +90,8 @@ contains
 
   end subroutine finalise_sedr
 
-  subroutine sedr(step_length, qfields, aerofields, aeroact, dustact,   &
-       tend, params, procs, aerosol_procs, precip1d, l_doaerosol)
+  subroutine sedr(qfields, aeroact, dustact,   &
+       params, procs, aerosol_procs, precip1d, l_doaerosol)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -101,9 +100,7 @@ contains
 
     character(len=*), parameter :: RoutineName='SEDR'
 
-    real(wp), intent(in) :: step_length
-    real(wp), intent(in), target :: qfields(:,:), aerofields(:,:)
-    real(wp), intent(in) :: tend(:,:)
+    real(wp), intent(in), target :: qfields(:,:)
     type(hydro_params), intent(in) :: params
     type(aerosol_active), intent(in) :: aeroact(:), dustact(:)
     type(process_rate), intent(inout), target :: procs(:,:)
@@ -112,44 +109,33 @@ contains
     logical, optional, intent(in) :: l_doaerosol
 
     real(wp) :: dm1, dm2, dm3
-    real(wp) :: dn1, dn2, dn3, am2
+    real(wp) :: dn1, dn2, dn3
     real(wp) :: m1, m2, m3
     real(wp) :: n1, n2, n3
     real(wp) :: hydro_mass
-    real(wp) :: n0, lam, mu, u1r, u2r, u3r, u1r2, u2r2, u3r2
-    real(wp) :: udp ! bulk fallspeed for mass (for precip diag)
+    real(wp) :: n0, lam, mu, u1r, u2r, u1r2, u2r2
+!   real(wp) :: u3r, u3r2
     integer :: k
 
     real(wp) :: p1, p2, p3
     real(wp) :: sp1, sp2, sp3
     real(wp) :: a_x, b_x, f_x, c_x
     real(wp) :: a2_x, b2_x, f2_x
-    logical :: l_2m, l_3m
     logical :: l_fluxin, l_fluxout
-
-    ! AH: variables needed for sed_eulexp
-    real :: u1r_above, u2r_above, u1w, u2w
-    real :: flux_fromabove, mixingratio_fromabove, mixingratio
-    real :: numberconc, numberconc_fromabove
 
     type(process_name) :: iproc, iaproc  ! processes selected depending on
     ! which species we're depositing on.
 
-    real(wp) :: mint, scal
-    real(wp) :: dmac, mac_mean_min=1.0e-20
+    real(wp) :: dmac
     real(wp) :: dmad
     real(wp) :: dnumber_a, dnumber_d
     logical :: l_sedim_generic
     logical :: l_da_local  ! local tranfer of l_doaerosol
-    real(wp) :: ratio ! used to scale back fluxes if the timestep is too small
     ! If this is used, you can't trust the results.
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
     REAL(KIND=jprb)               :: zhook_handle
-
-    logical :: hydro_mass_exists = .false. ! logical to check there is a small amount of 
-    ! hydrometeor mass in the column
 
     !--------------------------------------------------------------------------
     ! End of header, no more declarations beyond here
@@ -540,8 +526,8 @@ contains
 
   end subroutine sedr
 
-  subroutine sedr_1M_2M(step_length, qfields, aerofields, aeroact, dustact,   &
-       tend, params, procs, aerosol_procs, precip1d, l_doaerosol)
+  subroutine sedr_1M_2M(step_length, qfields, aeroact, dustact,   &
+       params, procs, aerosol_procs, precip1d, l_doaerosol)
 
     !!! This routine has the same functionality as sedr, except it will only work with 
     !!! single moment or double moment settings, since the fallspeeds are calced using 
@@ -560,8 +546,7 @@ contains
     character(len=*), parameter :: RoutineName='SEDR_1M_2M'
 
     real(wp), intent(in) :: step_length
-    real(wp), intent(in), target :: qfields(:,:), aerofields(:,:)
-    real(wp), intent(in) :: tend(:,:)
+    real(wp), intent(in), target :: qfields(:,:)
     type(hydro_params), intent(in) :: params
     type(aerosol_active), intent(in) :: aeroact(:), dustact(:)
     type(process_rate), intent(inout), target :: procs(:,:)
@@ -569,13 +554,12 @@ contains
     real(wp), intent(out) :: precip1d(nz)
     logical, optional, intent(in) :: l_doaerosol
 
-    real(wp) :: dm1, dm2, dm3
-    real(wp) :: dn1, dn2, dn3, am2
-    real(wp) :: m1, m2, m3
-    real(wp) :: n1, n2, n3
+    real(wp) :: dm1, dm2
+    real(wp) :: dn1, dn2
+    real(wp) :: m1, m2
+    real(wp) :: n1, n2
     real(wp) :: hydro_mass
     real(wp) :: n0, lam, mu, u1r, u2r, u1r2, u2r2
-    real(wp) :: udp ! bulk fallspeed for mass (for precip diag)
     integer :: k
 
     integer :: i_1m, i_2m
@@ -583,15 +567,15 @@ contains
     real(wp) :: sp1, sp2 
     real :: a_x, b_x, f_x, g_x, c_x, d_x
     real(wp) :: a2_x, b2_x, f2_x
-    logical :: l_2m 
     logical :: l_fluxin, l_fluxout
 
     ! AH: variables needed for lsp_sedim_eulexp. All declared using real_lsprec from the UM or 
     !     the dummy real_lsprec from MONC casim component, which is wp
     real(real_lsprec) :: lsp_sedim_c_x
-    real(real_lsprec) :: u1r_above, u2r_above, u1w, u2w
-    real(real_lsprec) :: mixingratio_fromabove, mixingratio
-    real(real_lsprec) :: numberconc, numberconc_fromabove
+    real(real_lsprec) :: u1r_above, u2r_above
+!   real(real_lsprec) :: u1w, u2w
+!   real(real_lsprec) :: mixingratio_fromabove, mixingratio
+!   real(real_lsprec) :: numberconc, numberconc_fromabove
 
     real(real_lsprec) :: m0 
     integer :: points
@@ -602,21 +586,17 @@ contains
     type(process_name) :: iproc, iaproc  ! processes selected depending on
     ! which species we're depositing on.
 
-    real(wp) :: mint, dmint, scal
-    real(wp) :: dmac, mac_mean_min=1.0e-20
+    real(wp) :: dmint
+    real(wp) :: dmac
     real(wp) :: dmad
     real(wp) :: dnumber_a, dnumber_d
     logical :: l_da_local  ! local tranfer of l_doaerosol
     logical :: l_sedim_generic
-    real(wp) :: ratio ! used to scale back fluxes if the timestep is too small
     ! If this is used, you can't trust the results.
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
     REAL(KIND=jprb)               :: zhook_handle
-
-    logical :: hydro_mass_exists = .false. ! logical to check there is a small amount of 
-    ! hydrometeor mass in the column
 
     !--------------------------------------------------------------------------
     ! End of header, no more declarations beyond here
@@ -1166,7 +1146,6 @@ contains
     ! Both of the following varaibles are derived from mphys_switches
     integer, intent(in)  ::  nsubseds_max  ! number of sedimentation substeps for sedimentation
     real(wp), intent(in) :: sed_length_max ! sedimentation substep length sedimentation
-    ! min_dz is declared and set in passive_fields
     ! cfl_vt_max is declared and set in mphys_switches
     real(wp), intent(in) :: mindz  ! pass it in 
     

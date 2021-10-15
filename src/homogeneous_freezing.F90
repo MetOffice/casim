@@ -43,11 +43,11 @@ contains
     logical, intent(in) :: l_sigevap(:) ! logical to determine significant evaporation
 
     real(wp) :: dmass, dnumber, dmac, coef, dmadl
-    real(wp) :: dm1, dm2, dm3, dm3_g, m1, m2, m3
+!    real(wp) :: dm1, dm2, dm3, dm3_g, m1, m2, m3
     real(wp) :: n0, lam, mu
 
     real(wp) :: th
-    real(wp) :: qv, qr, nr
+    real(wp) :: qr, nr
 
     real(wp) :: Tc
 
@@ -195,9 +195,8 @@ contains
     type(process_rate), intent(inout), target :: procs(:,:)
     type(process_rate), intent(inout), target :: aerosol_procs(:,:)
 
-    real(wp) :: dmass, dnumber, dmac, coef, dmadl
-    real(wp) :: dm1, dm2, dm3, m1, m2, m3
-    real(wp) :: n0, lam, mu
+    real(wp) :: dmass, dnumber, dmac, dmadl
+!    real(wp) :: m1, m2, m3
 
     real(wp) :: th
     real(wp) :: qv, ql

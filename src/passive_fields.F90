@@ -3,7 +3,7 @@ module passive_fields
   use mphys_die, only: throw_mphys_error, bad_values, std_msg
   use variable_precision, only: wp
   use qsat_funs, only: qsaturation
-  use mphys_switches, only: i_th, l_prf_cfrac
+  use mphys_switches, only: i_th
 
   implicit none
   private

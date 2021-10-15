@@ -1,17 +1,15 @@
 module evaporation
-  use variable_precision, only: wp, iwp
-  use special, only: pi, GammaFunc
-  use passive_fields, only: rho, qws, TdegK, exner
-  use mphys_switches, only: i_qr, i_nr, i_m3r, i_qv, i_ql, hydro_complexity, l_2mr, l_3mr, i_am2, &
-       i_an2, i_am3, i_an3, i_am4, i_am5, l_aevp, l_process, active_cloud, active_rain, isol, aero_index, &
-       l_separate_rain, i_am6, i_an6, i_am9, l_warm, i_qi, i_qs, i_qg, i_an11, i_an12, l_passivenumbers, &
-       l_passivenumbers_ice, l_inhom_revp, l_bypass_which_mode, l_gamma_online
-  use mphys_constants, only: rhow, visair, rho0, Lv,ka, Dv, Rv, cp
-  use mphys_parameters, only: c_r, vent_1, vent_2, a_r, b_r, f_r,p1, p2, p3, hydro_params, rain_params, &
-                              zero_real_wp
+  use variable_precision, only: wp
+  use passive_fields, only: rho, qws, TdegK
+! use mphys_switches, only: i_m3r, l_3mr
+  use mphys_switches, only: i_qr, i_nr, i_qv, i_ql, l_2mr, i_am2, &
+       i_an2, i_am3, i_an3, i_am4, i_am5, l_process, aero_index, &
+       l_separate_rain, i_am6, i_an6, i_am9, l_warm, i_an11, i_an12, l_passivenumbers, &
+       l_passivenumbers_ice, l_inhom_revp, l_gamma_online
+  use mphys_constants, only: Lv,ka, Dv, Rv
+  use mphys_parameters, only: c_r, rain_params
   use process_routines, only: process_rate, i_prevp, i_arevp
-  use thresholds, only: ql_small, qr_small, ss_small, qr_tidy
-  use m3_incs, only: m3_inc_type2
+  use thresholds, only: qr_small, ss_small, qr_tidy
   use distributions, only: dist_lambda, dist_mu, dist_n0
   use aerosol_routines, only: aerosol_phys, aerosol_chem, aerosol_active
   use ventfac, only: ventilation_1M_2M, ventilation_3M
@@ -26,7 +24,7 @@ module evaporation
   public revp
 contains
 
-  subroutine revp(dt, nz, qfields, aerofields, aerophys, aerochem, aeroact, dustliq, procs, aerosol_procs, l_sigevap)
+  subroutine revp(dt, nz, qfields, aerophys, aerochem, aeroact, dustliq, procs, aerosol_procs, l_sigevap)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -35,7 +33,7 @@ contains
 
     ! Subroutine arguments
     real(wp), intent(in) :: dt
-    real(wp), intent(in) :: qfields(:,:), aerofields(:,:)
+    real(wp), intent(in) :: qfields(:,:)
     integer, intent(in) :: nz
     type(aerosol_phys), intent(in) :: aerophys(:)
     type(aerosol_chem), intent(in) :: aerochem(:)
@@ -46,14 +44,15 @@ contains
 
     ! Local variables
     real(wp) :: dmass, dnumber, dnumber_a, dnumber_d
-    real(wp) :: m1, m2, m3, dm1, dm3
+    real(wp) :: m1, m2, dm1
+!   real(wp) :: m3, dm3
 
     real(wp) :: n0, lam, mu
     real(wp) :: V_r, AB
 
     real(wp) :: rain_mass
     real(wp) :: rain_number
-    real(wp) :: rain_m3
+!   real(wp) :: rain_m3
     real(wp) :: qv
 
     logical :: l_rain_test ! conditional test on rain
