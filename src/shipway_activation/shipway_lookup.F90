@@ -1,6 +1,6 @@
 module shipway_lookup
 
-  use variable_precision, only: wp
+  use variable_precision, only: wp, sp
 
   implicit none
 

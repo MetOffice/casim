@@ -2,8 +2,9 @@ module breakup
   use variable_precision, only: wp, iwp
   use process_routines, only: process_rate, process_name, i_sbrk
   use mphys_parameters, only: hydro_params, DSbrk, tau_sbrk
-  use thresholds, only: thresh_small
-  use distributions, only: dist_lambda, dist_mu
+  use thresholds, only: qr_small, thresh_small
+  use m3_incs, only: m3_inc_type2
+  use distributions, only: dist_lambda, dist_mu, dist_n0
 
   implicit none
 
@@ -21,7 +22,7 @@ contains
   !< NB: Aerosol mass is not modified by this process
   !
   !< OPTIMISATION POSSIBILITIES: strip out shape parameters
-  subroutine ice_breakup(nz, l_Tcold, params, qfields, procs)
+  subroutine ice_breakup(dt, nz, l_Tcold, params, qfields, procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -29,6 +30,7 @@ contains
     implicit none
 
     ! Subroutine arguments
+    real(wp), intent(in) :: dt
     integer, intent(in) :: nz
     logical, intent(in) :: l_Tcold(:)
     type(hydro_params), intent(in) :: params
@@ -37,8 +39,8 @@ contains
 
     ! Local variables
     type(process_name) :: iproc ! processes selected depending on which species we're modifying
-    real(wp) :: dnumber
-    real(wp) :: number, mass
+    real(wp) :: dnumber, dm1, dm2, dm3
+    real(wp) :: number, mass, m1, m2
     real(wp) :: lam, mu
     real(wp) :: Dm ! Mass-weighted mean diameter
     

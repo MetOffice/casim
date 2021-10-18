@@ -3,19 +3,20 @@ module activation
   use mphys_constants, only: fixed_cloud_number
   use mphys_parameters, only: C1, K1, cloud_params
   use mphys_switches, only: iopt_act, aero_index,   &
-       l_warm,              &
-       iopt_shipway_act,l_ukca_casim,      &
+       i_am2, i_an2, i_am4, i_am1, i_an1, i_am3, i_an3, &
+       i_am5, i_am6, i_an6, i_am7, l_warm,              &
+       iopt_shipway_act,l_ukca_casim, l_prf_cfrac,      &
        activate_in_cloud
   use aerosol_routines, only: aerosol_active, aerosol_phys, aerosol_chem, &
-       abdulRazzakGhan2000, upperpartial_moment_logn, &
-       invert_partial_moment_betterapprox, &
+       abdulRazzakGhan2000, invert_partial_moment, upperpartial_moment_logn, &
+       invert_partial_moment_approx, invert_partial_moment_betterapprox, &
        AbdulRazzakGhan2000_dust
-  use special, only: pi,GammaFunc
+  use special, only: erfinv, pi,GammaFunc
   use thresholds, only: w_small, nl_tidy, ccn_tidy, ql_small
   Use shipway_parameters, only: max_nmodes, nmodes, Ndi, &
      rdi, sigmad, bi, betai, use_mode, nd_min
-  use shipway_constants, only: Mw, rhow, eps, Rd, Dv, Lv, cp, &
-      Dv_mean, alpha_c, zetasa, Ru
+  use shipway_constants, only: Mw, rhow, eps, Rd, Rv, Dv, Lv, cp, &
+      Dv_mean, alpha_c, zetasa, ka, Ru
   use qsat_funs, only: qsaturation,dqwsatdt
   use shipway_activation_mod, only: solve_nccn_household, solve_nccn_brent
   
@@ -34,7 +35,7 @@ module activation
   integer  :: niter=8
   real(wp) :: smax0=0.001
   !real(wp) :: alpha_c=0.05 !kinetic parameter
-  real(wp) :: nccni(max_nmodes) ! maximum number of modes that can be used (usually=3)
+  real(wp) :: nccni(max_nmodes) ! maximumg number of modes that can be used (usually=3)
 
 contains
 
@@ -71,15 +72,16 @@ contains
 
     real(wp) :: cloud_number_work, cloud_number_work_old, cloud_mass_work
     real(wp) :: cloud_radius_work, smax_cloud, smax_act
-    real(wp) :: active, rcrit, nccn_active, dactive,nccn_dactive
+    real(wp) :: active, nccn, rcrit, nccn_active, dactive,nccn_dactive
     real(wp) :: Nd, rm, sigma, density
     real(wp) :: dnccn_cloud(aero_index%nccn)
     real(wp) :: cf_liquid, cf_thresh, cf_liquid_old
 
+    real :: work, dmac_i, diff
     integer :: imode
     logical :: l_useactive
 
-    real(wp) :: LvT, alpha, lam, tau, qs, &
+    real(wp) :: abs_liquid_T, LvT, alpha, mu, lam, tau, qs, &
          Dv_here, erfarg
     real(wp) :: Ak, bigGthermal, bigGdiffusion, gammaL,     &
          gammaR, gammastar, bigG
@@ -87,9 +89,12 @@ contains
     real(wp) :: m1, m2, j1
     real(wp) :: kwdqsdz, dqsdt
    
+    integer, parameter :: id = 1
+
     integer, parameter :: solve_household = 1
     integer, parameter :: solve_brent = 2
 
+    real(wp) :: act_threshold
     real(wp) :: dv_flag=0 
     
     integer :: solve_select
@@ -335,7 +340,7 @@ contains
               call solve_nccn_household( order, niter, smax0, w, T, p, alpha_c, &
                                          ent_fraction, smax, active, nccni     )
             case (solve_brent)
-              call solve_nccn_brent(w, T, p, alpha_c, ent_fraction,      &
+              call solve_nccn_brent(smax0, w, T, p, alpha_c, ent_fraction,      &
                                   smax, active, nccni)
           end select
         else

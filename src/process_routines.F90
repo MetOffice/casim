@@ -97,7 +97,7 @@ contains
     integer, intent(in) :: nprocs  ! number of physical processes
     integer, intent(in) :: ntotalq ! number of q or aerosol fields
 
-    integer :: iproc, iq
+    integer :: iproc, k, iq
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -115,13 +115,13 @@ contains
      end do
     
 
-     call zero_procs(procs)
+     call zero_procs(procs, nz)
 
      IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
    end subroutine allocate_procs
 
-  subroutine zero_procs(procs, iprocs)
+  subroutine zero_procs(procs, nz, iprocs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -131,9 +131,10 @@ contains
     character(len=*), parameter :: RoutineName='ZERO_PROCS'
 
     type(process_rate), intent(inout) :: procs(:,:)
+    integer, intent(in) :: nz
     type(process_name), intent(in), optional :: iprocs(:)
 
-    integer :: iproc, nproc, iq, i
+    integer :: iproc, nproc, k, iq, i
     integer :: lb1, lb2, ub1, ub2
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
@@ -181,7 +182,7 @@ contains
 
     type(process_rate), intent(inout) :: procs(:,:)
 
-    integer :: iproc, iq
+    integer :: k, iproc, iq
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1

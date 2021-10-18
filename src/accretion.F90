@@ -1,18 +1,16 @@
 module accretion
   use variable_precision, only: wp
   use passive_fields, only: rho
-! use mphys_switches, only: i_m3r, l_3mr
-  use mphys_switches, only: i_ql, i_qr, i_nl, l_2mc, &
+  use mphys_switches, only: i_ql, i_qr, i_nl, i_nr, i_m3r, l_2mc, l_2mr, l_3mr, &
        l_aacc, i_am4, i_am5, l_process, active_rain, isol, l_preventsmall, &
        l_prf_cfrac, i_cfl, i_cfr, l_kk00
   use mphys_constants, only: fixed_cloud_number
-  use mphys_parameters, only: hydro_params
-! use mphys_parameters, only: p1, p2, p3, rain_params
+  use mphys_parameters, only: hydro_params, p1, p2, p3, rain_params
   use process_routines, only: process_rate, i_pracw, i_aacw
   use thresholds, only: ql_small, qr_small, cfliq_small
   use sweepout_rate, only: sweepout
   use distributions, only: dist_lambda, dist_mu, dist_n0
-! use m3_incs, only: m3_inc_type2
+  use m3_incs, only: m3_inc_type2
 
   implicit none
 
@@ -39,8 +37,7 @@ contains
 
     ! Subroutine arguments
 
-    real(wp), intent(in) :: dt !< microphysics time increment (s)   
-                         !! dt NEEDED for 3rd moment code
+    real(wp), intent(in) :: dt !< microphysics time increment (s)
     real(wp), intent(in) :: qfields(:,:)     !< hydrometeor fields
     real(wp), intent(in) :: cffields(:,:)     ! < cloud fractions
     real(wp), intent(in) :: aerofields(:,:)  !< aerosol fields
@@ -51,13 +48,13 @@ contains
     ! Local Variables
 
     real(wp) :: dmass, dnumber, damass
-!   real(wp) :: m1, m2, m3, dm1, dm2, dm3
+    real(wp) :: m1, m2, m3, dm1, dm2, dm3
 
     real(wp) :: cloud_mass
     real(wp) :: cloud_number
     real(wp) :: rain_mass
-!   real(wp) :: rain_number
-!   real(wp) :: rain_m3
+    real(wp) :: rain_number
+    real(wp) :: rain_m3
     real(wp) :: cf_liquid, cf_rain
 
 

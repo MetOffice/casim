@@ -4,12 +4,12 @@ module initialize
   use lookup, only: set_mu_lookup, mu_i, mu_g, mu_i_sed, mu_g_sed, nmu
   use derived_constants, only: set_constants
   use mphys_parameters, only: p1, p2, p3, sp1, sp2, sp3, snow_params
-  use mphys_switches, only: aerosol_option, l_warm, cloud_params, &
+  use mphys_switches, only: option, aerosol_option, l_warm, hydro_complexity, aero_complexity, cloud_params, &
        rain_params, ice_params, snow_params, graupel_params,&
        iopt_act, l_g, l_sg, l_override_checks, i_am10, i_an10, &
        isol, iinsol, active_rain, active_cloud, aero_index, active_number, process_level, iopt_act, l_process
   use gauss_casim_micro, only: gaussfunclookup
-  use micro_main, only : initialise_micromain, finalise_micromain
+  use micro_main, only : DTPUD, initialise_micromain, finalise_micromain
   use sedimentation, only : initialise_sedr, finalise_sedr
 
   implicit none
@@ -17,8 +17,18 @@ module initialize
 
   character(len=*), parameter, private :: ModuleName='INITIALIZE'
 
-  public mphys_init, mphys_finalise
+  ! indices for process conversion rates
+  integer :: n_cond_q, n_cond_n, n_aut_qr, n_aut_nr, n_aut_m3, n_aut_nl, n_acw_qr, n_acw_m3, n_acw_nl, n_evp_qr, &
+       n_evp_nr, n_evp_m3, n_acr_nr, n_acr_m3, n_dep_qi, n_dep_ni, n_sub_qi, n_sub_ni, n_iacw_qi, n_iacw_ni, n_saut_qi, &
+       n_saut_ni, n_raci_qi, n_raci_ni, n_gshd_qi, n_gshd_ni, n_hal_qi, n_hal_ni, n_iagg_ni, n_inuc_qi, n_inuc_ni, &
+       n_homc_ni, n_homc_qi, n_gdep_qg, n_gsub_qg, n_gsub_ng, n_sdep_qs, n_ssub_qs, n_ssub_ns, n_sacw_ql, n_sacw_qs, &
+       n_sacw_qg, n_sacw_ns, n_sacw_nl, n_sacw_ng, n_saci_qs, n_saci_qi, n_saci_ns, n_saci_ni, n_sacr_qr, n_sacr_qs, &
+       n_sacr_qg, n_sacr_ns, n_sacr_nr, n_sacr_ng, n_gacr_qg, n_gacr_qr, n_gacr_nr, n_gacr_ng, n_gacw_qg, n_gacw_ql, &
+       n_gacw_nl, n_gacw_ng, n_gaci_qg, n_gaci_qi, n_gaci_ni, n_gaci_ng, n_gacs_qs, n_gacs_qg, n_gacs_ns, n_gacs_ng, &
+       n_sagg_ns, n_gagg_ng, n_sbrk_ns, n_gshd_qg, n_gshd_ng, n_gshd_qr, n_gshd_nr, n_gshd_qs, n_gshd_ns, n_hal_qs,  &
+       n_hal_ns, n_hal_qg, n_hal_ng, n_smlt_ns, n_smlt_qs, n_gmlt_ng, n_gmlt_qg, n_homr_nr, n_homr_qr
 
+  public mphys_init, mphys_finalise
 contains 
 
   subroutine mphys_init(il, iu, jl, ju, kl, ku,                 &       
@@ -45,6 +55,7 @@ contains
     logical, intent(in), optional :: l_tendency
 
     ! Local variables
+    integer :: iproc
     real(wp) :: tmp
 
     integer :: is, ie ! upper and lower i levels which are to be used

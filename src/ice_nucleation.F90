@@ -25,7 +25,7 @@ contains
   !> Contact freezing (i.e. collision between cloud drop and IN) are not
   !> yet properly concidered.  Such freezing mechanisms should consider the
   !> processing of the aerosol in different ways.
-  subroutine inuc(dt, nz, l_Tcold, qfields, cffields, procs, dustphys, aeroact, dustliq, &
+  subroutine inuc(dt, nz, l_Tcold, qfields, cffields, procs, dustphys, dustchem, aeroact, dustliq, &
        aerosol_procs)
 
     USE yomhook, ONLY: lhook, dr_hook
@@ -43,6 +43,7 @@ contains
 
     ! aerosol fields
     type(aerosol_phys), intent(in) :: dustphys(:)
+    type(aerosol_chem), intent(in) :: dustchem(:)
     type(aerosol_active), intent(in) :: aeroact(:)
     type(aerosol_active), intent(in) :: dustliq(:)
 
@@ -65,7 +66,7 @@ contains
     real(wp) :: qv
     real(wp) :: ice_number
     real(wp) :: cloud_number, cloud_mass
-    real(wp) :: qs, qis, Si, Sw, dN_imm, dN_contact, ql
+    real(wp) :: qs, qis, Si, Sw, limit, dN_imm, dN_contact, ql
     
     real(wp) :: cf_liquid, cf_ice
 
@@ -83,6 +84,7 @@ contains
     
     integer :: k
 
+    integer :: kk
     logical :: l_condition
 
     character(len=*), parameter :: RoutineName='INUC'

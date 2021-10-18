@@ -8,13 +8,13 @@ module mphys_tidy
        i_qv, i_ql, i_nl, i_qr, i_nr, i_m3r, i_th, &
        i_qi, i_ni, i_qs, i_ns, i_m3s,             &
        i_qg, i_ng, i_m3g,                         &
-!       l_3mr, l_3mg, l_3ms,                      &
-       l_2mc, l_2mr,                              &
-       l_2mi, l_2ms, l_2mg,                       &
+       l_2mc, l_2mr, l_3mr,                       &
+       l_2mi, l_2ms, l_3ms, l_2mg, l_3mg,         &
        i_an2, i_am2, i_am4, i_am5, l_warm,        &
        i_an6, i_am6, i_am7, i_am8, i_am9,         &
        l_process, ntotalq, ntotala,               &
        i_qstart, i_nstart, i_m3start,             &
+       active_rain, active_cloud, isol, iinsol,   &
        l_separate_rain, l_tidy_conserve_E, l_tidy_conserve_q
   use mphys_constants, only: Lv, Ls, cp
   use qsat_funs, only: qisaturation
@@ -27,7 +27,7 @@ module mphys_tidy
   character(len=*), parameter, private :: ModuleName='MPHYS_TIDY'
 
   logical, parameter :: l_rescale_on_number = .false.
-! logical :: l_tidym3 = .false.  ! Don't tidy based on m3 values
+  logical :: l_tidym3 = .false.  ! Don't tidy based on m3 values
 
   real(wp), allocatable :: thresh(:), athresh(:), qin_thresh(:)
 !$OMP THREADPRIVATE(thresh, athresh, qin_thresh)
@@ -632,6 +632,7 @@ contains
     real(wp), intent(inout) :: qfields(:,:)
     logical, intent(in), optional :: l_negonly
 
+    real(wp), allocatable :: thresh(:)
     logical :: ql_reset, nl_reset, qr_reset, nr_reset, m3r_reset
     logical :: qi_reset, ni_reset, qs_reset, ns_reset, m3s_reset
     logical :: qg_reset, ng_reset, m3g_reset
@@ -850,7 +851,8 @@ contains
   ! Subroutine to ensure parallel processes don't remove more
     ! mass than is available and then rescales all processes
     ! (including number and other terms)
-  subroutine ensure_positive(nz, dt, qfields, procs, params, iprocs_scalable, iprocs_nonscalable)
+  subroutine ensure_positive(nz, dt, qfields, procs, params, iprocs_scalable, iprocs_nonscalable &
+       , aeroprocs, iprocs_dependent, iprocs_dependent_ns)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -870,6 +872,16 @@ contains
          iprocs_nonscalable(:) ! list of other processes which
     ! provide source or sink, but
     ! which we don't want to rescale
+    type(process_rate), intent(inout), optional ::   &
+         aeroprocs(:,:)        ! associated aerosol process rates
+    type(process_name), intent(in), optional ::      &
+         iprocs_dependent(:)   ! list of aerosol processes which
+    ! are dependent on rescaled processes and
+    ! so should be rescaled themselves
+    type(process_name), intent(in), optional ::      &
+         iprocs_dependent_ns(:)   ! list of aerosol processes which
+    ! are dependent on rescaled processes but
+    ! we don't want to rescale
     integer :: iproc, id, iq, k
     real(wp) :: delta_scalable, delta_nonscalable, ratio, maxratio
     integer :: i_1m, i_2m, i_3m
@@ -1269,4 +1281,42 @@ contains
 
   end subroutine ensure_saturated
 
+  ! Once tidied, there may be some negative numbers due to
+  ! rounding error, so should be safe to lose these
+  subroutine cleanup_q(qfields)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
+    implicit none
+
+    character(len=*), parameter :: RoutineName='CLEANUP_Q'
+
+    real(wp), intent(inout) :: qfields(:,:)
+
+    integer :: i1,i2 ! use loops instead of where construct
+    integer :: lbounds(2), ubounds(2)
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+    lbounds=lbound(qfields)
+    ubounds=ubound(qfields)
+    do i2=lbounds(2), ubounds(2)
+      do i1=lbounds(1), ubounds(1)
+        if (qfields(i1,i2) < 0.0) then
+          qfields(i1,i2)=0.0
+        end if
+      end do
+    end do
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
+  end subroutine cleanup_q
 end module mphys_tidy

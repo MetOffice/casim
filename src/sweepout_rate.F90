@@ -86,6 +86,9 @@ contains
     real(wp) :: arg3 !< argument for gamma function
     real(wp) :: coef !< coefficient = c_x if mass-weighting
 
+    integer :: k ! loop index
+
+
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
     REAL(KIND=jprb)               :: zhook_handle
@@ -254,6 +257,8 @@ contains
     real(wp) :: V_X  !< mass-weighted fall velocity for X
     real(wp) :: V_Y  !< mass-weighted fall velocity for Y
     real(wp) :: delV !< bulk fall-speed differential
+
+    integer :: k ! loop index
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1

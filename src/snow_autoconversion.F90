@@ -1,23 +1,22 @@
 module snow_autoconversion
-  use variable_precision, only: wp
+  use variable_precision, only: wp, iwp
   use passive_fields, only: rho, exner, TdegK, pressure
-  use mphys_switches, only:  &
-       i_qi, i_qs, i_ni, i_ns, &
-       i_qv, i_th, &
+  use mphys_switches, only: iopt_auto,   &
+       i_qi, i_qs, i_ni, i_ns, i_m3s, hydro_complexity, &
+       l_dsaut, i_qv, i_th, &
        l_harrington
-! use mphys_switches, only:  i_m3s
-  use mphys_constants, only: fixed_ice_number,   &
-       Lv,ka, Dv, Rv
-! use mphys_parameters, only: mu_saut
-  use mphys_parameters, only: snow_params, ice_params,   &
+  use mphys_constants, only: rhow, fixed_ice_number,   &
+       Ls, cp,  Lv,ka, Dv, Rv
+  use mphys_parameters, only: mu_saut, snow_params, ice_params,   &
        DImax, tau_saut, DI2S
   use process_routines, only: process_rate, i_saut
-  use qsat_funs, only: qisaturation
+  use qsat_funs, only: qsaturation, qisaturation
   use thresholds, only: thresh_small
   use special, only: pi
-! use m3_incs, only: m3_inc_type3
+  use m3_incs, only: m3_inc_type2, m3_inc_type3
 
-  use distributions, only: dist_lambda, dist_mU
+  use lookup, only: gfunc
+  use distributions, only: dist_lambda, dist_mu, dist_n0
 
   implicit none
   private
@@ -27,7 +26,7 @@ module snow_autoconversion
   public saut
 contains
 
-  subroutine saut(dt, nz, l_Tcold, qfields, procs)
+  subroutine saut(dt, nz, l_Tcold, qfields, aerofields, procs, aerosol_procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -39,11 +38,12 @@ contains
     real(wp), intent(in) :: dt
     integer, intent(in) :: nz
     logical, intent(in) :: l_Tcold(:) 
-    real(wp), intent(in) :: qfields(:,:)
+    real(wp), intent(in) :: qfields(:,:), aerofields(:,:)
     type(process_rate), intent(inout), target :: procs(:,:)
+    type(process_rate), intent(inout), target :: aerosol_procs(:,:)
 
     real(wp) :: dmass, dnumber
-!   real(wp) :: dm1,dm2,dm3
+    real(wp) :: m1, m2, m3, dm1,dm2,dm3
     real(wp) :: ice_lam, ice_mu
     real(wp) :: ice_mass
     real(wp) :: ice_number
@@ -51,7 +51,7 @@ contains
     real(wp) :: qv
     real(wp) :: p1, p2, p3
     real(wp) :: lami_min , AB, qis
-    integer :: k
+    integer :: i, k
 
     logical :: l_condition ! logical condition to switch on process
 

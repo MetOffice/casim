@@ -1,13 +1,13 @@
 module aerosol_routines
   use mphys_die, only: throw_mphys_error, warn, std_msg
-  use type_aerosol, only: aerosol_phys, aerosol_chem, aerosol_active
+  use type_aerosol, only: aerosol_type, aerosol_phys, aerosol_chem, aerosol_active
   use variable_precision, only: wp
   use mphys_constants, only: Mw, zetasa, Ru, rhow, g, Lv, mp_eps, cp, Rd, Rv, ka, Dv, pi
   use special, only: casim_erfc, erfinv
-  use mphys_switches, only: i_am4, i_nl, i_nr, &
-       i_am5, i_am7, i_am8, i_am9, i_an11, i_an12, i_ni, i_ns, i_ng, i_ql, &
-       i_qr, i_qi, i_qs, i_qg, l_active_inarg2000, aero_index, l_warm,  &
-       l_process, l_passivenumbers,              &
+  use mphys_switches, only: i_am2, i_an2, i_am4, i_nl, i_nr, i_am1, i_an1, i_am3, i_an3, &
+       i_am5, i_am6, i_an6, i_am7, i_am8, i_am9, i_an11, i_an12, i_ni, i_ns, i_ng, i_ql, &
+       i_qr, i_qi, i_qs, i_qg, l_active_inarg2000, aero_index, l_warm, active_cloud,    &
+       active_rain, active_ice, isol, iinsol, l_process, l_passivenumbers,              &
        l_passivenumbers_ice, l_separate_rain, l_ukca_casim
   use thresholds, only: nr_tidy, nl_tidy, ni_tidy, ccn_tidy, qr_tidy, aeromass_small, aeronumber_small
   use mphys_parameters, only: sigma_arc, nz
@@ -185,25 +185,25 @@ contains
 
     ! Local variables
 
-    real(wp) :: mac, mar, mad, maai, madl, cloud_number, rain_number
+    real(wp) :: n, m, mac, mar, mad, maai, madl, cloud_number, rain_number
     real(wp) :: cloud_mass, rain_mass
     real(wp) :: ice_number, snow_number, graupel_number
     real(wp) :: ice_mass, snow_mass, graupel_mass
-    real(wp) :: mact2
-    real(wp) :: density
+    real(wp) :: mact2, rcrit
+    real(wp) :: Nd, rm, sigma, density
     integer :: k
 
-    real(wp) :: rm_arc
-    character(2) :: chcall
+    real(wp) :: mtot, tmp, m_ratio, n_ratio, dcloud_number, rm_arc
+    character(2) :: chcall, chmode
     real(wp) :: ratio_l, ratio_r, nratio_l, nratio_r
-    real(wp) :: ratio_i, ratio_s, ratio_g, nratio_i, nratio_s, nratio_g
-!   real(wp) :: mratio_i, mratio_s, mratio_g
+    real(wp) :: ratio_i, ratio_s, ratio_g, nratio_i, nratio_s, nratio_g, mratio_i, mratio_s, mratio_g
     real(wp) :: ratio_dil, ratio_dli, ratio_ali, ratio_ail
 
     integer :: imode
     real(wp) :: mode_N, mode_M, mode_K
     real(wp) :: nitot, ntot, nhtot, mitot
     real(wp) :: mact, rcrit2
+    real(wp) :: foo
 
     logical :: l_condition, l_condition_r
 
@@ -649,6 +649,90 @@ contains
 
   ! Note: despite appearences this is only coded up
   ! for a single mode so far...
+  subroutine AbdulRazzakGhan(w, qc, p, T, phys, chem, nccn, Smax, rcrit, tau)
+
+    USE yomhook, ONLY: lhook, dr_hook
+    USE parkind1, ONLY: jprb, jpim
+
+    implicit none
+
+    ! Subroutine arguments
+
+    real(wp), intent(in) :: w ! vertical velocity (ms-1)
+    real(wp), intent(in) :: qc ! Pre-existing cloud mass
+    real(wp), intent(in) :: p ! pressure (Pa)
+    real(wp), intent(in) :: T ! temperature (K)
+    type(aerosol_phys), intent(in) :: phys
+    type(aerosol_chem), intent(in) :: chem
+    real(wp), intent(out) :: Nccn ! number of activated aerosol
+    real(wp), intent(out) :: smax ! peak supersaturation
+    real(wp), intent(out) :: rcrit ! radius of smallest activated aerosol
+    real(wp), intent(out) :: tau   ! equilibrium adjustment timescale
+
+    ! Local variables
+
+    real(wp), allocatable :: s_cr(:)
+    real(wp) :: Tc, Ak, Bk, eta, alpha, gamma, es, bigG, Galt
+    real(wp) :: f1, f2, zeta, error_func
+    integer :: i
+
+    character(len=*), parameter :: RoutineName='ABDULRAZZAKGHAN'
+
+    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+    REAL(KIND=jprb)               :: zhook_handle
+
+    !--------------------------------------------------------------------------
+    ! End of header, no more declarations beyond here
+    !--------------------------------------------------------------------------
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+    allocate(s_cr(phys%nmodes))
+
+    Tc=T-273.15 ! Temperature (C)
+
+    ! surface tension of water, not solute (units are N/m)
+    !zetasa = (76.1-(0.155*Tc)) * 1e-3
+    Ak=2.0*Mw*zetasa/(Ru*T*rhow)
+
+    alpha=g*(Lv/(mp_eps*cp*T)-1)/(T*Rd)
+
+    es=(100.0*6.1121)*exp((18.678-Tc/(234.5))*Tc/(257.14+Tc))
+
+    gamma=mp_eps*p/es+Lv**2/(Rv*T**2*cp)
+
+    !Dv = (0.211*((T/273.15)**(1.94))*((100000.)/(p))) / 1.e4
+
+    bigG=1.0/(rhow*(Rv*T/(es*Dv)+Lv*(Lv/(Rv*T)-1)/(ka*T)))
+
+    do i=1, 1!phys%nmodes
+      if(l_ukca_casim) then
+        Bk =chem%bk(i)
+      else
+        Bk=chem%vantHoff(i)*Mw*chem%density(i)/(chem%massMole(i)*rhow)
+      endif
+      s_cr(i)=(2.0/sqrt(Bk))*(Ak/(3.0*phys%rd(i)))**1.5
+      eta=(w*alpha/BigG)**1.5/(2.0*pi*rhow*gamma*phys%N(i))
+      zeta=(2.0/3.0)*Ak*(w*alpha/BigG)**0.5
+      f1=1.5*exp(2.25*(log(phys%sigma(i)))**2)
+      f2=1.0 + 0.25*log(phys%sigma(i))
+
+      error_func=1.0-erf(log(f1*(zeta/eta)**1.5+&
+           f2*((s_cr(i)*s_cr(i))/(eta+3.0*zeta))**.75)/(3.0*sqrt(2.0)*log(phys%sigma(i))))
+
+      nccn=0.5*phys%N(i)*error_func
+      smax=s_cr(i)/(f1*(zeta/eta)**1.5+f2*(s_cr(i)*s_cr(i)/eta)**.75)**.5
+      rcrit=phys%rd(i)*(s_cr(i)/smax)**(.66667)
+    end do
+    tau=1.0/(alpha*w+gamma*4*pi*rhow*bigG*qc)
+    deallocate(s_cr)
+
+    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
+  end subroutine AbdulRazzakGhan
+
+  ! Note: despite appearences this is only coded up
+  ! for a single mode so far...
   subroutine AbdulRazzakGhan2000(w, p, T, phys, chem, nccn, Smax, active_phys, nccn_active, l_useactive )
 
     USE yomhook, ONLY: lhook, dr_hook
@@ -673,7 +757,7 @@ contains
 
     real(wp), allocatable :: s_cr(:)
     real(wp) :: s_cr_active
-    real(wp) :: Tc, Ak, Bk, eta, alpha, gamma, es, bigG
+    real(wp) :: Tc, Ak, Bk, eta, alpha, gamma, es, bigG, Galt
     real(wp) :: f1, f2, zeta, error_func
     real(wp) :: rsmax2  ! 1/(smax*smax)
     real(wp) :: diff
@@ -787,9 +871,6 @@ contains
   subroutine AbdulRazzakGhan2000_dust(w, p, T, phys, chem, nccn, Smax, active_phys, nccn_active, &
       nccn_dactive, dphys, dchem, active_dphys, dnccn, l_useactive )
 
-    USE yomhook, ONLY: lhook, dr_hook
-    USE parkind1, ONLY: jprb, jpim
-
     implicit none
 
     character(len=*), parameter :: RoutineName='ABDULRAZZAKGHAN2000_DUST'
@@ -807,7 +888,7 @@ contains
 
     real(wp), allocatable :: s_cr(:)
     real(wp) :: s_cr_active
-    real(wp) :: Tc, Ak, Bk, eta, alpha, gamma, es, bigG
+    real(wp) :: Tc, Ak, Bk, eta, alpha, gamma, es, bigG, Galt
     real(wp) :: f1, f2, zeta, error_func
     real(wp) :: rsmax2  ! 1/(smax*smax)
     real(wp) :: diff
@@ -820,12 +901,6 @@ contains
     REAL(wp), INTENT(OUT) :: nccn_dactive ! notional nccn that would be generated by activated aerosol
     REAL(wp), INTENT(OUT) :: dnccn(:) ! number of activated aerosol
     REAL(wp) :: s_cr_active_d
-
-    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-    REAL(KIND=jprb)               :: zhook_handle
-
-    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     l_useactive=.false.
     if (present(active_phys)) l_useactive=active_phys%nact > ccn_tidy .and. l_active_inarg2000
@@ -961,10 +1036,7 @@ contains
     nccn=.99*nccn ! Don't allow all aerosol to be removed.
     dnccn=.99*dnccn
     deallocate(s_cr)
-
-    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
- 
- end subroutine AbdulRazzakGhan2000_dust
+  end subroutine AbdulRazzakGhan2000_dust
 
   !
   ! Calculate the moments of a lognormal distribution

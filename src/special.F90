@@ -200,7 +200,7 @@ contains
       end do
       f=cc+f*z*(2.0-4.0*cc)/sqrt(pi)
     else
-      cc=cc*int(abs(z)/z)
+      cc=cc*abs(z)/z
       j=3+int(32/abs(z))
       f=0.0
       do while(j /= 0)

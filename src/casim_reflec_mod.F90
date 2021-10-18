@@ -52,7 +52,8 @@ CONTAINS
 
 SUBROUTINE setup_reflec_constants()
 
-USE mphys_parameters, ONLY: cloud_params, rain_params, graupel_params
+USE mphys_parameters, ONLY: cloud_params, rain_params, ice_params,   &
+                            snow_params, graupel_params
 
 ! Dr Hook Modules
 USE yomhook,          ONLY: lhook, dr_hook
@@ -81,7 +82,7 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
 END SUBROUTINE setup_reflec_constants
 
-SUBROUTINE casim_reflec( points, nq, rho, qfields, cffields, &
+SUBROUTINE casim_reflec( points, nq, rho, t, qfields, cffields, &
                          dbz_tot_c, dbz_g_c, dbz_i_c, &
                          dbz_i2_c, dbz_l_c, dbz_r_c )
 
@@ -94,7 +95,7 @@ USE mphys_parameters,     ONLY: cloud_params, rain_params, ice_params,   &
                                 snow_params, graupel_params
 
 USE mphys_switches,       ONLY: l_g, l_warm, l_cfrac_casim_diag_scheme, &
-                                i_cfl, i_cfr, i_cfi,       &
+                                l_prf_cfrac, i_cfl, i_cfr, i_cfi,       &
                                 i_cfs, i_cfg
 USE special,              ONLY: Gammafunc
 USE mphys_die,            ONLY: throw_mphys_error, warn, std_msg
@@ -102,7 +103,7 @@ USE mphys_die,            ONLY: throw_mphys_error, warn, std_msg
 !!use thresholds, only: cfliq_small ! 
 !! not used now removed due to comment in #374
 
-USE distributions,        ONLY: query_distributions, dist_lambda, dist_mu, dist_n0
+USE distributions,        ONLY: query_distributions, dist_lambda, dist_mu, dist_n0, dist_lams
 
 
 ! Dr Hook Modules
@@ -122,6 +123,7 @@ INTEGER, INTENT(IN) :: points      ! Number of points calculation is done over
 INTEGER, INTENT(IN) :: nq
 
 REAL(wp), INTENT(IN) :: rho(points)    ! Air density [kg m-3]
+REAL(wp), INTENT(IN) :: t(points)      ! Temperature [K]
 REAL(wp), INTENT(INOUT) :: qfields(points,nq) ! Graupel mixing ratio [kg kg-1]
 
 REAL(wp), INTENT(OUT) :: dbz_tot_c(points) ! Total reflectivity [dBZ]
@@ -146,6 +148,11 @@ REAL(wp) :: krain        ! Reflectivity prefactor due to rain
 REAL(wp) :: kclw         ! Reflectivity prefactor due to cloud liquid water
 REAL(wp) :: kice_a       ! Reflectivity prefactor due to ice aggregates
 REAL(wp) :: kice_c       ! Reflectivity prefactor due to ice crystals
+REAL(wp) :: gwc(points)  ! Graupel water content [kg m-3]
+REAL(wp) :: iwc(points)  ! Ice water content: Aggregates [kg m-3]
+REAL(wp) :: iwc2(points) ! Ice water content: Aggregates [kg m-3]
+REAL(wp) :: rwc(points)  ! Rain water content [kg m-3]
+REAL(wp) :: lwc(points)  ! Liquid water content [kg m-3]
 
 REAL(wp) :: ze_g(points)   ! Linear reflectivity due to graupel [mm6 m-3]
 REAL(wp) :: ze_i(points)   ! Linear reflectivity due to ice agg [mm6 m-3]

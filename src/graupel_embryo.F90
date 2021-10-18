@@ -1,13 +1,16 @@
 module graupel_embryo
   use variable_precision, only: wp
-  use process_routines, only: process_rate, i_sacw
-  use passive_fields, only: rho
-  use mphys_parameters, only: snow_params, graupel_params, cloud_params
+  use process_routines, only: process_rate, process_name, i_sacw
+  use aerosol_routines, only: aerosol_phys, aerosol_chem, aerosol_active
+  use passive_fields, only: TdegC, TdegK, qws0, rho
+  use mphys_parameters, only: ice_params, snow_params, graupel_params, rain_params, cloud_params
   use mphys_constants, only: rho0
   use thresholds, only: thresh_sig, cfliq_small
   use special, only: pi, Gammafunc
+  use m3_incs, only: m3_inc_type2, m3_inc_type3
+  use ventfac, only: ventilation_1M_2M, ventilation_3M
   use distributions, only: dist_lambda, dist_mu, dist_n0
-  use mphys_switches, only: l_prf_cfrac, i_cfs, i_cfl, mpof
+  use mphys_switches, only: l_gamma_online, l_prf_cfrac, i_cfs, i_cfl, mpof
 
   implicit none
   private
@@ -17,7 +20,8 @@ module graupel_embryo
   public graupel_embryos
 contains
 
-  subroutine graupel_embryos(dt, nz, l_Tcold, qfields, cffields, procs)
+  subroutine graupel_embryos(dt, nz, l_Tcold, qfields, cffields, procs, aerophys, &
+                             aerochem, aeroact, aerosol_procs)
 
     !< Subroutine to convert some of the small rimed snow to graupel
     !< (Ikawa & Saito 1991)
@@ -39,9 +43,18 @@ contains
     real(wp), intent(in) :: cffields(:,:)
     type(process_rate), intent(inout), target :: procs(:,:)
 
+    ! aerosol fields
+    type(aerosol_phys), intent(in) :: aerophys(:)
+    type(aerosol_chem), intent(in) :: aerochem(:)
+    type(aerosol_active), intent(in) :: aeroact(:)
+
+    ! optional aerosol fields to be processed
+    type(process_rate), intent(inout), optional :: aerosol_procs(:,:)
+
     ! Local variables
     real(wp) :: cloud_mass, snow_mass, snow_number
     real(wp) :: dmass, dnumber
+    real(wp) :: m1, m2, m3, dm1, dm2, dm3
     real(wp) :: snow_n0, snow_lam, snow_mu ! distribution parameters
 
     real(wp) :: dnembryo ! rate of embryo creation

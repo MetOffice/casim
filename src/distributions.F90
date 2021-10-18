@@ -1,18 +1,16 @@
 module distributions
   use variable_precision, only: wp
-  use mphys_parameters, only: hydro_params, nz, a_s, b_s
-! use mphys_parameters, only: ice_params
-  use mphys_switches, only: i_th, l_limit_psd, &
+  use mphys_parameters, only: hydro_params, nz, rain_params, ice_params, a_s, b_s
+  use mphys_switches, only: i_th, hydro_names, l_limit_psd, l_passive3m, &
                             max_mu, max_mu_frac, l_kfsm, l_prf_cfrac,    &
                             i_cfl, i_cfr, i_cfi, i_cfs, i_cfg,           &
                             l_adjust_D0
-  use lookup, only: get_slope_generic, get_slope_generic_kf
-! use lookup, only: moment, get_lam_n0
-  use thresholds, only: cfliq_small
-! use thresholds, only: thresh_large
-  use mphys_die, only: throw_mphys_error, bad_values, std_msg
-! use mphys_die, only: warn
-! use m3_incs, only: m3_inc_type3
+  use lookup, only: get_slope_generic, get_slope_generic_kf, get_n0,     &
+                    moment, get_mu, get_lam_n0
+  use special, only: GammaFunc
+  use thresholds, only: thresh_tidy, thresh_sig, thresh_large, cfliq_small
+  use mphys_die, only: throw_mphys_error, warn, bad_values, std_msg
+  use m3_incs, only: m3_inc_type3
   use passive_fields, only: exner
 
   ! VERBOSE = 1 for verbose print statements, otherwise dont display
@@ -80,8 +78,7 @@ contains
     ! Local variables
     integer :: k    
     integer(wp) :: i1,i2,i3,ispec 
-    real(wp) :: alpha, D0, mu_maxes_calc, Tk
-!   real(wp) :: mu_pass=1.0
+    real(wp) :: alpha, D0, mu_pass=1.0, k1,k2,k3, mu_maxes_calc, Tk
 #if VERBOSE==1
     real(wp) :: n0_old, mu_old, lam_old
 #endif
@@ -201,7 +198,7 @@ contains
                                     m2_in, m3(k))
 
         else
-          call get_slope_generic(params, dist_n0(k,ispec),                      &
+          call get_slope_generic(k, params, dist_n0(k,ispec),                   &
                                  dist_lambda(k,ispec), dist_mu(k,ispec),        &
                                  q1_in, m2_in, m3(k))
 

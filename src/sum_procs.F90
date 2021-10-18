@@ -1,15 +1,21 @@
 module sum_process
   use variable_precision, only: wp
-! use mphys_die, only: throw_mphys_error, incorrect_opt, std_msg
+  use mphys_die, only: throw_mphys_error, incorrect_opt, std_msg
   use type_process, only: process_name, process_rate
-  use mphys_switches, only: i_th, i_ql, i_qr, i_qs, i_qi, i_qg, l_warm, ntotalq, ntotala
-  use passive_fields, only: rexner
-! use passive_fields, only: rho
+  use mphys_switches, only: i_th, i_qv, i_ql, i_qr, i_qs, i_qi, i_qg, l_warm, i_m3r, ntotalq, ntotala, &
+       i_an11, i_am4, i_nl, i_am9, aero_index, i_nr, i_ng, i_ns, i_am7, i_am8, &
+       cloud_params, rain_params
+  use passive_fields, only: rexner, rho
   use mphys_constants, only: cp, Lv, Ls
-  use mphys_parameters, only: ZERO_REAL_WP
-! use mphys_parameters, only: hydro_params, snow_params, rain_params, graupel_params
-! use m3_incs, only: m3_inc_type2
-  use process_routines, only: process_name
+  use mphys_parameters, only: hydro_params, snow_params, rain_params, graupel_params, ZERO_REAL_WP
+  use m3_incs, only: m3_inc_type2
+  use process_routines, only:  i_cond, i_praut, &
+       i_pracw, i_pracr, i_prevp, i_psedr, i_psedl, i_aact, i_aaut, i_aacw, i_aevp, i_asedr, i_asedl, i_arevp, &
+       i_tidy, i_tidy2, i_atidy, i_atidy2, i_inuc, i_idep, i_dnuc, i_dsub, i_saut, i_iacw, i_sacw, i_pseds, &
+       i_sdep, i_saci, i_raci, i_sacr, i_gacw, i_gacr, i_gaci, i_gacs, i_gdep, i_psedg, i_iagg, i_sagg, i_gagg, &
+       i_gshd, i_ihal, i_smlt, i_gmlt, i_psedi, i_homr, i_homc, i_imlt, i_isub, i_ssub, i_gsub, i_sbrk, i_dssub, &
+       i_dgsub, i_dsedi, i_dseds, i_dsedg, i_dimlt, i_dsmlt, i_dgmlt, i_diacw, i_dsacw, i_dgacw, i_dsacr, &
+       i_dgacr, i_draci, i_dhomc, i_dhomr, process_name
   
   implicit none
   private
@@ -25,7 +31,7 @@ module sum_process
   public sum_aprocs, sum_procs,  tend_temp, aerosol_tend_temp
 contains
 
-  subroutine sum_aprocs(dst, procs, tend, iprocs, afields)
+  subroutine sum_aprocs(dst, procs, tend, iprocs, names, afields)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -38,12 +44,16 @@ contains
     type(process_rate), intent(in) :: procs(:,:)
     type(process_name), intent(in) :: iprocs(:)
     real(wp), intent(inout) :: tend(:,:)
+    character(20), intent(in) :: names(:)
     real(wp), intent(in), optional :: afields(:,:) ! Required for debugging
 
     !real(wp), allocatable :: tend_temp(:,:) ! Temporary storage for accumulated tendendies
 
-    integer :: k, iq, iproc, i, nz
-    integer :: nproc
+    integer :: k, iq, iproc, i, nz, idgproc
+    integer :: nproc, index, idg
+
+    character(2) :: char
+    character(100) :: name
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -82,7 +92,7 @@ contains
 
   end subroutine sum_aprocs
 
-  subroutine sum_procs(dst, nz, procs, tend, iprocs, l_thermalexchange, i_thirdmoment, qfields, l_passive )
+  subroutine sum_procs(dst, nz, procs, tend, iprocs, names, l_thermalexchange, i_thirdmoment, qfields, l_passive )
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -100,17 +110,22 @@ contains
     integer, intent(in), optional :: i_thirdmoment  ! Calculate the tendency of the third moment
     real(wp), intent(in), optional :: qfields(:,:) ! Required for debugging or with i_thirdmoment
     logical, intent(in), optional :: l_passive ! If true don't apply final tendency (testing diagnostics with pure sedimentation)
+    character(10), intent(in) :: names(:)
 
     !real(wp), allocatable :: tend_temp(:,:) ! Temporary storage for accumulated tendendies
-!   type(hydro_params) :: params
-!   real(wp) :: dm1,dm2,dm3,m1,m2,m3
-    integer :: k, iq, iproc, i
-    integer :: nproc
+    type(hydro_params) :: params
+    real(wp) :: dm1,dm2,dm3,m1,m2,m3
+    integer :: k, iq, iproc, isource, nsource, i, idgproc
+    integer :: nproc, index, idg
+
+    character(2) :: char
+    character(100) :: name
 
     logical :: do_thermal
-!   logical :: do_third  ! Currently not plumbed in, so explicitly calculated for each process
+    logical :: do_third  ! Currently not plumbed in, so explicitly calculated for each process
     logical :: do_update ! update the tendency
-!   integer :: third_type
+    integer :: third_type
+    real :: qh ! total hydrometeor
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1

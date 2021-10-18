@@ -1,18 +1,16 @@
 module aggregation
   use variable_precision, only: wp, iwp
   use passive_fields, only: rho, TdegC
-  use mphys_switches, only: i_qr, i_nr, l_2mr
-! use mphys_switches, only: i_m3r, l_3mr
+  use mphys_switches, only: i_qr, i_nr, i_m3r, hydro_complexity, l_2mr, l_3mr
   use process_routines, only: process_rate,  process_name, i_pracr, i_iagg, i_sagg, i_gagg
-  use mphys_parameters, only: d_r, hydro_params
-! use mphys_parameters, only: p1, p2, p3, rain_params
+  use mphys_parameters, only: c_r, d_r, p1, p2, p3, hydro_params, rain_params
   use mphys_constants, only: rhow, rho0
   use thresholds, only: qr_small, thresh_small
-! use m3_incs, only: m3_inc_type2
+  use sweepout_rate, only: sweepout, binary_collection
+  use m3_incs, only: m3_inc_type2
   use distributions, only: dist_lambda, dist_mu, dist_n0
   use special, only: pi
-  use gauss_casim_micro, only: gaussfunclookup, gaussfunclookup_2d
-! use gauss_casim_micro, only: gauss_casim_func
+  use gauss_casim_micro, only: gauss_casim_func, gaussfunclookup, gaussfunclookup_2d
 
   implicit none
 
@@ -31,17 +29,16 @@ contains
     implicit none
 
     ! Subroutine arguments
-    real(wp), intent(in) :: dt           !! dt NEEDED for 3rd moment code
+    real(wp), intent(in) :: dt
     real(wp), intent(in), target :: qfields(:,:)
     type(process_rate), intent(inout), target :: procs(:,:)
 
     ! Local variables
-    real(wp) :: dnumber, Dr, Eff
+    real(wp) :: dmass, dnumber, Dr, Eff
+    real(wp) :: m1, m2, m3, dm1, dm2, dm3
     real(wp) :: rain_mass
     real(wp) :: rain_number
-!! variables below NEEDED for 3rd moment code
-!   real(wp) :: m1, m2, m3, dm1, dm2, dm3
-!   real(wp) :: rain_m3
+    real(wp) :: rain_m3
     logical :: l_beheng=.true.
 
     integer :: k ! k index for looping over column
@@ -84,7 +81,7 @@ contains
             !    m3=rain_m3
             !
             !    dm1=0.0
-            !    dm2=-Dt*dnumber
+            !    dm2=-dt*dnumber
             !    call m3_inc_type2(m1, m2, m3, p1, p2, p3, dm1, dm2, dm3)
             !    dm3=dm3/dt
             !    procs(i_m3r, i_pracr%id)%column_data(k) = dm3
@@ -104,7 +101,7 @@ contains
   !< NB: Aerosol mass is not modified by this process
   !
   !< CODE TIDYING: Move efficiencies into parameters
-  subroutine ice_aggregation(nz, l_Tcold, params, qfields, procs)
+  subroutine ice_aggregation(dt, nz, l_Tcold, params, qfields, procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -112,6 +109,7 @@ contains
     implicit none
 
     ! Subroutine arguments
+    real(wp), intent(in) :: dt
     integer, intent(in) :: nz
     logical, intent(in) :: l_Tcold(:)   
     type(hydro_params), intent(in) :: params
@@ -120,9 +118,9 @@ contains
 
     ! Local variables
     type(process_name) :: iproc ! processes selected depending on which species we're modifying
-    real(wp) :: dnumber
+    real(wp) :: dnumber, dm1, dm2, dm3
     real(wp) :: Eff ! collection efficiencies need to re-evaluate these and put them in properly to mphys_parameters
-    real(wp) :: mass, gaussterm
+    real(wp) :: mass, m1, m2, gaussterm
     real(wp) :: n0, lam, mu
 
     integer :: k

@@ -2,6 +2,7 @@ module graupel_wetgrowth
   use variable_precision, only: wp
   use process_routines, only: process_rate, process_name,   &
        i_gshd, i_gacw, i_gacr, i_gaci, i_gacs
+  use aerosol_routines, only: aerosol_phys, aerosol_chem, aerosol_active
   use passive_fields, only: TdegC,  qws0, rho
 
   use mphys_parameters, only: ice_params, snow_params, graupel_params,   &
@@ -10,6 +11,7 @@ module graupel_wetgrowth
   use mphys_constants, only: Lv, Lf, Ka, Cwater, Cice
   use thresholds, only: thresh_small, cfliq_small
 
+  use m3_incs, only: m3_inc_type2
   use ventfac, only: ventilation_3M, ventilation_1M_2M
   use distributions, only: dist_lambda, dist_mu, dist_n0
 
@@ -20,7 +22,8 @@ module graupel_wetgrowth
 
   public wetgrowth
 contains
-  subroutine wetgrowth(nz, l_Tcold, qfields, cffields, procs, l_sigevap)
+  subroutine wetgrowth(dt, nz, l_Tcold, qfields, cffields, procs, l_sigevap, aerophys, &
+                       aerochem, aeroact, aerosol_procs)
     !< Subroutine to determine if all liquid accreted by graupel can be
     !< frozen or if there will be some shedding
     !<
@@ -33,11 +36,20 @@ contains
     implicit none
 
     ! Subroutine arguments
+    real(wp), intent(in) :: dt
     integer, intent(in) :: nz
     logical, intent(in) :: l_Tcold(:)
     real(wp), intent(in), target :: qfields(:,:)
     real(wp), intent(in) :: cffields(:,:)
     type(process_rate), intent(inout), target :: procs(:,:)
+
+    ! aerosol fields
+    type(aerosol_phys), intent(in) :: aerophys(:)
+    type(aerosol_chem), intent(in) :: aerochem(:)
+    type(aerosol_active), intent(in) :: aeroact(:)
+
+    ! optional aerosol fields to be processed
+    type(process_rate), intent(inout), optional :: aerosol_procs(:,:)
 
     logical, intent(in) :: l_sigevap(:) ! logical to determine significant evaporation
 
@@ -47,8 +59,12 @@ contains
     ! which species we're modifying
 
     real(wp) :: qv
-    real(wp) :: dmass, dnumber
-    real(wp) :: mass
+    real(wp) :: dmass, dnumber, dm1, dm2, dm3
+    real(wp) :: mass, m1, m2, m3
+    real(wp) :: gacw, gacr, gaci, gacs  ! graupel accretion process rates
+    real(wp) :: dnumber_s, dnumber_g  ! number conversion rate from snow/graupel
+    real(wp) :: dmass_s, dmass_g      ! mass conversion rate from snow/graupel
+
 
     real(wp) :: n0, lam, mu, V_x
     real(wp) :: pgacw, pgacr, pgaci, pgacs

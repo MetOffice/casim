@@ -48,9 +48,8 @@ contains
     ! which species we're modifying
     type(process_name) :: i_acw, i_acr ! accretion processes
     real(wp) :: qv
-    real(wp) :: dmass, dnumber
-!   real(wp) :: dm1, dm2, dm3, dm3_r, m2, m3
-    real(wp) :: number, mass, m1
+    real(wp) :: dmass, dnumber, dm1, dm2, dm3, dm3_r
+    real(wp) :: number, mass, m1, m2, m3
     real(wp) :: n0, lam, mu, V_x
     real(wp) :: acc_correction
     logical :: l_meltall ! do we melt everything?
