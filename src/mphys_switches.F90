@@ -570,12 +570,12 @@ contains
       case(7)
         option=22222
       end select
-      nq_l=option/1e4
-      nq_r=(option-nq_l*1e4)/1e3
+      nq_l=option/10000
+      nq_r=(option-nq_l*10000)/1000
       if (.not. l_warm) then
-        nq_i=(option-nq_l*1e4-nq_r*1e3)/1e2
-        nq_s=(option-nq_l*1e4-nq_r*1e3-nq_i*1e2)/1e1
-        nq_g=(option-nq_l*1e4-nq_r*1e3-nq_i*1e2-nq_s*1e1)/1e0
+        nq_i=(option-nq_l*10000-nq_r*1000)/100
+        nq_s=(option-nq_l*10000-nq_r*1000-nq_i*100)/10
+        nq_g=(option-nq_l*10000-nq_r*1000-nq_i*100-nq_s*10)
       end if
 
       ntotalq=2+nq_l+nq_r+nq_i+nq_s+nq_g

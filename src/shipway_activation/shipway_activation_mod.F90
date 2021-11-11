@@ -20,7 +20,7 @@ module shipway_activation_mod
   real(wp) :: psi1 ! placed here so it can be used for estimating smax time
   real(wp) :: C1=1.058, C2=1.904 ! See Korolev et al. paper
 
-  real(wp) :: wdiag, Tdiag, Ndiag, rddiag
+  real(wp) :: wdiag, Tdiag, Ndiag
   integer :: counter=0
 
   real(wp) :: cumulative_xmin=1.e10
@@ -37,46 +37,6 @@ module shipway_activation_mod
   public solve_nccn_household,solve_nccn_brent
 
 contains
-
-  subroutine set_aerosol( nmode_in, Ndi_in, Rdi_in, sigmad_in, bi_in, &
-                          betai_in )
-
-    USE yomhook, ONLY: lhook, dr_hook
-    USE parkind1, ONLY: jprb, jpim
-
-    implicit none
-
-    integer, intent(in) :: nmode_in
-    real(wp), intent(in) :: &
-         Ndi_in, Rdi_in, sigmad_in, bi_in, betai_in
-
-    ! local variables
-
-    character(len=*), parameter :: RoutineName='SET_AEROSOL'
-
-    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-    REAL(KIND=jprb)               :: zhook_handle
-
-    !--------------------------------------------------------------------------
-    ! End of header, no more declarations beyond here
-    !--------------------------------------------------------------------------
-    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
-
-    Ndi(nmode_in)    = Ndi_in
-    rdi(nmode_in)    = rdi_in
-    sigmad(nmode_in) = sigmad_in
-    bi(nmode_in)     = bi_in
-    betai(nmode_in)  = betai_in
-    nmodes=nmode_in
-
-    ! only use the mode if there's significant number
-    use_mode(nmode_in) = Ndi_in > Nd_min
-
-    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-
-  end subroutine set_aerosol
-
 
   subroutine calc_nccn(smax, nccn, nccni_dg)
 
@@ -183,7 +143,7 @@ contains
 
   end subroutine calc_LHS
 
-  subroutine set_inputs(s,sp,sm,ds,sprev)
+  subroutine set_inputs(s,sp,sm,ds)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -192,7 +152,6 @@ contains
 
     ! Routine to choose sm,s,sp and ensure they sit within (xminx, xmax)
     real(wp), intent(inout) :: s, sp, sm, ds
-    real(wp), intent(in) :: sprev
 
     ! Local variables
     logical :: adjust
@@ -270,7 +229,6 @@ contains
     real(wp), intent(inout) :: sp, sm
 
     ! Local variables
-    logical :: adjust
     integer :: i
 
     character(len=*), parameter :: RoutineName='SET_INPUTS_SAFE'
@@ -338,7 +296,7 @@ contains
 
   end subroutine get_extent
 
-  subroutine calc_RHS(s,RHS, mins, maxs)
+  subroutine calc_RHS(s,RHS)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -347,14 +305,13 @@ contains
 
     real(wp), intent(inout) :: s
     real(wp), intent(out) :: RHS
-    real(wp), intent(in), optional :: mins, maxs
 
     ! Local variables
 
     real(wp) :: s0ratioi
     integer :: i
 
-    real(wp) :: I1, dI1, J1
+    real(wp) :: J1
 
     character(len=*), parameter :: RoutineName='CALC_RHS'
 
@@ -398,7 +355,7 @@ contains
     implicit none
 
     real(wp), intent(in) :: T ! Temperature(K)
-    real(wp) :: Ak, Bk
+    real(wp) :: Ak
     integer :: i
 
     character(len=*), parameter :: RoutineName='CALC_KC'
@@ -449,8 +406,8 @@ contains
     integer :: it
     integer :: maxiter=10
     integer :: bigiter
-    real(wp) :: RHSout,RHSout_p1,RHSout_p2,RHSout_m1,RHSout_m2, ds
-    real(wp) :: F, dF, d2F, d3F, d4F, diff, tol=1.e-4
+    real(wp) :: RHSout,RHSout_p1,RHSout_m1, ds
+    real(wp) :: F, dF, d2F, diff
     real(wp) :: LHS, sa_p1, sa_m1, sa_tm1
 
     real(wp) :: tolx=1e-6, toly ! This tolerence only necessary for very high numbers
@@ -489,7 +446,7 @@ contains
     bigiter=0
     do while((abs(diff) > tolx .or. abs(RHSout-LHS)>toly) .and. bigiter<maxiter)
       do it=1,niter
-        call set_inputs(sa, sa_p1, sa_m1, ds, sa_tm1)
+        call set_inputs(sa, sa_p1, sa_m1, ds)
         sa_tm1=sa
         call calc_RHS(sa,RHSout)
         call calc_RHS(sa_p1,RHSout_p1)
@@ -521,7 +478,7 @@ contains
 
     end subroutine solve_nccn_household
 
-  subroutine solve_nccn_brent(sa_in,  &
+  subroutine solve_nccn_brent( &
      w,T,pressure,alpha_c,ent_fraction,               &
      smax,nccn,nccni)
 
@@ -530,7 +487,6 @@ contains
 
     implicit none
 
-    real(wp), intent(in)    :: sa_in
     real(wp), intent(in)    :: w,T,pressure, alpha_c, ent_fraction
     real(wp), intent(out)   :: smax, nccn
     real(wp), intent(out)   :: nccni(3) ! diagnostic for each mode
@@ -544,7 +500,8 @@ contains
     real(wp) :: tolf=1e-1            ! tolerence for brent
     logical :: verbose=.false.  ! set brent to verbose output
 
-    real(wp) :: ds, RHS, J1
+    real(wp) :: ds, RHS
+!    real(wp) :: J1
     integer :: nscan=101, i, iquad, isecant, imidpoint
     character(len=500) :: message
 

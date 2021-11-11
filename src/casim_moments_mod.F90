@@ -24,7 +24,7 @@ USE mphys_parameters, ONLY: hydro_params
 ! General atmosphere modules
 !USE conversions_mod,  ONLY: zerodegc
 USE, INTRINSIC :: ISO_C_BINDING, ONLY:                   &
-     C_INT64_T, C_INT32_T, C_FLOAT, C_DOUBLE
+     C_DOUBLE
 ! This could be a parameter but should think about having a standardised
 ! value across CASIM.
 

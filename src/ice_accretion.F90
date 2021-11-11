@@ -1,28 +1,23 @@
 module ice_accretion
   use variable_precision, only: wp, iwp
   use mphys_die, only: throw_mphys_error, incorrect_opt, std_msg
-  use passive_fields, only: rho, pressure, w, exner, TdegC, TdegK
-  use mphys_switches, only: hydro_complexity,  i_ql, l_process,   &
-       cloud_params, rain_params,  ice_params, snow_params, graupel_params, &
+  use passive_fields, only: rho, TdegC, TdegK
+  use mphys_switches, only: l_process,   &
+       cloud_params, rain_params,  ice_params, snow_params, &
        i_am4, i_am7, i_am8, i_am9, l_prf_cfrac, &
-       l_gamma_online, l_g, l_raci_g, l_kfsm, l_prf_cfrac, &
+       l_g, l_raci_g, l_prf_cfrac, &
        i_cfi, i_cfs, i_cfg, i_cfl, i_cfr, mpof, l_srg
   use type_process, only: process_name
   use process_routines, only: process_rate,   &
        i_iacw, i_sacw, i_saci, i_raci, i_sacr, i_gacw, i_gacr, i_gaci, i_gacs, &
        i_diacw, i_dsacw, i_dgacw, i_dsacr, i_dgacr, i_draci
   use mphys_parameters, only: hydro_params
-  use mphys_constants, only: Ls, cp
-  use qsat_funs, only: qsaturation, qisaturation
   use thresholds, only: thresh_small, cfliq_small, thresh_sig 
-  use activation, only: activate
-  use aerosol_routines, only: aerosol_phys, aerosol_chem, aerosol_active
+  use aerosol_routines, only: aerosol_active
 
-  use m3_incs, only: m3_inc_type2, m3_inc_type3
   use distributions, only: dist_lambda, dist_mu, dist_n0
-  use sweepout_rate, only: sweepout, binary_collection, sweepout_1M2M, binary_collection_1M2M
-
-  use special, only: pi, Gammafunc
+  use sweepout_rate, only: sweepout, binary_collection
+!  use sweepout_rate, only: binary_collection_1M2M, sweepout_1M2M
 
   implicit none
   private
@@ -75,12 +70,11 @@ contains
     real(wp) :: dmass_Y, dnumber_Y, dmac, dmad
     real(wp) :: dmass_X, dmass_Z, dnumber_X, dnumber_Z
 
-    real(wp) :: number_X, mass_X, m1, m2, m3
+    real(wp) :: number_X, mass_X
     real(wp) :: mass_Y, number_Y
 
     real(wp) :: n0_X, lam_X, mu_X
     real(wp) :: n0_Y, lam_Y, mu_Y
-    real(wp) :: dm1, dm2
 
     real(wp) :: cf_X, cf_Y, overlap_cf
 

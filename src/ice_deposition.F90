@@ -1,28 +1,27 @@
 module ice_deposition
   use variable_precision, only: wp, iwp
-  use passive_fields, only: rho, pressure, w, exner, TdegK
-  use mphys_switches, only: i_qv, i_qi, i_ni, i_th   &
-       , hydro_complexity, i_am6, i_an2, l_2mi, l_2ms, l_2mg &
-       , i_ns, i_ng, iopt_inuc, i_am7, i_an6                   &
-       , l_process, l_passivenumbers_ice, l_passivenumbers, active_number &
-       , active_ice, iinsol, i_an12 &
-       , i_qr, i_ql, i_qs, i_qg, i_am8, i_am2, i_an11, l_gamma_online &
-       , l_prf_cfrac
+  use passive_fields, only: rho, pressure, exner, TdegK
+  use mphys_switches, only: i_qv, i_th   &
+       , i_am6, i_an2  &
+       , i_am7, i_an6                   &
+       , l_process, l_passivenumbers_ice, l_passivenumbers &
+       , i_an12 &
+       , i_am8, i_am2, i_an11, l_gamma_online
   use type_process, only: process_name
   use process_routines, only: process_rate, i_idep,    &
        i_dsub, i_sdep, i_gdep, i_dssub, i_dgsub &
        , i_isub, i_ssub, i_gsub, i_iacw, i_raci, i_sacw, i_sacr  &
        , i_gacw, i_gacr
-  use mphys_parameters, only: hydro_params, ice_params, rain_params, cloud_params
-  use mphys_constants, only: Ls, cp,  Lv, Lf, ka, Dv, Rv
-  use qsat_funs, only: qsaturation, qisaturation
-  use thresholds, only: thresh_small, cfliq_small
-  use aerosol_routines, only: aerosol_phys, aerosol_chem, aerosol_active
+  use mphys_parameters, only: hydro_params, rain_params, cloud_params
+  use mphys_constants, only: Ls, Lf, ka, Dv, Rv
+  use qsat_funs, only: qisaturation
+  use thresholds, only: thresh_small
+  use aerosol_routines, only: aerosol_active
 
   use distributions, only: dist_lambda, dist_mu, dist_n0
   use ventfac, only: ventilation_1M_2M, ventilation_3M
-  use special, only: pi, Gammafunc
-  use m3_incs, only: m3_inc_type2
+! removing line below changes answers
+  use special, only: pi
 
   implicit none
   private
@@ -67,14 +66,12 @@ contains
     real(wp) :: dmass, dnumber, dmad, dnumber_a, dnumber_d
 
     real(wp) :: th
-    real(wp) :: qv, qh
-    real(wp) :: number, mass, m1,m2, dm1,dm2,dm3
-    !type(process_rate), pointer :: aero_proc
+    real(wp) :: qv
+    real(wp) :: number, mass
 
-    real(wp) :: qs, qis, Si, Sw, limit
+    real(wp) :: qis
     real(wp) :: n0, lam, mu
     real(wp) :: V_x, AB
-    real(wp) :: frac ! fraction of ice below a threshold
 
     logical :: l_suball
 

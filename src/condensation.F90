@@ -1,18 +1,16 @@
 module condensation
   use variable_precision, only: wp
-  use passive_fields, only: rho, pressure, w, exner, qws
-  use mphys_switches, only: i_qv, i_ql, i_nl, i_th, i_qr, i_qi, i_qs, i_qg, hydro_complexity, l_warm, &
+  use passive_fields, only: rho, pressure, w, exner
+  use mphys_switches, only: i_qv, i_ql, i_nl, i_th, i_qr, l_warm, &
        i_am4, i_am1, i_an1, i_am2, i_an2, i_am3, i_an3, i_am6, i_an6, i_am9, i_an11, i_an12,  &
        cloud_params, l_process, l_passivenumbers,l_passivenumbers_ice, aero_index, &
-       active_cloud, active_number, l_preventsmall, l_cfrac_casim_diag_scheme, &
-       l_bypass_which_mode, iopt_which_mode
+       l_cfrac_casim_diag_scheme
   use process_routines, only: process_rate, i_cond, i_aact
   use mphys_constants, only: Lv, cp
   use qsat_funs, only: qsaturation, dqwsatdt
-  use thresholds, only: ql_small, w_small, nl_small, ss_small, thresh_tidy
+  use thresholds, only: ql_small, ss_small, thresh_tidy
   use activation, only: activate
   use aerosol_routines, only: aerosol_phys, aerosol_chem, aerosol_active
-  use special, only: pi
   use which_mode_to_use, only : which_mode
   use casim_runtime, only: casim_time, casim_smax, casim_smax_limit_time
   use casim_parent_mod, only: casim_parent, parent_um, parent_kid
@@ -29,8 +27,6 @@ module condensation
   character(len=*), parameter, private :: ModuleName='CONDENSATION'
 
   private
-
-  logical :: l_notransfer=.true.  ! don't transfer aerosol from one mode to another.
 
       real(wp), allocatable :: dnccn_all(:),dmac_all(:)
       real(wp), allocatable :: dnccnd_all(:),dmad_all(:)
@@ -100,7 +96,7 @@ contains
 
   end subroutine condevp_finalise  
 
-  subroutine condevp(dt, nz, qfields, aerofields, procs, aerophys, aerochem,   &
+  subroutine condevp(dt, nz, qfields, procs, aerophys, aerochem,   &
        aeroact, dustphys, dustchem, dustliq, aerosol_procs, rhcrit_lev)
 
     USE yomhook, ONLY: lhook, dr_hook
@@ -111,7 +107,7 @@ contains
     ! Subroutine arguments
     real(wp), intent(in) :: dt
     integer, intent(in) :: nz
-    real(wp), intent(in), target :: qfields(:,:), aerofields(:,:)
+    real(wp), intent(in), target :: qfields(:,:)
     type(process_rate), intent(inout), target :: procs(:,:)
 
     ! aerosol fields
@@ -141,7 +137,6 @@ contains
     real(wp) :: tau   ! timescale for adjustment of condensate
     real(wp) :: w_act ! vertical velocity to use for activation
 
-    real(wp) :: rmean ! mean aerosol diameter
     real(wp) :: smax,ait_ccn, acc_ccn, tot_ccn, activated_arg, &
          activated_cloud
     ! local variables for diagnostics cloud scheme (if needed)

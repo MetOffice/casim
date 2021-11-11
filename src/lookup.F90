@@ -1,11 +1,10 @@
 module lookup
   use mphys_die, only: throw_mphys_error, bad_values, std_msg
   use variable_precision, only: wp
-  use mphys_switches, only: diag_mu_option, l_passive3m, max_mu, l_sm_fix_n0, &
-                            l_kfsm
-  use mphys_parameters, only: hydro_params, c_r, d_r, p1, p2, p3, a_i, b_i, &
+  use mphys_switches, only: max_mu, l_kfsm
+! use mphys_switches, only: l_passive3m
+  use mphys_parameters, only: hydro_params, a_i, b_i, &
                               a_s, b_s
-  use mphys_constants, only: fixed_rain_number, fixed_rain_mu
   use special, only: GammaFunc
   use passive_fields, only: rho
 !#if DEF_MODEL==UM
@@ -40,7 +39,8 @@ contains
 
     real(wp), intent(in) :: mu, p1, p2, p3
 
-    real(wp) :: Gfunc, GfuncL
+    real(wp) :: Gfunc
+!   real(wp) :: GfuncL
     real(wp) :: k1, k2, k3
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
@@ -135,7 +135,7 @@ contains
 
   end subroutine set_mu_lookup
 
-  subroutine get_slope_generic(k, params, n0, lam, mu, mass, number, m3)
+  subroutine get_slope_generic(params, n0, lam, mu, mass, number, m3)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -144,11 +144,11 @@ contains
 
     character(len=*), parameter :: RoutineName='GET_SLOPE_GENERIC'
 
-    integer, intent(in) :: k
     type(hydro_params), intent(in) :: params
     real(wp), intent(out) :: n0, lam, mu
     real(wp), intent(in) :: mass
     real(wp), intent(in), optional :: number, m3
+                                    !! m3 NEEDED for 3rd moment code
 
     real(wp) :: m1, m2, p1, p2, p3
 
@@ -214,7 +214,7 @@ contains
     real(wp), intent(in) :: mass, Tk
     real(wp), intent(in), optional :: number, m3
 
-    real(wp) :: m1, m2, ms, p1, p2, p3
+    real(wp) :: m1, ms, p1, p2, p3
     real(wp) :: n_p, cficei(1), m_s(1), Ta(1), rhoa(1), qcf(1)
     real(wp) :: j1, j2
     real(wp) :: na, nb
@@ -394,6 +394,7 @@ contains
     character(len=*), parameter :: RoutineName='GET_LAM_N0_3M'
 
     real(wp), intent(in) :: m1, m2, m3, mu
+                                !! m3 NEEDED for 3rd moment code
     type(hydro_params), intent(in) :: params
     !real(wp), intent(in) :: p1, p2, p3
     real(wp), intent(out) :: lam, n0
@@ -446,7 +447,6 @@ contains
     integer, intent(in) :: id
 
     real(wp) :: p, m
-    real(wp) :: j1
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
