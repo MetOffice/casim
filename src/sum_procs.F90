@@ -25,7 +25,7 @@ module sum_process
   public sum_aprocs, sum_procs,  tend_temp, aerosol_tend_temp
 contains
 
-  subroutine sum_aprocs(dst, procs, tend, iprocs, afields)
+  subroutine sum_aprocs(dst, procs, tend, iprocs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -38,7 +38,6 @@ contains
     type(process_rate), intent(in) :: procs(:,:)
     type(process_name), intent(in) :: iprocs(:)
     real(wp), intent(inout) :: tend(:,:)
-    real(wp), intent(in), optional :: afields(:,:) ! Required for debugging
 
     !real(wp), allocatable :: tend_temp(:,:) ! Temporary storage for accumulated tendendies
 

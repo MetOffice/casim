@@ -390,8 +390,7 @@ contains
        dqv, dq1, dq2, dq3, dq4, dq5, dq6, dq7, dq8, dq9, dq10, dq11, dq12,  &
        dq13, dth, da1, da2, da3, da4, da5, da6, da7, da8, da9, da10, da11,  &
        da12, da13, da14, da15, da16, da17,                                  &
-       is_in, ie_in, js_in, je_in, ks_in, ke_in,                            &
-       l_tendency)
+       is_in, ie_in, js_in, je_in)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -463,12 +462,6 @@ contains
 
     integer, intent(in), optional :: is_in, ie_in ! upper and lower i levels which are to be used
     integer, intent(in), optional :: js_in, je_in ! upper and lower j levels
-    integer, intent(in), optional :: ks_in, ke_in ! upper and lower k levels
-
-    ! New optional l_tendency logical added...
-    ! if true then a tendency is returned (i.e. units/s)
-    ! if false then an increment is returned (i.e. units/timestep)
-    logical, intent(in), optional :: l_tendency
 
     ! Local variables
 
@@ -1383,12 +1376,12 @@ contains
         end do
 
         call sum_aprocs(step_length, aerosol_procs, aerosol_tend,      &
-             (/i_aaut, i_aacw, i_aevp, i_arevp/), aerofields)
+             (/i_aaut, i_aacw, i_aevp, i_arevp/) )
 
         if (.not. l_warm) then
           call sum_aprocs(step_length, aerosol_procs, aerosol_tend,      &
                (/i_dnuc, i_dsub, i_dssub, i_dgsub, i_dimlt, i_dsmlt, i_dgmlt,     &
-               i_diacw, i_dsacw, i_dgacw, i_dsacr, i_dgacr, i_draci /), aerofields)
+               i_diacw, i_dsacw, i_dgacw, i_dsacr, i_dgacr, i_draci /) )
         end if
 
         call update_q(aerofields_mod, aerofields, aerosol_tend, l_aerosol=.true.,l_fixneg=.true.)
@@ -1449,7 +1442,7 @@ contains
 
         if (l_process) then
           call sum_aprocs(step_length, aerosol_procs, aerosol_tend,      &
-             (/i_aact /), aerofields)
+             (/i_aact /) )
 
           call update_q(aerofields_mod, aerofields, aerosol_tend, l_aerosol=.true.)
 
@@ -1626,14 +1619,14 @@ contains
                call update_q(qfields_mod, qfields, tend, l_fixneg=.true.)
 
                if (l_process) then
-                  call sum_aprocs(sed_length, aerosol_procs, aerosol_tend, (/i_asedr, i_asedl/),&
-                       aerofields)
+                  call sum_aprocs(sed_length, aerosol_procs, aerosol_tend, (/i_asedr, i_asedl/) &
+                       )
                   
                   call update_q(aerofields_mod, aerofields, aerosol_tend, l_aerosol=.true.)
                   
                   if (l_process .and. .not. l_warm) then
-                     call sum_aprocs(sed_length, aerosol_procs, aerosol_tend, (/i_dsedi, i_dseds, i_dsedg/),&
-                          aerofields)
+                     call sum_aprocs(sed_length, aerosol_procs, aerosol_tend, (/i_dsedi, i_dseds, i_dsedg/) &
+                          )
                      
                      call update_q(aerofields_mod, aerofields, aerosol_tend, l_aerosol=.true.)
                   end if
@@ -1689,8 +1682,8 @@ contains
                   call update_q(qfields_mod, qfields, tend, l_fixneg=.true.)
 
                   if (l_process) then
-                     call sum_aprocs(sed_length, aerosol_procs, aerosol_tend, (/i_asedl/),&
-                          aerofields)                  
+                     call sum_aprocs(sed_length, aerosol_procs, aerosol_tend, (/i_asedl/) &
+                          )                  
                      call update_q(aerofields_mod, aerofields, aerosol_tend, l_aerosol=.true.)
                   endif
                   ! !-------------------------------
@@ -1737,8 +1730,8 @@ contains
                   call sum_procs(sed_length_rain, nz, procs, tend, (/i_psedr/), qfields=qfields)
                   call update_q(qfields_mod, qfields, tend, l_fixneg=.true.)
                   if (l_process) then
-                     call sum_aprocs(sed_length, aerosol_procs, aerosol_tend, (/i_asedr, i_asedl/),&
-                          aerofields)
+                     call sum_aprocs(sed_length, aerosol_procs, aerosol_tend, (/i_asedr, i_asedl/) &
+                          )
                      call update_q(aerofields_mod, aerofields, aerosol_tend, l_aerosol=.true.)
                   endif
                   !-------------------------------
@@ -1788,8 +1781,8 @@ contains
                      call sum_procs(sed_length_ice, nz, procs, tend, (/i_psedi/), qfields=qfields)
                      call update_q(qfields_mod, qfields, tend, l_fixneg=.true.)
                      if (l_process) then
-                        call sum_aprocs(sed_length, aerosol_procs, aerosol_tend, (/i_dsedi/),&
-                             aerofields)
+                        call sum_aprocs(sed_length, aerosol_procs, aerosol_tend, (/i_dsedi/) &
+                             )
                         call update_q(aerofields_mod, aerofields, aerosol_tend, l_aerosol=.true.)
                      endif
                      !-------------------------------
@@ -1836,8 +1829,8 @@ contains
                      call sum_procs(sed_length_snow, nz, procs, tend, (/i_pseds/), qfields=qfields)
                      call update_q(qfields_mod, qfields, tend, l_fixneg=.true.)
                      if (l_process) then
-                        call sum_aprocs(sed_length, aerosol_procs, aerosol_tend, (/i_dseds/),&
-                             aerofields)
+                        call sum_aprocs(sed_length, aerosol_procs, aerosol_tend, (/i_dseds/) &
+                             )
                         call update_q(aerofields_mod, aerofields, aerosol_tend, l_aerosol=.true.)
                      endif
                      !-------------------------------
@@ -1885,8 +1878,8 @@ contains
                        qfields=qfields)
                      call update_q(qfields_mod, qfields, tend, l_fixneg=.true.)
                      if (l_process) then
-                        call sum_aprocs(sed_length_graupel, aerosol_procs, aerosol_tend, (/i_dsedg/),&
-                             aerofields)
+                        call sum_aprocs(sed_length_graupel, aerosol_procs, aerosol_tend, (/i_dsedg/) &
+                             )
                      
                         call update_q(aerofields_mod, aerofields, aerosol_tend, l_aerosol=.true.)
                      endif
@@ -1981,7 +1974,7 @@ contains
       call update_q(qfields_mod, qfields, tend)
 
       if (l_process) then
-        call sum_aprocs(step_length, aerosol_procs, aerosol_tend, (/i_atidy2/), aerofields )
+        call sum_aprocs(step_length, aerosol_procs, aerosol_tend, (/i_atidy2/) )
         call update_q(aerofields_mod, aerofields, aerosol_tend, l_aerosol=.true.)
       end if
     end if
