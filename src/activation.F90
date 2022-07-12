@@ -126,11 +126,11 @@ contains
     cloud_number_work_old = cloud_number / cf_liquid_old
     cloud_number_work = cloud_number / cf_liquid
     ! threshold cloud number conc, so that cloud number 
-    ! is larger 1 droplet per cm^3. This ensures stability of the 
+    ! is larger 1 droplet per m^3. This ensures stability of the 
     ! tau calculation.
-    if (cloud_number .lt. 1e6) then   
-       cloud_number_work_old = 1e6/cf_liquid_old
-       cloud_number_work = 1e6/cf_liquid
+    if (cloud_number .lt. 1.0e-6) then   
+       cloud_number_work_old = 1.0e-6/cf_liquid_old
+       cloud_number_work = 1.0e-6/cf_liquid
     end if   
     
 ! This is cloud_mass_preap2 which is the OLD cloud mass.

@@ -7,7 +7,7 @@ module graupel_wetgrowth
   use mphys_parameters, only: ice_params, snow_params, graupel_params,   &
        rain_params, T_hom_freeze, DR_melt
   use mphys_switches, only: i_qv, l_kfsm, l_gamma_online, l_prf_cfrac, i_cfg
-  use mphys_constants, only: Lv, Lf, Ka, Cwater, Cice
+  use mphys_constants, only: Lv, Lf, Ka, Cwater, Cice, Dv
   use thresholds, only: thresh_small, cfliq_small
 
   use ventfac, only: ventilation_3M, ventilation_1M_2M
@@ -125,7 +125,7 @@ contains
                    call ventilation_1M_2M(k, V_x, n0, lam, mu, graupel_params)
                 endif
 
-                pgwet=(910.0/graupel_params%density)**0.625*(Lv*(qws0(k)-qv)- &
+                pgwet=(910.0/graupel_params%density)**0.625*(Lv*Dv*(qws0(k)-qv)- &
                      Ka*TdegC(k)/rho(k))/(Lf+Cwater*TdegC(k))*V_x
                 pgwet=pgwet+(pgaci+pgacs)*(1.0-Cice*TdegC(k)/(Lf+Cwater*TdegC(k)))
 

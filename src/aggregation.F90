@@ -66,13 +66,22 @@ contains
 
           if (rain_mass > qr_small .and. rain_number>0) then
              if (l_beheng) then
-                Dr=(.75/pi)*(rain_mass/rain_number/rhow)**(1.0/d_r)
-!!                if ( Dr < 600.0e-6) then
-!!                   ! Modified from original
-!!                   Eff=.5
-!!                else
-!!                   Eff=0.0
-!!                end if
+                ! This commented code block imposes a limit on the size of 
+                ! agg. This is based on a pragmatic choice that drops large
+                ! than 600 microns will breakup. This code effectively negates
+                ! excessive numerical size sorting in kinematic cases
+                ! Dr=(.75/pi)*(rain_mass/rain_number/rhow)**(1.0/d_r)
+                ! if ( Dr < 600.0e-6) then
+                !    ! Modified from original
+                !    Eff=.5
+                ! else
+                !    Eff=0.0
+                ! end if
+                !
+                ! For RA3 testing Beheng 1994 Atmos. Res. (equ 10) was used (below)
+                ! Beheng uses cgs units, ie. g m-3, CASIM uses SI. Hence, the dnumber 
+                ! equation below is multiplied by rho to convert from cgs to SI 
+                ! (also the 10e3 factor from Beheng is not included)
                 Eff=1.0 !Beheng 1994 Atmos. Res.
                 dnumber=Eff*8.0*rain_number*rain_mass*rho(k)
              end if
@@ -108,6 +117,7 @@ contains
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
+    USE special, only: Gammafunc
 
     implicit none
 
@@ -146,7 +156,7 @@ contains
              iproc=i_iagg
           case (4_iwp) !snow
              iproc=i_sagg
-             Eff=0.1 ! Field and Heymsfield 2003 JAS , Field etal. 2007 JAS
+             Eff=MIN(1.0_wp, 0.1*exp(0.08*TdegC(k)))
           case (5_iwp) !graupel
              iproc=i_gagg
           end select
@@ -158,6 +168,8 @@ contains
              n0=dist_n0(k,params%id)
              mu=dist_mu(k,params%id)
              lam=dist_lambda(k,params%id)
+
+             n0=n0*(lam**(mu+1.0))/(GammaFunc(1.0+mu))
 
              if (params%l_3m) then
                 !gaussterm = gauss_casim_func(mu, params%b_x)

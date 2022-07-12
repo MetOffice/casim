@@ -56,7 +56,7 @@ contains
     G3_b_mu=GammaFunc(arg3)
     G1_mu=GammaFunc(1.0+mu)
     sweepout=coef*(pi*n0*params%a_x/4.0)*G3_b_mu/G1_mu* (1.0 + params%f_x/lam)**(-arg3)&
-         *lam**(1 + mu - arg3)* (rho/rho0)**(params%g_x)
+         *lam**(1 + mu - arg3)* (rho0/rho)**(params%g_x)
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
@@ -110,7 +110,7 @@ contains
     G1_mu=params%gam_1_mu
 
     sweepout_1M2M=coef*(pi*n0*params%a_x/4.0)*G3_b_mu/G1_mu* (1.0 + params%f_x/lam)**(-arg3)&
-         *lam**(1 + params%fix_mu - arg3)* (rho/rho0)**(params%g_x)
+         *lam**(1 + params%fix_mu - arg3)* (rho0/rho)**(params%g_x)
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
@@ -118,7 +118,7 @@ contains
 
   ! Calculate the number of species Y collected by species X through
   ! binary collisions as both species sediment
-  function binary_collection(n0_X, lam_X, mu_X, n0_Y, lam_Y, mu_Y,   &
+  function binary_collection(n0_Xin, lam_X, mu_X, n0_Yin, lam_Y, mu_Y,   &
        params_X, params_Y, rho, mass_weight)
 
     USE yomhook, ONLY: lhook, dr_hook
@@ -128,8 +128,9 @@ contains
 
     character(len=*), parameter :: RoutineName='BINARY_COLLECTION'
 
-    real(wp), intent(in) :: mu_X, n0_X, lam_X
-    real(wp), intent(in) :: mu_Y, n0_Y, lam_Y
+    real(wp), intent(in) :: mu_X, n0_Xin, lam_X
+    real(wp), intent(in) :: mu_Y, n0_Yin, lam_Y
+    real(wp) :: n0_X, n0_Y
     type(hydro_params), intent(in) :: params_X
     type(hydro_params), intent(in) :: params_Y
     real(wp), intent(in) :: rho ! air density
@@ -199,10 +200,13 @@ contains
     l_Y2=lam_Y**(-arg2_Y)
     l_Y3=lam_Y**(-arg3_Y)
 
-    V_X=params_X%a_x * lam_X**(-params_X%b_x)*(rho/rho0)**(params_X%g_x)     &
+    n0_X=n0_Xin *lam_X**(mu_X+1.0)/GammaFunc(1.0+mu_X)
+    n0_Y=n0_Yin *lam_Y**(mu_Y+1.0)/GammaFunc(1.0+mu_Y)
+    
+    V_X=params_X%a_x * lam_X**(-params_X%b_x)*(rho0/rho)**(params_X%g_x)     &
          *GammaFunc(1.0+mu_X+params_X%d_x+params_X%b_x)/GammaFunc(1.0+mu_X+params_X%d_x)
 
-    V_Y=params_Y%a_x * lam_Y**(-params_Y%b_x)*(rho/rho0)**(params_Y%g_x)     &
+    V_Y=params_Y%a_x * lam_Y**(-params_Y%b_x)*(rho0/rho)**(params_Y%g_x)     &
          *GammaFunc(1.0+mu_Y+params_Y%d_x+params_Y%b_x)/GammaFunc(1.0+mu_Y+params_Y%d_x)
 
     delV=max(max(V_X,V_Y)/4.0, abs(V_X-V_Y))
@@ -213,7 +217,7 @@ contains
 
   end function binary_collection
 
-  function binary_collection_1M2M(n0_X, lam_X, n0_Y, lam_Y,   &
+  function binary_collection_1M2M(n0_Xin, lam_X, n0_Yin, lam_Y,   &
        params_X, params_Y, rho, mass_weight)
 
     USE yomhook, ONLY: lhook, dr_hook
@@ -223,8 +227,10 @@ contains
 
     character(len=*), parameter :: RoutineName='BINARY_COLLECTION_1M2M'
 
-    real(wp), intent(in) :: n0_X, lam_X
-    real(wp), intent(in) :: n0_Y, lam_Y
+    real(wp), intent(in) :: n0_Xin, lam_X
+    real(wp), intent(in) :: n0_Yin, lam_Y
+    real(wp) :: n0_X, n0_Y, mu_X, mu_Y
+    
     type(hydro_params), intent(in) :: params_X
     type(hydro_params), intent(in) :: params_Y
     real(wp), intent(in) :: rho ! air density
@@ -264,6 +270,9 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+    mu_X=params_X%fix_mu
+    mu_Y=params_Y%fix_mu
+
     arg1_X=1.0+params_X%fix_mu
     arg2_X=2.0+params_X%fix_mu
     arg3_X=3.0+params_X%fix_mu
@@ -297,11 +306,14 @@ contains
     l_Y2=lam_Y**(-arg2_Y)
     l_Y3=lam_Y**(-arg3_Y)
 
-    V_X=params_X%a_x * lam_X**(-params_X%b_x)*(rho/rho0)**(params_X%g_x)     &
+    n0_X=n0_Xin *lam_X**(mu_X+1.0)/GammaFunc(1.0+mu_X)
+    n0_Y=n0_Yin *lam_Y**(mu_Y+1.0)/GammaFunc(1.0+mu_Y)
+
+    V_X=params_X%a_x * lam_X**(-params_X%b_x)*(rho0/rho)**(params_X%g_x)     &
          *params_X%gam_1_mu_dx_bx/params_X%gam_1_mu_dx
          !*GammaFunc(1.0+mu_X+params_X%d_x+params_X%b_x)/GammaFunc(1.0+mu_X+params_X%d_x)
 
-    V_Y=params_Y%a_x * lam_Y**(-params_Y%b_x)*(rho/rho0)**(params_Y%g_x)     &
+    V_Y=params_Y%a_x * lam_Y**(-params_Y%b_x)*(rho0/rho)**(params_Y%g_x)     &
          *params_Y%gam_1_mu_dx_bx/params_Y%gam_1_mu_dx
          !*GammaFunc(1.0+mu_Y+params_Y%d_x+params_Y%b_x)/GammaFunc(1.0+mu_Y+params_Y%d_x)
 

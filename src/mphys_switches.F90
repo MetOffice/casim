@@ -242,7 +242,7 @@ module mphys_switches
   real(wp) :: mpof = 0.5 
   
   logical :: l_srg = .false. ! if true snow collecting rain makes graupel, otherwise makes snow
-  
+  logical :: l_reisner_graupel_embryo = .false. ! if true use Reisner et al. 1998 QJRMS approach making graupel embryos 
 
   ! process switches
   ! Some of these switches are obsolete or inactive - review these

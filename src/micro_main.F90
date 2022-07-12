@@ -21,7 +21,7 @@ module micro_main
        l_onlycollect, pswitch, l_isub, l_pos1, l_pos2, l_pos3, l_pos4, &
        l_pos5, l_pos6, i_hstart, l_tidy_negonly,  &
        iopt_act, iopt_shipway_act, l_prf_cfrac, l_kfsm, l_gamma_online, l_subseds_maxv, &
-       i_cfl, i_cfr, i_cfi, i_cfs, i_cfg 
+       i_cfl, i_cfr, i_cfi, i_cfs, i_cfg, l_reisner_graupel_embryo
 ! use mphys_switches, only: l_rain,
   use passive_fields, only: rexner, min_dz
   use mphys_constants, only: cp, Lv
@@ -1200,9 +1200,9 @@ contains
           ! Small snow accreting cloud should be sent to graupel
           ! (Ikawa & Saito 1991)
           !------------------------------------------------------
-          if (.not. l_kfsm) then
+          if (.not. l_kfsm .and. l_reisner_graupel_embryo) then
              ! Only do this process when Kalli's single moment code is
-             ! not in use; otherwise we ignore it.
+             ! not in use and l_reisner_graupel_embryo is true; otherwise we ignore it.
              if (l_g .and. .not. l_onlycollect) then
                 call graupel_embryos(step_length, nz, l_Tcold, qfields, cffields, & 
                      procs)

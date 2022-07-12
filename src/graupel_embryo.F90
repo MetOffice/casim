@@ -101,6 +101,9 @@ contains
              snow_n0=dist_n0(k,snow_params%id)
              snow_mu=dist_mu(k,snow_params%id)
              snow_lam=dist_lambda(k,snow_params%id)
+             !convert to reisner N0, based on Reisner et al, QJMRS, 1998 
+             !( https://doi.org/10.1002/qj.49712454804 )
+             snow_n0=snow_n0*(snow_lam**(snow_mu+1.0))/(GammaFunc(1.0+snow_mu))    
              
              !< This efficiency is the same as used in sacw calculation, 
              !< so that we make the assumption that collecting area is approx half 
@@ -110,10 +113,10 @@ contains
              rhogms=graupel_params%density-snow_params%density  !this is inconsistent for mass~D**2
              
              Garg=2.0+2*snow_params%b_x + snow_mu
-             pgsacw = (0.75*alpha*dt*pi/rhogms)*Eff*rho(k)*rho(k)*cloud_mass*cloud_mass   &
-                  *snow_params%a_x*snow_params%a_x*snow_n0*GammaFunc(Garg)                &
-                  *(2*snow_params%f_x + 2*snow_lam)**(-Garg)                              &
-                  *(rho(k)/rho0)**(2*snow_params%g_x) !in-graupel rate
+            pgsacw = (0.75*alpha*dt*pi/rhogms)*Eff*Eff*rho(k)*rho(k)*cloud_mass*cloud_mass   &
+           *snow_params%a_x*snow_params%a_x*snow_n0*GammaFunc(Garg)*(2*snow_params%f_x + 2*snow_lam)**(-Garg) &
+           !the 2* lambda etc doesnt look the same as in reisner)
+           *(rho0/rho(k))**(2*snow_params%g_x) !in-graupel rate
              
              dnembryo=max(snow_params%density*pgsacw/rhogms/embryo_mass/rho(k), 0.0_wp)
              dnumber=min(dnembryo, 0.95*snow_number/dt)

@@ -101,7 +101,7 @@ contains
 !$OMP END SINGLE
 
     !Gaussfunc
-    call gaussfunclookup(snow_params%id, tmp, a=snow_params%fix_mu, b=snow_params%d_x, init=.true.)
+    call gaussfunclookup(snow_params%id, tmp, a=snow_params%fix_mu, b=snow_params%b_x, init=.true.)
 
 !$OMP SINGLE
     !Initialise the gamma function so not calced on every timestep
