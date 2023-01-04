@@ -258,8 +258,6 @@ contains
     integer  :: i
     real(wp) :: tol ! to mitigate rounding issues at single precision
 
-    external :: f
-
     character(len=*), parameter :: RoutineName='SIMPSON'
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0

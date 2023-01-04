@@ -661,8 +661,6 @@ contains
 
     real(wp) :: pfs, fa, fs, fb, fc
 
-    external:: f
-
     character(len=*), parameter :: RoutineName='BRENT'
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
