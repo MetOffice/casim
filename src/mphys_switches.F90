@@ -309,7 +309,7 @@ module mphys_switches
   logical, target :: l_pgacr   = .false.  ! graupel accreting rain
   logical, target :: l_pgacw   = .true.  ! graupel accreting cloud water
   logical, target :: l_pgaci   = .true.  ! graupel accreting ice
-  logical, target :: l_pgacs   = .true.  ! graupel accreting snow
+  logical, target :: l_pgacs   = .false.  ! graupel accreting snow
   logical, target :: l_piagg   = .false. ! aggregation of ice particles
   logical, target :: l_psagg   = .true.  ! aggregation of snow particles
   logical, target :: l_pgagg   = .false. ! aggregation of graupel particles

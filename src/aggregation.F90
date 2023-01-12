@@ -1,13 +1,13 @@
 module aggregation
   use variable_precision, only: wp, iwp
   use passive_fields, only: rho, TdegC
-  use mphys_switches, only: i_qr, i_nr, l_2mr
+  use mphys_switches, only: i_qr, i_nr, l_2mr, i_ns
 ! use mphys_switches, only: i_m3r, l_3mr
   use process_routines, only: process_rate,  process_name, i_pracr, i_iagg, i_sagg, i_gagg
   use mphys_parameters, only: d_r, hydro_params
 ! use mphys_parameters, only: p1, p2, p3, rain_params
   use mphys_constants, only: rhow, rho0
-  use thresholds, only: qr_small, thresh_small
+  use thresholds, only: qr_small, thresh_small, nr_small
 ! use m3_incs, only: m3_inc_type2
   use distributions, only: dist_lambda, dist_mu, dist_n0
   use special, only: pi
@@ -57,14 +57,14 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-
+    dnumber=0.0
     if (l_2mr) then
        do k = 1, ubound(qfields,1)
           rain_mass=qfields(k, i_qr)
           rain_number=qfields(k, i_nr)
           ! if (l_3mr) rain_m3=qfields(k, i_m3r)
 
-          if (rain_mass > qr_small .and. rain_number>0) then
+          if (rain_mass > qr_small .and. rain_number>nr_small) then
              if (l_beheng) then
                 ! This commented code block imposes a limit on the size of 
                 ! agg. This is based on a pragmatic choice that drops large
@@ -83,7 +83,11 @@ contains
                 ! equation below is multiplied by rho to convert from cgs to SI 
                 ! (also the 10e3 factor from Beheng is not included)
                 Eff=1.0 !Beheng 1994 Atmos. Res.
-                dnumber=Eff*8.0*rain_number*rain_mass*rho(k)
+                dnumber=Eff * 8.0 * rain_number * rain_mass * rho(k)   ! #/kg/s
+                if ( dnumber * dt / rain_number > 0.5 ) then
+                  ! CFL limitation in this case
+                  dnumber = 0.5 * rain_number / dt
+                end if
              end if
              procs(i_nr, i_pracr%id)%column_data(k)=-dnumber
 
@@ -102,6 +106,8 @@ contains
        enddo
     end if
 
+
+
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
   end subroutine racr
@@ -113,7 +119,7 @@ contains
   !< NB: Aerosol mass is not modified by this process
   !
   !< CODE TIDYING: Move efficiencies into parameters
-  subroutine ice_aggregation(nz, l_Tcold, params, qfields, procs)
+  subroutine ice_aggregation(dt, nz, l_Tcold, params, qfields, procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -122,6 +128,7 @@ contains
     implicit none
 
     ! Subroutine arguments
+    real(wp), intent(in) :: dt
     integer, intent(in) :: nz
     logical, intent(in) :: l_Tcold(:)   
     type(hydro_params), intent(in) :: params
@@ -179,6 +186,11 @@ contains
              end if
              
              dnumber=-1.0*gaussterm * pi*0.125*(rho0/rho(k))**params%g_x*params%a_x*n0*n0*Eff*lam**(-(4.0 + 2.0*mu + params%b_x))
+      
+      
+             dnumber=-1.0 * qfields(k, i_ns) * min( -dnumber*dt/qfields(k, i_ns), 0.5  )/dt            
+
+      
              procs(params%i_2m, iproc%id)%column_data(k)=dnumber
           end if
        end if

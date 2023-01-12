@@ -1225,7 +1225,7 @@ contains
           ! Aggregation (self-collection)
           !------------------------------------------------------
           if (pswitch%l_psagg .and. .not. l_kfsm) then 
-             call ice_aggregation(nz, l_Tcold, snow_params, qfields, procs)
+             call ice_aggregation(step_length, nz, l_Tcold, snow_params, qfields, procs)
           end if
 
           !------------------------------------------------------
