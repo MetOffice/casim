@@ -1,8 +1,8 @@
 module activation
   use variable_precision, only: wp
   use mphys_constants, only: fixed_cloud_number
-  use mphys_parameters, only: C1, K1, cloud_params
-  use mphys_switches, only: iopt_act, aero_index,   &
+  use mphys_parameters, only: C1, K1, cloud_params, zero_real_wp
+  use mphys_switches, only: iopt_act, iopt_inuc, aero_index,   &
        l_warm,              &
        iopt_shipway_act,l_ukca_casim,      &
        activate_in_cloud
@@ -11,14 +11,14 @@ module activation
        invert_partial_moment_betterapprox, &
        AbdulRazzakGhan2000_dust
   use special, only: pi,GammaFunc
-  use thresholds, only: w_small, nl_tidy, ccn_tidy, ql_small
+  use thresholds, only: w_small, nl_tidy, ni_tidy, ccn_tidy, ql_small
   Use shipway_parameters, only: max_nmodes, nmodes, Ndi, &
      rdi, sigmad, bi, betai, use_mode, nd_min
   use shipway_constants, only: Mw, rhow, eps, Rd, Dv, Lv, cp, &
       Dv_mean, alpha_c, zetasa, Ru
   use qsat_funs, only: qsaturation,dqwsatdt
   use shipway_activation_mod, only: solve_nccn_household, solve_nccn_brent
-  
+
   implicit none
 
   character(len=*), parameter, private :: ModuleName='ACTIVATION'
@@ -28,7 +28,7 @@ module activation
   public activate
 
   ! Variables used in the call to the Shipway (2015) activation scheme
-  
+
   real(wp) :: ent_fraction=0.
   integer  :: order=2
   integer  :: niter=8
@@ -38,11 +38,11 @@ module activation
 
 contains
 
-  subroutine activate(dt, cloud_mass, cloud_number, w, rho, dnumber, dmac, T, p,  & 
+  subroutine activate(dt, cloud_mass, cloud_number, w, rho, dnumber, dmac, T, p,  &
        cfliq,cfliq_old, aerophys, aerochem, aeroact, dustphys, dustchem,   &
        dustliq, dnccn_all, dmac_all, dnumber_d, dmass_d, dnccnd_all,dmad_all,  &
        smax,ait_cdnc,accum_cdnc, tot_cdnc,activated_arg,activated_cloud)
-!PRF NB extra cfliq argument missing from activate call in condensation for non-um 
+!PRF NB extra cfliq argument missing from activate call in condensation for non-um
 
 
     USE yomhook, ONLY: lhook, dr_hook
@@ -86,14 +86,15 @@ contains
     real(wp) :: s0i(max_nmodes), sigmas(max_nmodes)
     real(wp) :: m1, m2, j1
     real(wp) :: kwdqsdz, dqsdt
-   
+    real(wp), parameter :: smax_act_min = 0.02
+
     integer, parameter :: solve_household = 1
     integer, parameter :: solve_brent = 2
 
-    real(wp) :: dv_flag=0 
-    
+    real(wp) :: dv_flag=0
+
     integer :: solve_select
-    
+
     character(len=*), parameter :: RoutineName='ACTIVATE'
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
@@ -118,21 +119,21 @@ contains
     endif
 
 !make in-cloud number conc
-! Should this be the new cloud fraction or the old cloud fraction? 
+! Should this be the new cloud fraction or the old cloud fraction?
 ! I think it should be the cloud fraction after advection but before
 ! the new condensation/cloud scheme call, to be consistent with the CDNC used
-! here. 
- 
+! here.
+
     cloud_number_work_old = cloud_number / cf_liquid_old
     cloud_number_work = cloud_number / cf_liquid
-    ! threshold cloud number conc, so that cloud number 
-    ! is larger 1 droplet per m^3. This ensures stability of the 
+    ! threshold cloud number conc, so that cloud number
+    ! is larger 1 droplet per m^3. This ensures stability of the
     ! tau calculation.
-    if (cloud_number .lt. 1.0e-6) then   
+    if (cloud_number .lt. 1.0e-6) then
        cloud_number_work_old = 1.0e-6/cf_liquid_old
        cloud_number_work = 1.0e-6/cf_liquid
-    end if   
-    
+    end if
+
 ! This is cloud_mass_preap2 which is the OLD cloud mass.
     cloud_mass_work = cloud_mass / cf_liquid_old
     l_useactive=.false.
@@ -140,10 +141,11 @@ contains
     dnumber_d=0.0
     dmass_d=0.0
     dnumber=0.0
-    dmac=0.0
     dmac_all=0.0
     dnccn_all=0.0
-    dnccn_cloud(:)=0
+    dmad_all=0.0
+    dnccnd_all=0.0
+    dnccn_cloud(:)=0.0
     smax = 0.0
     ait_cdnc=0.0
     accum_cdnc=0.0
@@ -151,7 +153,7 @@ contains
     activated_arg=0.0
     activated_cloud=0.0
     solve_select = solve_brent
-    gammastar=0
+    gammastar=0.0
     bigG=0
     if (int(dv_flag)==1)then
        Dv_here=Dv
@@ -169,9 +171,9 @@ contains
     LvT = Lv -(4217.4-1870.0)*(T-273.15)
     if (cloud_mass_work > ql_small .and. cf_liquid > cf_thresh) then
       ! The following calculations are based on Gordon et al, 2020,
-      ! "Development of aerosol activation in the double-moment 
-      ! Unified Model and evaluation with CLARIFY measurements", 
-      ! Atmos. Chem. Phys., 20, 10997–11024,
+      ! "Development of aerosol activation in the double-moment
+      ! Unified Model and evaluation with CLARIFY measurements",
+      ! Atmos. Chem. Phys., 20, 10997-11024,
       ! https://doi.org/10.5194/acp-20-10997-2020, 2020
       lam=((GammaFunc(1.0+cloud_params%fix_mu+cloud_params%p1) / &
            GammaFunc(1.0+cloud_params%fix_mu+cloud_params%p2))*(m2/m1))**(j1)
@@ -191,12 +193,12 @@ contains
     if (tau >= 1000.0 .or. tau <= 0.0) then
       tau=1000.0
     end if
-    
+
     ! This agrees well with the version in Ghan et al
     alpha = 9.8*(LvT/(eps*cp*T)-1.0)/(T*Rd)*(1-ent_fraction)
-    
+
     smax_cloud= alpha*w*tau
-    
+
     kwdqsdz = w*5.3e5*15*dqsdt*0.006 ! constant*w*time-threshold*dqsat/dT*dT/dz
 
     select case(iopt_act)
@@ -215,6 +217,7 @@ contains
       ! setup Shipway parameters to ensure calc_nccn works correctly
       nmodes=aero_index%nccn
       Ak = 2.*Mw*zetasa/(Ru*T*rhow)
+
       do imode=1,aero_index%nccn
         if(l_ukca_casim) then
           bi(imode) =aerochem%bk(imode)*aerochem%epsv(imode)
@@ -228,7 +231,7 @@ contains
         betai(imode)=0.5      !aerochem%beta(imode) This is set to 0.5 for
                               !    Shipway not for ARG
         !print *, 'imode, bi', bi(imode), imode, Ak,betai(imode),rdi(imode)
-        if (rdi(imode) > epsilon(1.0_wp)) then 
+        if (rdi(imode) > epsilon(1.0_wp)) then
            s0i(imode) = rdi(imode)**(-(1.0+betai(imode))) * &
                 sqrt(4.0*Ak**3.0/(27.0*bi(imode)))
         else
@@ -237,24 +240,44 @@ contains
         sigmas(imode) = sigmad(imode)**(1.+betai(imode))
         ! only use the mode if there's significant number
         use_mode(imode) = aerophys%N(imode) > Nd_min
-      end do
+      end do ! loop over modes
+
       if (w > w_small .and. sum(aerophys%N(:)) > ccn_tidy) then
          ! The following derivations of nccn is based on an
-         ! adaptation of Abdul-Razzak and Ghan scheme, which is 
+         ! adaptation of Abdul-Razzak and Ghan scheme, which is
          ! described in Gordon et al, 2020,
-         ! "Development of aerosol activation in the double-moment 
-         ! Unified Model and evaluation with CLARIFY measurements", 
-         ! Atmos. Chem. Phys., 20, 10997–11024,
+         ! "Development of aerosol activation in the double-moment
+         ! Unified Model and evaluation with CLARIFY measurements",
+         ! Atmos. Chem. Phys., 20, 10997-11024,
          ! https://doi.org/10.5194/acp-20-10997-2020, 2020
         call AbdulRazzakGhan2000(w, p, T, aerophys, aerochem, dnccn_all, Smax_act, aeroact, &
                nccn_active, l_useactive)
+
         activated_arg = sum(dnccn_all(:))
-        if (Smax_act > 0.02 .and. .not. l_warm) then
-            ! need better model than this. Could do partitioning in the same way as CCN
+
+        if (Smax_act > smax_act_min .and. .not. l_warm) then
+
+          if (iopt_inuc < 4) then
+            ! For lower-order ice nucleation options, need to initialise
+            ! dactive and dmass_d
+            dactive = zero_real_wp
+            dmass_d = zero_real_wp
+          else
+            ! For higher-order ice nucleation schemes, dactive and dmass_d
+            ! can be based on dustphys
             dactive = 0.01*dustphys%N(1)
-            !dnumber_d=.01*dustphys%N(1)
-            dmass_d=dactive*dustphys%M(1)/dustphys%N(1)
-        end if
+
+            if ( dustphys%N(1) > ni_tidy ) then
+              dmass_d = dactive * dustphys%M(1) / dustphys%N(1)
+            else
+              ! Prevent divide by zero generating nonsense.
+              dmass_d = zero_real_wp
+            end if ! dustphys%N(1) > ni_tidy
+
+          end if ! iopt_inuc
+
+        end if ! Smax_act > 0.02 and .not. l_warm
+
         if(activate_in_cloud ==2 .and. cf_liquid > cf_thresh .and. &
             smax_cloud <= smax_act) then
           ! In this case use a weighted sum of ARG-activation outside cloud and equilibrium inside cloud
@@ -269,7 +292,7 @@ contains
                 dnccn_cloud(imode) = 0.5*Ndi(imode)*(1.0+erf(erfarg))
                 activated_cloud=activated_cloud+dnccn_cloud(imode)
              end if
-          end do        
+          end do
           ! New CDNC is a sum of CDNC created in old and new cloud
           active = activated_cloud*cf_liquid_old+(cf_liquid-cf_liquid_old)*activated_arg
           active = active/cf_liquid ! This is just because we multiply by CF
@@ -282,13 +305,15 @@ contains
           smax = smax_act
           active=sum(dnccn_all(:))
         else
-          dnccn_all(:)=0
-          active=0
-        end if
+          dnccn_all(:)=0.0
+          active=0.0
+        end if ! activate_in_cloud == 2 etc
+
       else
         active=0.0
         dactive=0.0
       end if
+
     case(4)
       ! Use scheme of Abdul-Razzak and Ghan (including for insoluble aerosol by
       ! assuming small amount of soluble material on it)
@@ -318,16 +343,16 @@ contains
           bi(imode) =aerochem%bk(imode)*aerochem%epsv(imode)
         else
           bi(imode) =aerochem%vantHoff(imode)*aerochem%epsv(imode)* &
-             aerochem%density(imode)*Mw/(rhow*aerochem%massMole(imode)) 
+             aerochem%density(imode)*Mw/(rhow*aerochem%massMole(imode))
         endif
         Ndi(imode)=aerophys%N(imode)
         rdi(imode)=aerophys%rd(imode)
         sigmad(imode)=aerophys%sigma(imode)
         betai(imode)=aerochem%beta(imode)
         ! only use the mode if there's significant number
-        use_mode(imode) = aerophys%N(imode) > Nd_min 
+        use_mode(imode) = aerophys%N(imode) > Nd_min
       end do
-      
+
       if (any(use_mode) .and. cloud_number_work < sum(Ndi))then
         if (tau > kwdqsdz .or. activate_in_cloud==1) then
           select case (solve_select)
@@ -350,7 +375,7 @@ contains
         active=0.0
       end if
     end select
-    
+
     if(activate_in_cloud==2) then
       smax = smax_act
       ait_cdnc = tau
@@ -388,9 +413,9 @@ contains
             rm=aerophys%rd(imode)
             sigma=aerophys%sigma(imode)
             density=aerochem%density(imode)
-            
+
             rcrit=invert_partial_moment_betterapprox(dnccn_all(imode), 0.0_wp, Nd, rm, sigma)
-            
+
             dmac_all(imode)=(4.0*pi*density/3.0)*(upperpartial_moment_logn(Nd, rm, sigma, 3.0_wp, rcrit))
             dmac_all(imode)=min(dmac_all(imode),0.999*aerophys%M(imode)) ! Don't remove more than 99.9%
             dmac=dmac+dmac_all(imode)
@@ -420,7 +445,7 @@ contains
     dmac=dmac/dt * cf_liquid
     dmac_all=dmac_all/dt * cf_liquid
     dnccn_all=dnccn_all/dt * cf_liquid
-    dnumber=dnumber/dt * cf_liquid 
+    dnumber=dnumber/dt * cf_liquid
     dmass_d = dmass_d/dt * cf_liquid
     dmad_all = dmad_all/dt * cf_liquid
     dnccnd_all=dnccnd_all/dt * cf_liquid
