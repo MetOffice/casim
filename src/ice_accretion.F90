@@ -107,6 +107,10 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+    ! Initialise increments
+    dmass_X = 0.0_wp
+    dnumber_X = 0.0_wp
+
     !setup cloud fractions
     do k = 1, nz
     if (l_Tcold(k)) then   
