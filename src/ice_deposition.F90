@@ -36,10 +36,13 @@ contains
   !< Subroutine to determine the deposition/sublimation onto/from
   !< ice, snow and graupel.  There is no source/sink for number
   !< when undergoing deposition, but there is a sink when sublimating.
-  subroutine idep(dt, nz, l_Tcold, params, qfields, procs, dustact, aeroice, aerosol_procs)
+  subroutine idep(dt, nz, l_Tcold, params, qfields, cffields, procs, dustact, aeroice, aerosol_procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
+
+    USE mphys_switches,       ONLY: i_cfi, i_cfs, i_cfg
+
 
     implicit none
 
@@ -50,6 +53,7 @@ contains
     type(hydro_params), intent(IN) :: params
     real(wp), intent(IN) :: qfields(:,:)
     type(process_rate), intent(INOUT), target :: procs(:,:)
+    real(wp), intent(in) :: cffields(:,:)
 
     ! aerosol fields
     type(aerosol_active), intent(IN) :: dustact(:), aeroice(:)
@@ -72,6 +76,7 @@ contains
     real(wp) :: qis
     real(wp) :: n0, lam, mu
     real(wp) :: V_x, AB
+    real(wp) :: cf
 
     logical :: l_suball
 
@@ -106,16 +111,19 @@ contains
                 iaproc=i_dsub
                 i_acw=i_iacw
                 i_acr=i_raci
+                cf=cffields(k,i_cfi)
              case (4_iwp) !snow
                 iproc=i_sdep
                 iaproc=i_dssub
                 i_acw=i_sacw
                 i_acr=i_sacr
+                cf=cffields(k,i_cfs)
              case (5_iwp) !graupel
                 iproc=i_gdep
                 iaproc=i_dgsub
                 i_acw=i_gacw
                 i_acr=i_gacr
+                cf=cffields(k,i_cfg)
              end select
           else
              select case (params%id)
@@ -124,16 +132,19 @@ contains
                 iaproc=i_dsub
                 i_acw=i_iacw
                 i_acr=i_raci
+                cf=cffields(k,i_cfi)
              case (4_iwp) !snow
                 iproc=i_ssub
                 iaproc=i_dssub
                 i_acw=i_sacw
                 i_acr=i_sacr
+                cf=cffields(k,i_cfs)
              case (5_iwp) !graupel
                 iproc=i_gsub
                 iaproc=i_dgsub
                 i_acw=i_gacw
                 i_acr=i_gacr
+                cf=cffields(k,i_cfg)
              end select
           end if
           
@@ -152,7 +163,7 @@ contains
              endif
              
              AB=1.0/(Ls*Ls/(Rv*ka*TdegK(k)*TdegK(k))*rho(k)+1.0/(Dv*qis))
-             dmass=(qv/qis-1.0)*V_x*AB
+             dmass=(qv/qis-1.0)*V_x*AB *cf ! grid mean
              
              ! Include latent heat effects of collection of rain and cloud
              ! as done in Milbrandt & Yau (2005)

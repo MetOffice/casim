@@ -126,7 +126,7 @@ contains
                 endif
 
                 pgwet=(910.0/graupel_params%density)**0.625*(Lv*Dv*(qws0(k)-qv)- &
-                     Ka*TdegC(k)/rho(k))/(Lf+Cwater*TdegC(k))*V_x
+                     Ka*TdegC(k)/rho(k))/(Lf+Cwater*TdegC(k))*V_x *cf_graupel ! grid mean
                 pgwet=pgwet+(pgaci+pgacs)*(1.0-Cice*TdegC(k)/(Lf+Cwater*TdegC(k)))
 
                 if (pgdry < pgwet .or. TdegC(k) < T_hom_freeze) then ! Dry growth, so use recalculated gaci, gacs

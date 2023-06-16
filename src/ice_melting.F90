@@ -22,10 +22,12 @@ contains
   !>
   !> OPTIMISATION POSSIBILITIES: Shouldn't have to recalculate all 3m quantities
   !>                             If just rescaling mass conversion for dry mode
-  subroutine melting(dt, nz, params, qfields, procs, l_sigevap, aeroice, dustact, aerosol_procs)
+  subroutine melting(dt, nz, params, qfields, cffields, procs, l_sigevap, aeroice, dustact, aerosol_procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
+
+    USE mphys_switches,       ONLY: i_cfs, i_cfg
 
     implicit none
 
@@ -35,6 +37,8 @@ contains
     type(hydro_params), intent(in) :: params
     real(wp), intent(in), target :: qfields(:,:)
     type(process_rate), intent(inout), target :: procs(:,:)
+    real(wp), intent(in) :: cffields(:,:)
+
 
     ! aerosol fields
     type(aerosol_active), intent(in) :: aeroice(:), dustact(:)
@@ -55,6 +59,7 @@ contains
     real(wp) :: acc_correction
     logical :: l_meltall ! do we melt everything?
     real(wp) :: dmac, dmad
+    real(wp) :: cf
 
     integer :: k
     
@@ -115,11 +120,13 @@ contains
                    i_acr=i_sacr
                    iproc=i_smlt
                    iaproc=i_dsmlt
+                   cf=cffields(k,i_cfs)
                 else if (params%id==graupel_params%id) then
                    i_acw=i_gacw
                    i_acr=i_gacr
                    iproc=i_gmlt
                    iaproc=i_dgmlt
+                   cf=cffields(k,i_cfg)
                 end if
                 acc_correction=0.0
                 if (i_acw%on)acc_correction=procs(params%i_1m, i_acw%id)%column_data(k)
@@ -147,13 +154,11 @@ contains
                 
                 dmass=(1.0/(rho(k)*Lf))*(Ka*TdegC(k) + Lv*Dv*rho(k)*(qv - qws0(k))) * V_x&
                      + (Cwater*TdegC(k)/Lf)*acc_correction
-                
+                dmass=dmass*cf ! grid mean
+
+
                 dmass=max(dmass, ZERO_REAL_WP) ! ensure positive
                 
-                if (dmass == ZERO_REAL_WP) then
-                   IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
-                   return  ! No need to do anything
-                end if
                 
                 dmass=min(dmass, mass/dt) ! ensure we don't remove too much
                 if (dmass*dt > 0.95*mass) then ! we're pretty much removing everything

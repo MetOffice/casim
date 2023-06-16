@@ -1112,7 +1112,7 @@ contains
           !! initialise l_sigevap to false for all levels so that previous 
           !! "trues" are not included when rain_precondition is false
           l_sigevap(:) = .false.
-          call revp(step_length, nz, qfields, aerophys, &
+          call revp(step_length, nz, qfields, cffields, aerophys, &
                aerochem, aeroact, dustliq, procs, aerosol_procs, l_sigevap)
        endif
 
@@ -1259,17 +1259,17 @@ contains
           ! Deposition/sublimation of ice/snow/graupel
           !------------------------------------------------------
           if (pswitch%l_pidep) then
-             call idep(step_length, nz,  l_Tcold, ice_params, qfields,  &
+             call idep(step_length, nz,  l_Tcold, ice_params, qfields, cffields,  &
                   procs, dustact, aeroice, aerosol_procs)
           end if
 
           if (pswitch%l_psdep .and. .not. l_kfsm ) then
-             call idep(step_length, nz, l_Tcold,  snow_params, qfields, &
+             call idep(step_length, nz, l_Tcold,  snow_params, qfields, cffields,&
                   procs, dustact, aeroice, aerosol_procs)
           end if
 
           if (pswitch%l_pgdep) then 
-             call idep(step_length, nz,  l_Tcold, graupel_params, qfields, &
+             call idep(step_length, nz,  l_Tcold, graupel_params, qfields, cffields,&
                   procs, dustact, aeroice, aerosol_procs)
           end if
 
@@ -1298,15 +1298,15 @@ contains
               ! Melting of ice/snow/graupel
               !------------------------------------------------------
           if (pswitch%l_psmlt .and. .not. l_kfsm) then
-             call melting(step_length, nz, snow_params, qfields, &
+             call melting(step_length, nz, snow_params, qfields, cffields,&
                   procs, l_sigevap, aeroice, dustact, aerosol_procs)
           end if
           if (pswitch%l_pgmlt) then
-             call melting(step_length, nz, graupel_params, qfields, &
+             call melting(step_length, nz, graupel_params, qfields, cffields,&
                   procs, l_sigevap, aeroice, dustact, aerosol_procs)
           end if
           if (pswitch%l_pimlt) then  
-             call melting(step_length, nz, ice_params, qfields, &
+             call melting(step_length, nz, ice_params, qfields, cffields,&
                   procs, l_sigevap, aeroice, dustact, aerosol_procs)
           end if
       end if ! end if .not. warm_loc

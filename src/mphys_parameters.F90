@@ -95,12 +95,13 @@ module mphys_parameters
        3.0,             0.0,      6.0,      & ! sedimentation moments
        pi*997.0/6.0,     3.0,      0.0,     & ! mass-diameter relation
        !     4854.1,         1.,    195.,    .5,  & ! fallspeed
-       130.0,         .5,    0.0,    .5,    & ! fallspeed
+!       130.0,         .5,    0.0,    .5,    & ! fallspeed
+       3000.0,         1.0,    0.0,    .5,    & ! fallspeed
        -446.009, 0.782127, 4085.35,         & ! fallspeed Abel-Shipway
        997.0,                               & ! density
        -999,         -999,    -999,         & ! moment indices (set elsewhere)
        .false.,      .false.,    .false.,   & ! moment logicals (set elsewhere)
-       0.1e-6,       0.002,                 & ! size limits (m)
+       0.1e-6,       0.003,                 & ! size limits (m)
        2.5,          5.0e6,                 & ! fixed parameter values for lower order representations
        20.0,                                & ! Maximum realistic bulk fall speed (m/s)
        ! Initialise all gamma functions to 0
@@ -237,7 +238,7 @@ module mphys_parameters
        100.0,                               & ! density
        -999,         -999,    -999,         & ! moment indices (set elsewhere)
        .false.,      .false.,    .false.,   & ! moment logicals (set elsewhere)
-       100e-6,       0.005,                 & ! size limits (m)
+       100e-6,       0.006,                 & ! size limits (m)
        2.0,          0.1e6,                 & ! fixed parameter values for lower order representations   !!mu=2 from field et al. 2007
       10.0,                                 & ! Maximum realistic bulk fall speed (m/s)
        ! Initialise all gamma functions to 0
@@ -340,8 +341,8 @@ module mphys_parameters
   real(wp) :: mu_saut=2.0 ! initial mu for autoconversion ice to snow
 
   ! ventilation coefficients
-  real(wp) :: vent_1=.78
-  real(wp) :: vent_2=.31
+  real(wp) :: vent_1=0.65
+  real(wp) :: vent_2=0.44
 
   ! cloud droplet activation
   ! Twomey law C1s^K1

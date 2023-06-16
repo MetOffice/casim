@@ -9,7 +9,7 @@ module evaporation
   use mphys_constants, only: Lv,ka, Dv, Rv
   use mphys_parameters, only: c_r, rain_params
   use process_routines, only: process_rate, i_prevp, i_arevp
-  use thresholds, only: qr_small, ss_small, qr_tidy
+  use thresholds, only: qr_small, ss_small, qr_tidy, ql_tidy
   use distributions, only: dist_lambda, dist_mu, dist_n0
   use aerosol_routines, only: aerosol_phys, aerosol_chem, aerosol_active
   use ventfac, only: ventilation_1M_2M, ventilation_3M
@@ -24,10 +24,12 @@ module evaporation
   public revp
 contains
 
-  subroutine revp(dt, nz, qfields, aerophys, aerochem, aeroact, dustliq, procs, aerosol_procs, l_sigevap)
+  subroutine revp(dt, nz, qfields, cffields, aerophys, aerochem, aeroact, dustliq, procs, aerosol_procs, l_sigevap)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
+
+    USE mphys_switches,       ONLY: i_cfr
 
     implicit none
 
@@ -41,6 +43,7 @@ contains
     type(process_rate), intent(inout) :: procs(:,:)
     type(process_rate), intent(inout) :: aerosol_procs(:,:)
     logical, intent(out) :: l_sigevap(:) ! Determines if there is significant evaporation
+    real(wp), intent(in) :: cffields(:,:)
 
     ! Local variables
     real(wp) :: dmass, dnumber, dnumber_a, dnumber_d
@@ -54,6 +57,7 @@ contains
     real(wp) :: rain_number
 !   real(wp) :: rain_m3
     real(wp) :: qv
+    real(wp) :: cf
 
     logical :: l_rain_test ! conditional test on rain
 
@@ -80,7 +84,7 @@ contains
        if (l_2mr)rain_number=qfields(k, i_nr)
        ! if (l_3mr)rain_m3=qfields(k, i_m3r)
        
-       if (qv/qws(k) < 1.0-ss_small .and. qfields(k, i_ql) == 0.0 .and. rain_mass > qr_tidy) then
+       if (qv/qws(k) < 1.0-ss_small .and. qfields(k, i_ql) < ql_tidy .and. rain_mass > qr_tidy) then
           
           m1=rain_mass/c_r
           if (l_2mr) m2=rain_number
@@ -92,6 +96,7 @@ contains
              n0=dist_n0(k,rain_params%id)
              mu=dist_mu(k,rain_params%id)
              lam=dist_lambda(k,rain_params%id)
+             cf=cffields(k,i_cfr)
 
              if (l_gamma_online) then 
                 call ventilation_3M(k, V_r, n0, lam, mu, rain_params)
@@ -100,7 +105,10 @@ contains
              endif
 
              AB=1.0/(Lv**2/(Rv*ka)*rho(k)*TdegK(k)**(-2)+1.0/(Dv*qws(k)))
-             dmass=(1.0-qv/qws(k))*V_r*AB
+             dmass=(1.0-qv/qws(k))*V_r*AB  *cf !grid mean
+             
+             dmass=MIN(dmass,rain_mass/dt)
+           
           else
              dmass=rain_mass/dt
           end if

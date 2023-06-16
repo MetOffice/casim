@@ -70,24 +70,22 @@ contains
                 ! agg. This is based on a pragmatic choice that drops large
                 ! than 600 microns will breakup. This code effectively negates
                 ! excessive numerical size sorting in kinematic cases
-                ! Dr=(.75/pi)*(rain_mass/rain_number/rhow)**(1.0/d_r)
-                ! if ( Dr < 600.0e-6) then
-                !    ! Modified from original
-                !    Eff=.5
-                ! else
-                !    Eff=0.0
-                ! end if
+                 Dr=(.75/pi)*(rain_mass/rain_number/rhow)**(1.0/d_r)
+                 if ( Dr < 600.0e-6) then
+                    ! Modified from original
+                    Eff=.5
+                 else
+                    Eff=0.0
+                 end if
                 !
                 ! For RA3 testing Beheng 1994 Atmos. Res. (equ 10) was used (below)
                 ! Beheng uses cgs units, ie. g m-3, CASIM uses SI. Hence, the dnumber 
                 ! equation below is multiplied by rho to convert from cgs to SI 
                 ! (also the 10e3 factor from Beheng is not included)
-                Eff=1.0 !Beheng 1994 Atmos. Res.
+                !Eff=1.0 !Beheng 1994 Atmos. Res.
                 dnumber=Eff * 8.0 * rain_number * rain_mass * rho(k)   ! #/kg/s
-                if ( dnumber * dt / rain_number > 0.5 ) then
-                  ! CFL limitation in this case
-                  dnumber = 0.5 * rain_number / dt
-                end if
+                 !CFL limitation 
+                dnumber=rain_number * min( dnumber*dt/rain_number, 0.5  )/dt                            
              end if
              procs(i_nr, i_pracr%id)%column_data(k)=-dnumber
 
