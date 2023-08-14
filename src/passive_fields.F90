@@ -9,10 +9,10 @@ module passive_fields
   private
 
   real(wp), allocatable :: rho(:), pressure(:), z(:), exner(:), rexner(:)
-  real(wp), allocatable :: z_half(:), z_centre(:), dz(:)
+  real(wp), allocatable :: dz(:)
   real(wp), allocatable :: qws(:), qws0(:), TdegC(:), TdegK(:), w(:), tke(:)
 
-!$OMP THREADPRIVATE(rho, pressure, z, exner, rexner, z_half, z_centre, dz, &
+!$OMP THREADPRIVATE(rho, pressure, z, exner, rexner, dz, &
 !$OMP               qws, qws0, TdegC, TdegK, w, tke)
 
   real(wp), allocatable :: rhcrit_1d(:)
@@ -30,7 +30,7 @@ module passive_fields
   character(len=*), parameter, private :: ModuleName='PASSIVE_FIELDS'
 
   public set_passive_fields, rho, pressure, initialise_passive_fields, z, qws, &
-       exner, rexner, z_half, z_centre, dz, qws0, &
+       exner, rexner, dz, qws0, &
        TdegC, TdegK, w, tke, rhcrit_1d, rdz_on_rho, min_dz
 contains
 
@@ -62,8 +62,6 @@ contains
     allocate(exner(nz))
     allocate(rexner(nz))
     allocate(dz(nz))
-    allocate(z_half(0:nz))
-    allocate(z_centre(nz))
     allocate(w(nz))
     allocate(tke(nz))
     allocate(rdz_on_rho(nz))
@@ -77,7 +75,7 @@ contains
   end subroutine initialise_passive_fields
 
   subroutine set_passive_fields(dt_in, rho_in, p_in, exner_in,   &
-       z_half_in, z_centre_in, dz_in, w_in, tke_in, qfields)
+                                dz_in, w_in, tke_in, qfields)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -88,7 +86,7 @@ contains
 
     real(wp), intent(in) :: dt_in
     real(wp), intent(in) :: rho_in(kl:ku), p_in(kl:ku), exner_in(kl:ku)
-    real(wp), intent(in) :: z_half_in(kl-1:ku),z_centre_in(kl:ku),dz_in(kl:ku)
+    real(wp), intent(in) :: dz_in(kl:ku)
     real(wp), intent(in) :: w_in(kl:ku), tke_in(kl:ku)
     real(wp), intent(in), target :: qfields(:,:)
     integer :: k
@@ -115,8 +113,6 @@ contains
     w(:)=w_in(kl:ku)
     tke(:)=tke_in(kl:ku)
     dz(:)=dz_in(kl:ku)
-    z_half(0:)=z_half_in(kl-1:ku)
-    z_centre(:)=z_centre_in(kl:ku)
     rdz_on_rho(:)=1.0/(dz_in(kl:ku)*rho_in(kl:ku))
     do k=1,nz
       TdegK(k)=theta(k)*exner(k)

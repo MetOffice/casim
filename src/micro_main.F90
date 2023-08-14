@@ -385,7 +385,7 @@ contains
        qv, q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12, q13,          &
        theta, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13,       &
        a14, a15, a16, a17, a18, a19, a20,                                   &
-       exner, pressure, rho, w, tke, z_half, z_centre, dz,                  &
+       exner, pressure, rho, w, tke, dz,                                    &
        cfliq, cfice, cfsnow, cfrain, cfgr,    &
        dqv, dq1, dq2, dq3, dq4, dq5, dq6, dq7, dq8, dq9, dq10, dq11, dq12,  &
        dq13, dth, da1, da2, da3, da4, da5, da6, da7, da8, da9, da10, da11,  &
@@ -426,9 +426,6 @@ contains
     real(wp), intent(in) :: w( kl:ku, il:iu, jl:ju )
     real(wp), intent(in) :: tke( kl:ku, il:iu, jl:ju )
     real(wp), intent(in) :: dz( kl:ku, il:iu, jl:ju )
-    real(wp), intent(in) :: z_half( kl-1:ku, il:iu, jl:ju )
-    real(wp), intent(in) :: z_centre( kl:ku, il:iu, jl:ju )
-
 
     ! Aerosol fields in
     real(wp), intent(in) :: a1( kl:ku, il:iu, jl:ju ), a2( kl:ku, il:iu, jl:ju )   &
@@ -629,8 +626,8 @@ contains
         !--------------------------------------------------
 
         call set_passive_fields(dt, rho(ks:ke,i,j),    &
-             pressure(ks:ke,i,j), exner(ks:ke,i,j),            &
-             z_half(ks-1:ke,i,j), z_centre(ks:ke,i,j), dz(ks:ke,i,j),     &
+             pressure(ks:ke,i,j), exner(ks:ke,i,j),    &
+             dz(ks:ke,i,j),                            &
              w(ks:ke,i,j), tke(ks:ke,i,j), qfields )
         
         !--------------------------------------------------
