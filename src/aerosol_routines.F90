@@ -8,7 +8,7 @@ module aerosol_routines
        i_am5, i_am7, i_am8, i_am9, i_an11, i_an12, i_ni, i_ns, i_ng, i_ql, &
        i_qr, i_qi, i_qs, i_qg, l_active_inarg2000, aero_index, l_warm,  &
        l_process, l_passivenumbers,              &
-       l_passivenumbers_ice, l_separate_rain, l_ukca_casim
+       l_passivenumbers_ice, l_separate_rain, l_ukca_casim, l_bypass_which_mode
   use thresholds, only: nr_tidy, nl_tidy, ni_tidy, ccn_tidy, qr_tidy, aeromass_small, aeronumber_small
   use mphys_parameters, only: sigma_arc, nz
   use lognormal_funcs, only: MNtoRm ! DPG - added this for MNtoRm since was
@@ -209,6 +209,13 @@ contains
 
     character(len=*), parameter :: RoutineName='EXAMINE_AEROSOL'
 
+    real, parameter :: aero_mact_mean_max=2.3e-15 !kg 3xsigma+mean(0.3micron) density 1777
+    real, parameter :: dust_mact_mean_max=3.1e-13 !kg 3xsigma+mean(1micron) density 1777
+    ! When l_bypass_whichmode is True (or no larger modes exist to move aerosol to)
+    ! aerosol mean sizes in hydrometeors can become so large that they lead to instability
+    ! during hydrometeor sedimentation. Limiting the maximum mean mass stops these edge
+    ! effects dominating the aerosol and eventually hydrometeor fields.
+
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
     REAL(KIND=jprb)               :: zhook_handle
@@ -307,8 +314,10 @@ contains
             aeroact(k)%nact=ntot
             aeroact(k)%mact=mac
             aeroact(k)%rcrit=0.0
-            aeroact(k)%mact_mean=aeroact(k)%mact /(aeroact(k)%nact + tiny(ntot))
-
+            aeroact(k)%mact_mean=aeroact(k)%mact /(aeroact(k)%nact + epsilon(ntot))
+            if (l_bypass_which_mode) then
+              aeroact(k)%mact_mean=min(aero_mact_mean_max, aeroact(k)%mact_mean)
+            end if
             ! Get mean radius of distribution
             rm_arc=MNtoRm(aeroact(k)%mact,aeroact(k)%nact,density,sigma_arc)
 
@@ -326,22 +335,34 @@ contains
               mact2=mac
             else ! Diagnostic partitioning of aerosol between cloud and rain.
               rcrit2=0.0
-              mact2=aeroact(k)%mact*rain_mass/(cloud_mass + rain_mass)
+              mact2=aeroact(k)%mact*rain_mass/(cloud_mass + rain_mass + epsilon(nhtot))
             end if
 
             aeroact(k)%nact2=ntot*nratio_r
             aeroact(k)%rcrit2=rcrit2
             aeroact(k)%mact2=mact2
-            aeroact(k)%mact2_mean=aeroact(k)%mact2/(aeroact(k)%nact2 + tiny(ntot))
+            aeroact(k)%mact2_mean=aeroact(k)%mact2/(aeroact(k)%nact2 + epsilon(ntot))
+            if (l_bypass_which_mode) then
+              aeroact(k)%mact2_mean=min(aero_mact_mean_max, aeroact(k)%mact2_mean)
+            end if
+            
           end if
 
           aeroact(k)%nact1=max(0.0_wp, aeroact(k)%nact-aeroact(k)%nact2)
           aeroact(k)%mact1=max(0.0_wp, aeroact(k)%mact-aeroact(k)%mact2)
           aeroact(k)%rcrit1=0.0
-          aeroact(k)%mact1_mean=aeroact(k)%mact1/(aeroact(k)%nact1+tiny(mar))
+          aeroact(k)%mact1_mean=aeroact(k)%mact1/(aeroact(k)%nact1+epsilon(mar))
+          if (l_bypass_which_mode) then
+            aeroact(k)%mact1_mean=min(aero_mact_mean_max, aeroact(k)%mact1_mean)
+          end if
 
-          if (cloud_number > epsilon(1.0_wp)) aeroact(k)%nratio1=aeroact(k)%nact1/cloud_number
-          if (rain_number > epsilon(1.0_wp)) aeroact(k)%nratio2=aeroact(k)%nact2/rain_number
+          if (cloud_number > epsilon(1.0_wp)) then
+            aeroact(k)%nratio1=max(0.0,min(1.0,aeroact(k)%nact1/cloud_number))
+          endif
+          if (rain_number > epsilon(1.0_wp)) then
+            aeroact(k)%nratio2=max(0.0,min(1.0,aeroact(k)%nact2/rain_number))
+          endif
+          
         end if
     end do
 
@@ -360,7 +381,7 @@ contains
         if (l_process) then
           mad=aerofields(k,i_am7)
           madl=aerofields(k,i_am9)
-          ratio_dil=mad/(madl+mad+tiny(mad))
+          ratio_dil=mad/(madl+mad+epsilon(mad))
         end if
 
         if (l_passivenumbers_ice) then
@@ -369,7 +390,7 @@ contains
           nitot=nhtot
         end if
 
-        nhtot=nhtot+tiny(nhtot) ! prevent possible later division by zero
+        nhtot=nhtot+epsilon(nhtot) ! prevent possible later division by zero
         nratio_i=ice_number/nhtot
         nratio_s=snow_number/nhtot
         nratio_g=graupel_number/nhtot
@@ -441,31 +462,44 @@ contains
             dustact(k)%nact=nitot
             dustact(k)%mact=mad
             dustact(k)%rcrit=0.0
-            dustact(k)%mact_mean=dustact(k)%mact/(dustact(k)%nact+tiny(mad))
-
-            if (ice_number > epsilon(1.0_wp)) then
-              dustact(k)%nact1=nitot * ratio_i
-              dustact(k)%mact1=mad * dustact(k)%nact1/dustact(k)%nact
-              dustact(k)%rcrit1=0.0
-              dustact(k)%mact1_mean=dustact(k)%mact1/(dustact(k)%nact1+tiny(nhtot))
-              dustact(k)%nratio1=dustact(k)%nact1/(ice_number+tiny(nhtot))
+            dustact(k)%mact_mean=dustact(k)%mact/(dustact(k)%nact+epsilon(mad))
+            if (l_bypass_which_mode) then
+              dustact(k)%mact_mean=min(dust_mact_mean_max, dustact(k)%mact_mean)
             end if
 
             if (snow_number > epsilon(1.0_wp)) then
               dustact(k)%nact2=nitot*ratio_s
               dustact(k)%rcrit2=0.0
-              dustact(k)%mact2=mad*dustact(k)%nact2/(dustact(k)%nact+tiny(nhtot))
-              dustact(k)%mact2_mean=dustact(k)%mact2/(dustact(k)%nact2+tiny(nhtot))
-              dustact(k)%nratio2=dustact(k)%nact2/(snow_number+tiny(nhtot))
+              dustact(k)%mact2=mad *ratio_s
+              dustact(k)%mact2_mean=dustact(k)%mact2/(dustact(k)%nact2+epsilon(nhtot))
+              if (l_bypass_which_mode) then
+                dustact(k)%mact2_mean=min(dust_mact_mean_max, dustact(k)%mact2_mean)
+              endif
+              dustact(k)%nratio2=max(0.0,min(1.0,dustact(k)%nact2/(snow_number+epsilon(nhtot)) ))
             end if
 
             if (i_ng > 0 .and. graupel_number > ni_tidy) then
               dustact(k)%nact3=nitot*ratio_g
               dustact(k)%rcrit3=0.0
-              dustact(k)%mact3=mad*dustact(k)%nact3/(dustact(k)%nact+tiny(nhtot))
-              dustact(k)%mact3_mean=dustact(k)%mact3/(dustact(k)%nact3+tiny(nhtot))
-              dustact(k)%nratio3=dustact(k)%nact3/(graupel_number+tiny(nhtot))
+              dustact(k)%mact3=mad *ratio_g
+              dustact(k)%mact3_mean=dustact(k)%mact3/(dustact(k)%nact3+epsilon(nhtot))
+              if (l_bypass_which_mode) then
+                dustact(k)%mact3_mean=min(dust_mact_mean_max, dustact(k)%mact3_mean)
             end if
+              dustact(k)%nratio3=max(0.0,min(1.0,dustact(k)%nact3/(graupel_number+epsilon(nhtot)) ))
+            end if
+            
+            if (ice_number > epsilon(1.0_wp)) then
+               dustact(k)%nact1=max(0.0_wp, dustact(k)%nact-dustact(k)%nact2-dustact(k)%nact3)
+               dustact(k)%mact1=max(0.0_wp, dustact(k)%mact-dustact(k)%mact2-dustact(k)%mact3)
+               dustact(k)%rcrit1=0.0
+               dustact(k)%mact1_mean=dustact(k)%mact1/(dustact(k)%nact1+epsilon(mar))
+               if (l_bypass_which_mode) then
+                 dustact(k)%mact1_mean=min(dust_mact_mean_max, dustact(k)%mact1_mean)
+               end if
+               dustact(k)%nratio1=max(0.0,min(1.0,dustact(k)%nact1/(ice_number+epsilon(nhtot)) ))
+            end if
+
           end if
         end if
       end do
@@ -538,31 +572,44 @@ contains
               aeroice(k)%nact=nitot
               aeroice(k)%mact=maai
               aeroice(k)%rcrit=0.0
-              aeroice(k)%mact_mean=aeroice(k)%mact/(aeroice(k)%nact+tiny(nhtot))
-
-              if (ratio_i > epsilon(1.0_wp)) then
-                aeroice(k)%nact1=nitot*ratio_i
-                aeroice(k)%mact1=maai*ratio_i
-                aeroice(k)%rcrit1=0.0
-                aeroice(k)%mact1_mean=aeroice(k)%mact1/(aeroice(k)%nact1+tiny(nhtot))
-                aeroice(k)%nratio1=aeroice(k)%nact1/(ice_number+tiny(nhtot))
+              aeroice(k)%mact_mean=aeroice(k)%mact/(aeroice(k)%nact+epsilon(nhtot))
+              if (l_bypass_which_mode) then
+                aeroice(k)%mact_mean=min(aero_mact_mean_max, aeroice(k)%mact_mean)
               end if
 
               if (ratio_s > epsilon(1.0_wp)) then
                 aeroice(k)%nact2=nitot*ratio_s
                 aeroice(k)%rcrit2=0.0
                 aeroice(k)%mact2=maai*ratio_s
-                aeroice(k)%mact2_mean=aeroice(k)%mact2/(aeroice(k)%nact2+tiny(nhtot))
-                aeroice(k)%nratio2=aeroice(k)%nact2/(snow_number+tiny(nhtot))
+                aeroice(k)%mact2_mean=aeroice(k)%mact2/(aeroice(k)%nact2+epsilon(nhtot))
+                if (l_bypass_which_mode) then
+                  aeroice(k)%mact2_mean=min(aero_mact_mean_max, aeroice(k)%mact2_mean)
+                end if
+                aeroice(k)%nratio2=max(0.0, min(1.0,aeroice(k)%nact2/(snow_number+epsilon(nhtot)) ))
               end if
 
               if (ratio_g > epsilon(1.0_wp)) then
                 aeroice(k)%nact3=nitot*ratio_g
                 aeroice(k)%rcrit3=0.0
                 aeroice(k)%mact3=maai*ratio_g
-                aeroice(k)%mact3_mean=aeroice(k)%mact3/(aeroice(k)%nact3+tiny(nhtot))
-                aeroice(k)%nratio3=aeroice(k)%nact3/(graupel_number+tiny(nhtot))
+                aeroice(k)%mact3_mean=aeroice(k)%mact3/(aeroice(k)%nact3+epsilon(nhtot))
+                if (l_bypass_which_mode) then
+                  aeroice(k)%mact3_mean=min(aero_mact_mean_max, aeroice(k)%mact3_mean)
               end if
+                aeroice(k)%nratio3=max(0.0, min(1.0, aeroice(k)%nact3/(graupel_number+epsilon(nhtot)) ))
+              end if
+              
+              if (ice_number > epsilon(1.0_wp)) then
+                aeroice(k)%nact1=max(0.0_wp, aeroice(k)%nact-aeroice(k)%nact2-aeroice(k)%nact3)
+                aeroice(k)%mact1=max(0.0_wp, aeroice(k)%mact-aeroice(k)%mact2-aeroice(k)%mact3)
+                aeroice(k)%rcrit1=0.0
+                aeroice(k)%mact1_mean=aeroice(k)%mact1/(aeroice(k)%nact1+epsilon(mar))
+                if (l_bypass_which_mode) then
+                  aeroice(k)%mact1_mean=min(aero_mact_mean_max, aeroice(k)%mact1_mean)
+                end if
+                aeroice(k)%nratio1=max(0.0, min(1.0,aeroice(k)%nact1/(ice_number+epsilon(nhtot)) ))
+              end if
+
             end if
           end do
         end if
@@ -580,8 +627,8 @@ contains
             cloud_number=qfields(k,i_nl)
             rain_number=qfields(k,i_nr)
 
-            nratio_l=cloud_number/(cloud_number+rain_number+tiny(cloud_number))
-            nratio_r=rain_number/(cloud_number+rain_number+tiny(cloud_number))
+            nratio_l=min(1.0,max(0.0,cloud_number/(cloud_number+rain_number+epsilon(cloud_number))))
+            nratio_r=max(0.0,min(1.0,1.0-nratio_l))
 
             ! Use nratios...
             ratio_l=nratio_l
@@ -620,23 +667,33 @@ contains
               dustliq(k)%nact=ntot
               dustliq(k)%mact=madl
               dustliq(k)%rcrit=0.0
-              dustliq(k)%mact_mean=dustliq(k)%mact/(dustliq(k)%nact+tiny(nhtot))
-
-              if (ratio_l > epsilon(1.0_wp)) then
-                dustliq(k)%nact1=ntot*ratio_l
-                dustliq(k)%mact1=madl*ratio_l
-                dustliq(k)%rcrit1=0.0
-                dustliq(k)%mact1_mean=dustliq(k)%mact1/(dustliq(k)%nact1+tiny(nhtot))
-                dustliq(k)%nratio1=dustliq(k)%nact1/(cloud_number+tiny(nhtot))
+              dustliq(k)%mact_mean=dustliq(k)%mact/(dustliq(k)%nact+epsilon(nhtot))
+              if (l_bypass_which_mode) then
+                dustliq(k)%mact_mean=min(dust_mact_mean_max, dustliq(k)%mact_mean)
               end if
 
               if (ratio_r > epsilon(1.0_wp)) then
                 dustliq(k)%nact2=ntot*ratio_r
                 dustliq(k)%rcrit2=0.0
                 dustliq(k)%mact2=madl*ratio_r
-                dustliq(k)%mact2_mean=dustliq(k)%mact2/(dustliq(k)%nact2+tiny(nhtot))
-                dustliq(k)%nratio2=dustliq(k)%nact2/(rain_number+tiny(nhtot))
+                dustliq(k)%mact2_mean=dustliq(k)%mact2/(dustliq(k)%nact2+epsilon(nhtot))
+                if (l_bypass_which_mode) then
+                  dustliq(k)%mact2_mean=min(dust_mact_mean_max, dustliq(k)%mact2_mean)
+                end if
+                dustliq(k)%nratio2=max(0.0,min(1.0,dustliq(k)%nact2/(rain_number+epsilon(nhtot)) ))
               end if
+
+              if (ratio_l > epsilon(1.0_wp)) then
+                dustliq(k)%nact1=max(0.0_wp, dustliq(k)%nact-dustliq(k)%nact2)
+                dustliq(k)%mact1=max(0.0_wp, dustliq(k)%mact-dustliq(k)%mact2)
+                dustliq(k)%rcrit1=0.0
+                dustliq(k)%mact1_mean=dustliq(k)%mact1/(dustliq(k)%nact1+epsilon(mar))
+                if (l_bypass_which_mode) then
+                  dustliq(k)%mact1_mean=min(dust_mact_mean_max, dustliq(k)%mact1_mean)
+                end if
+                dustliq(k)%nratio1=max(0.0,min(1.0, dustliq(k)%nact1/(cloud_number+epsilon(nhtot)) ))
+              end if
+
             end if
           end do
         end if

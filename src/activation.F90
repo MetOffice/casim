@@ -317,7 +317,7 @@ contains
     case(4)
       ! Use scheme of Abdul-Razzak and Ghan (including for insoluble aerosol by
       ! assuming small amount of soluble material on it)
-      if (w > w_small .and. sum(aerophys%N(:)) > ccn_tidy) then
+      if (w > w_small .and. (sum(aerophys%N(:))+sum(dustphys%N(:))) > ccn_tidy) then
         if (l_warm) then
           call AbdulRazzakGhan2000(w, p, T, aerophys, aerochem, dnccn_all, Smax, aeroact, &
              nccn_active, l_useactive)
@@ -423,9 +423,11 @@ contains
         end do
         ! for the insoluble mode
         if (iopt_act == 4) then
+          dmass_d=zero_real_wp
+          dmad_all(:)=zero_real_wp
           do imode = 1, aero_index%nin
             Nd=dustphys%N(imode)
-            if (Nd > ccn_tidy) then
+            if (Nd > ccn_tidy .and. dnumber_d > ccn_tidy) then
               rm=dustphys%rd(imode)
               sigma=dustphys%sigma(imode)
               density=dustchem%density(imode)
@@ -433,7 +435,7 @@ contains
               rcrit=invert_partial_moment_betterapprox(dnccnd_all(imode), 0.0_wp, Nd, rm, sigma)
 
               dmad_all(imode)=(4.0*pi*density/3.0)*(upperpartial_moment_logn(Nd, rm, sigma, 3.0_wp, rcrit))
-              dmad_all(imode)=min(dmac_all(imode),0.999*dustphys%M(imode)) ! Don't remove more than 99.9%
+              dmad_all(imode)=min(dmad_all(imode),0.999*dustphys%M(imode)) ! Don't remove more than 99.9%
               dmass_d=dmass_d+dmad_all(imode)
             end if
           end do

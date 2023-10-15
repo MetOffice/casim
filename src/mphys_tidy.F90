@@ -13,9 +13,11 @@ module mphys_tidy
        l_2mi, l_2ms, l_2mg,                       &
        i_an2, i_am2, i_am4, i_am5, l_warm,        &
        i_an6, i_am6, i_am7, i_am8, i_am9,         &
+       i_an11, i_an12,                            &
        l_process, ntotalq, ntotala,               &
        i_qstart, i_nstart, i_m3start,             &
-       l_separate_rain, l_tidy_conserve_E, l_tidy_conserve_q
+       l_separate_rain, l_tidy_conserve_E, l_tidy_conserve_q, &
+       l_passivenumbers, l_passivenumbers_ice
   use mphys_constants, only: Lv, Ls, cp
   use qsat_funs, only: qisaturation
   use mphys_parameters, only: hydro_params
@@ -181,6 +183,7 @@ contains
     logical :: qi_reset, ni_reset, qs_reset, ns_reset, m3s_reset
     logical :: qg_reset, ng_reset, m3g_reset
     logical :: am4_reset, am5_reset, am7_reset, am8_reset, am9_reset
+    logical :: an11_reset, an12_reset
 
     real(wp) :: dmass, dnumber
 
@@ -232,10 +235,8 @@ contains
     am7_reset=.false.
     am8_reset=.false.
     am9_reset=.false.
-! AH - the in-cloud aerosol number is not reset here
-!      Does this cause a problem with passive processing
-!    an11_reset=.false. !? What to do with these???
-!    an12_reset=.false. !? What to do with these???
+    an11_reset=.false.
+    an12_reset=.false.
 
     if (present(l_negonly)) then
       if (l_negonly .neqv. current_l_negonly) then
@@ -356,6 +357,13 @@ contains
 
       ! If small/neg values...
       if (l_asneg(i_am4))am4_reset=.true.
+      if (l_passivenumbers) then
+        if (l_asneg(i_an11))an11_reset=.true.  ! can be in liq or ice
+      endif
+      if (l_passivenumbers_ice) then
+        if (l_asneg(i_an12))an12_reset=.true.  ! can be in liq or ice
+      endif
+
       if (l_separate_rain) then
         if (l_asneg(i_am5))am5_reset=.true.
       end if
@@ -373,7 +381,7 @@ contains
         end if
       end if
 
-      ! If no active aerosol, then we shouldn't have any hydrometeor...
+      ! If no active aerosol, then we shouldn't have any hydrometeor...(what about SIP?)
       ql_reset=ql_reset .or. (am4_reset .and. am9_reset .and. l_qsig(i_ql))
       qr_reset=qr_reset .or. (am4_reset .and. am9_reset .and. l_qsig(i_qr))
       qr_reset=qr_reset .or. (am5_reset .and. l_qsig(i_qr))
@@ -430,12 +438,16 @@ contains
       if (l_process) then
         if (.not. am4_reset) then
           dmass=aeroact(k)%mact1/dt
-          aeroprocs(i_am4,i_aproc%id)%column_data(k)=-dmass
-          aeroprocs(i_am2,i_aproc%id)%column_data(k)=dmass
-          aeroprocs(i_an2,i_aproc%id)%column_data(k)=dnumber
+          dnumber=aeroact(k)%nact1/dt
+          if (dmass > 0.0) then
+            aeroprocs(i_am4,i_aproc%id)%column_data(k)=-dmass
+            aeroprocs(i_am2,i_aproc%id)%column_data(k)=dmass
+            aeroprocs(i_an2,i_aproc%id)%column_data(k)=dnumber
+          end if
         end if
         if (.not. am9_reset) then
           dmass=dustliq(k)%mact1/dt
+          dnumber=dustliq(k)%nact1/dt
           if (dmass > 0.0) then
             aeroprocs(i_am9,i_aproc%id)%column_data(k)=-dmass
             aeroprocs(i_am6,i_aproc%id)%column_data(k)=dmass
@@ -463,6 +475,7 @@ contains
       if (l_process) then
         if (.not. am4_reset) then
           dmass=aeroact(k)%mact2/dt
+          dnumber=aeroact(k)%nact2/dt
           aeroprocs(i_am2,i_aproc%id)%column_data(k)=aeroprocs(i_am2,i_aproc%id)%column_data(k)+dmass
           aeroprocs(i_an2,i_aproc%id)%column_data(k)=aeroprocs(i_an2,i_aproc%id)%column_data(k)+dnumber
           aeroprocs(i_am4,i_aproc%id)%column_data(k)=aeroprocs(i_am4,i_aproc%id)%column_data(k)-dmass
@@ -470,6 +483,7 @@ contains
         if (.not. am5_reset) then
           if (l_separate_rain) then
             dmass=aeroact(k)%mact2/dt
+            dnumber=aeroact(k)%nact2/dt
             aeroprocs(i_am2,i_aproc%id)%column_data(k)=aeroprocs(i_am2,i_aproc%id)%column_data(k)+dmass
             aeroprocs(i_an2,i_aproc%id)%column_data(k)=aeroprocs(i_an2,i_aproc%id)%column_data(k)+dnumber
             aeroprocs(i_am5,i_aproc%id)%column_data(k)=aeroprocs(i_am5,i_aproc%id)%column_data(k)-dmass
@@ -477,6 +491,7 @@ contains
         end if
         if (.not. am9_reset .and. .not. l_warm) then
           dmass=dustliq(k)%mact2/dt
+          dnumber=dustliq(k)%nact2/dt
           if (dmass>0.0) then
             aeroprocs(i_am9,i_aproc%id)%column_data(k)=-dmass
             aeroprocs(i_am6,i_aproc%id)%column_data(k)=dmass
@@ -502,12 +517,14 @@ contains
         if (l_process) then
           if (.not. am7_reset) then
             dmass=dustact(k)%mact1/dt
+            dnumber=dustact(k)%nact1/dt
             aeroprocs(i_am6,i_aproc%id)%column_data(k)=aeroprocs(i_am6,i_aproc%id)%column_data(k)+dmass
             aeroprocs(i_an6,i_aproc%id)%column_data(k)=aeroprocs(i_an6,i_aproc%id)%column_data(k)+dnumber
             aeroprocs(i_am7,i_aproc%id)%column_data(k)=aeroprocs(i_am7,i_aproc%id)%column_data(k)-dmass
           end if
           if (.not. am8_reset) then
             dmass=aeroice(k)%mact1/dt
+            dnumber=aeroice(k)%nact1/dt
             aeroprocs(i_am2,i_aproc%id)%column_data(k)=aeroprocs(i_am2,i_aproc%id)%column_data(k)+dmass
             aeroprocs(i_an2,i_aproc%id)%column_data(k)=aeroprocs(i_an2,i_aproc%id)%column_data(k)+dnumber
             aeroprocs(i_am8,i_aproc%id)%column_data(k)=aeroprocs(i_am8,i_aproc%id)%column_data(k)-dmass
@@ -533,12 +550,14 @@ contains
         if (l_process) then
           if (.not. am7_reset) then
             dmass=dustact(k)%mact2/dt
+            dnumber=dustact(k)%nact2/dt
             aeroprocs(i_am6,i_aproc%id)%column_data(k)=aeroprocs(i_am6,i_aproc%id)%column_data(k)+dmass
             aeroprocs(i_an6,i_aproc%id)%column_data(k)=aeroprocs(i_an6,i_aproc%id)%column_data(k)+dnumber
             aeroprocs(i_am7,i_aproc%id)%column_data(k)=aeroprocs(i_am7,i_aproc%id)%column_data(k)-dmass
           end if
           if (.not. am8_reset) then
             dmass=aeroice(k)%mact2/dt
+            dnumber=aeroice(k)%nact2/dt
             aeroprocs(i_am2,i_aproc%id)%column_data(k)=aeroprocs(i_am2,i_aproc%id)%column_data(k)+dmass
             aeroprocs(i_an2,i_aproc%id)%column_data(k)=aeroprocs(i_an2,i_aproc%id)%column_data(k)+dnumber
             aeroprocs(i_am8,i_aproc%id)%column_data(k)=aeroprocs(i_am8,i_aproc%id)%column_data(k)-dmass
@@ -564,12 +583,14 @@ contains
         if (l_process) then
           if (.not. am7_reset) then
             dmass=dustact(k)%mact3/dt
+            dnumber=dustact(k)%nact3/dt
             aeroprocs(i_am6,i_aproc%id)%column_data(k)=aeroprocs(i_am6,i_aproc%id)%column_data(k)+dmass
             aeroprocs(i_an6,i_aproc%id)%column_data(k)=aeroprocs(i_an6,i_aproc%id)%column_data(k)+dnumber
             aeroprocs(i_am7,i_aproc%id)%column_data(k)=aeroprocs(i_am7,i_aproc%id)%column_data(k)-dmass
           end if
           if (.not. am8_reset) then
             dmass=aeroice(k)%mact3/dt
+            dnumber=aeroice(k)%nact3/dt
             aeroprocs(i_am2,i_aproc%id)%column_data(k)=aeroprocs(i_am2,i_aproc%id)%column_data(k)+dmass
             aeroprocs(i_an2,i_aproc%id)%column_data(k)=aeroprocs(i_an2,i_aproc%id)%column_data(k)+dnumber
             aeroprocs(i_am8,i_aproc%id)%column_data(k)=aeroprocs(i_am8,i_aproc%id)%column_data(k)-dmass
@@ -612,6 +633,21 @@ contains
           aeroprocs(i_am9,i_aproc%id)%column_data(k)=aeroprocs(i_am9,i_aproc%id)%column_data(k)-dmass
           aeroprocs(i_am6,i_aproc%id)%column_data(k)=aeroprocs(i_am6,i_aproc%id)%column_data(k)+dmass
         end if
+
+        !only do this is passive numbers are used!
+        if ( l_passivenumbers ) then        
+          if (an11_reset) then  !just reset it and put number into accum sol
+            aeroprocs(i_an11,i_aproc%id)%column_data(k)=-aerofields(k,i_an11)/dt
+            aeroprocs(i_an2,i_aproc%id)%column_data(k)=aerofields(k,i_an11)/dt
+          end if
+        endif
+        if ( l_passivenumbers_ice ) then        
+          if (an12_reset) then  !just reset it and put number into coarse insol
+            aeroprocs(i_an12,i_aproc%id)%column_data(k)=-aerofields(k,i_an12)/dt
+            aeroprocs(i_an6,i_aproc%id)%column_data(k)=aerofields(k,i_an12)/dt
+          end if
+        endif
+
       end if
     end if
     enddo
@@ -841,6 +877,21 @@ contains
           aerofields(k,i_am8)=0.0
         end if
       end if
+      if (i_an12 > 0) then
+        if (((qfields(k, i_ql) + qfields(k,i_qr) + qfields(k,i_qi) + qfields(k,i_qs) + qfields(k,i_qg) &
+                                                                 <=0.0 .and. aerofields(k,i_an12)>0.0) &
+                                                            .or. aerofields(k,i_an12) < 0.0)) then
+          aerofields(k,i_an12)=0.0
+        end if
+      end if
+      if (i_an11 > 0) then
+        if (((qfields(k, i_ql) + qfields(k,i_qr) + qfields(k,i_qi) + qfields(k,i_qs) + qfields(k,i_qg) &
+                                                                 <=0.0 .and. aerofields(k,i_an12)>0.0) &
+                                                            .or. aerofields(k,i_an11) < 0.0)) then
+          aerofields(k,i_an11)=0.0
+        end if
+      end if
+
     end do
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)

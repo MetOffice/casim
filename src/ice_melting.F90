@@ -217,13 +217,19 @@ contains
                 
                 if (params%id == ice_params%id) then
                    dmac=dnumber*aeroice(k)%nratio1*aeroice(k)%mact1_mean
+                   dmac=min(dmac, aeroice(k)%mact1 /dt)
                    dmad=dnumber*dustact(k)%nratio1*dustact(k)%mact1_mean
+                   dmad=min(dmad, dustact(k)%mact1 /dt)
                 else if (params%id == snow_params%id) then
                    dmac=dnumber*aeroice(k)%nratio2*aeroice(k)%mact2_mean
+                   dmac=min(dmac, aeroice(k)%mact2 /dt)
                    dmad=dnumber*dustact(k)%nratio2*dustact(k)%mact2_mean
+                   dmad=min(dmad, dustact(k)%mact2 /dt)
                 else if (params%id == graupel_params%id) then
                    dmac=dnumber*aeroice(k)%nratio3*aeroice(k)%mact3_mean
+                   dmac=min(dmac, aeroice(k)%mact3/dt)
                    dmad=dnumber*dustact(k)%nratio3*dustact(k)%mact3_mean
+                   dmad=min(dmad, dustact(k)%mact3/dt)
                 end if
                 
                 aerosol_procs(i_am8, iaproc%id)%column_data(k)=-dmac

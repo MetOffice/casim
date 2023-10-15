@@ -153,7 +153,7 @@ contains
              l_condition=( cloud_number >= nl_tidy .and. Tc < 0)
           case (4)
              ! DeMott Depletion of dust (contact and immersion)
-             l_condition=( cloud_number >= nl_tidy .and. Tc < 0)
+             l_condition=( Sw >= -0.001  .and. Tc < 0 .and. Tc > -38)
           case (6)
              l_condition=( cloud_number >= nl_tidy .and. Tc < 0)
           case (7)
@@ -185,11 +185,10 @@ contains
                 
                 if (ql * cf_liquid > ql_small) then  !only make ice when liquid present
                    dN_imm=5.0*exp(-0.304*Tc)/rho(k)
-                   if (iopt_act .eq. 0) then
-                      !           dN_imm = MAX( dN_imm-ice_number, 0.0 )
+                   if (iopt_act .eq. 0) then !for fixed number concs adjust the rate
+                                             !to nudge back to climatology- can be negative - 
+                                             !this just represents a nudging incr for cooper
                       dN_imm =  (dN_imm-ice_number)*0.8 
-                      ! allow to nudge back to climatology- can be negative - 
-                      ! this just represents a nudging incr for cooper
                    endif
                 endif
              case (2)
@@ -225,7 +224,7 @@ contains
                    dN_imm=1.0e3/rho(k)*a_demott*(Tp01)**b_demott*                                    &
                         (rho(k) * m3_to_cm3 * dustliq(k)%nact1)**(c_demott*Tp01+d_demott)
                    dN_imm=immersion_efficiency*dN_imm
-                   dN_imm=min(dustliq(k)%nact, dN_imm)
+                   dN_imm=min(dustliq(k)%nact1, dN_imm)
                 end if
                 
              case (5)
@@ -342,7 +341,7 @@ contains
              dN_imm=dN_imm/dt
              dN_contact=dN_contact/dt
              dnumber=dN_imm + dN_contact
-             dnumber=min(dnumber, cloud_number/dt)
+             dnumber=min(dnumber, cloud_number/dt)  !this is limit for condensation/imm fzg
              
              !convert back to gridbox mean
              dnumber=dnumber*cf_liquid

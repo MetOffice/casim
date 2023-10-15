@@ -67,7 +67,7 @@ contains
     ! which species we're depositing on.
 
     type(process_name) :: i_acw, i_acr ! collection processes with cloud and rain
-    real(wp) :: dmass, dnumber, dmad, dnumber_a, dnumber_d
+    real(wp) :: dmass, dnumber, dmad, dnumber_a, dnumber_d, dmac
 
     real(wp) :: th
     real(wp) :: qv
@@ -211,33 +211,50 @@ contains
               dmad=dnumber*dustact(k)%mact3_mean*dustact(k)%nratio3
               dnumber_d=dnumber*dustact(k)%nratio3
             end if
-                
-            aerosol_procs(i_am7, iaproc%id)%column_data(k)=dmad
-            aerosol_procs(i_am6, iaproc%id)%column_data(k)=-dmad       ! <WARNING: putting back in coarse mode
-                
+
+            !checking that mass change from
+            !active insol in ice is negative
+            !and larger in magnitude than epsilon
+            !for sublimation of ice
+            if (dmad < -epsilon(dmad)) then 
+              aerosol_procs(i_am7, iaproc%id)%column_data(k)=dmad
+              aerosol_procs(i_am6, iaproc%id)%column_data(k)=-dmad
+              ! <WARNING: putting back in coarse mode
+              if (l_passivenumbers_ice) then
+                aerosol_procs(i_an12, iaproc%id)%column_data(k)=dnumber_d 
+              end if
+              aerosol_procs(i_an6, iaproc%id)%column_data(k)=-dnumber_d
+              ! <WARNING: putting back in coarse mode
+            endif
+
             if (iaproc%id==i_dsub%id) then
-              dmad=dnumber*aeroice(k)%mact1_mean*aeroice(k)%nratio1
+              dmac=dnumber*aeroice(k)%mact1_mean*aeroice(k)%nratio1
+              dmac=min(dmac,aeroice(k)%mact1/dt)
               dnumber_a=dnumber*aeroice(k)%nratio1
             else if (iaproc%id==i_dssub%id) then
-              dmad=dnumber*aeroice(k)%mact2_mean*aeroice(k)%nratio2
+              dmac=dnumber*aeroice(k)%mact2_mean*aeroice(k)%nratio2
+              dmac=min(dmac,aeroice(k)%mact2/dt)
               dnumber_a=dnumber*aeroice(k)%nratio2
             else if (iaproc%id==i_dgsub%id) then
-              dmad=dnumber*aeroice(k)%mact3_mean*aeroice(k)%nratio3
+              dmac=dnumber*aeroice(k)%mact3_mean*aeroice(k)%nratio3
+              dmac=min(dmac,aeroice(k)%mact3/dt)
               dnumber_a=dnumber*aeroice(k)%nratio3
             end if
-                
-            aerosol_procs(i_am8, iaproc%id)%column_data(k)=dmad
-            aerosol_procs(i_am2, iaproc%id)%column_data(k)=-dmad    ! <WARNING: putting back in accumulation mode
-                
-            if (l_passivenumbers_ice) then
-              aerosol_procs(i_an12, iaproc%id)%column_data(k)=dnumber_d
+
+            !checking that mass change from
+            !active sol in ice is negative
+            !and larger in magnitude than epsilon
+            !for sublimation of ice
+            if (dmac < -epsilon(dmac)) then 
+              aerosol_procs(i_am8, iaproc%id)%column_data(k)=dmac
+              aerosol_procs(i_am2, iaproc%id)%column_data(k)=-dmac
+              ! <WARNING: putting back in accumulation mode                  
+              if (l_passivenumbers) then
+                aerosol_procs(i_an11, iaproc%id)%column_data(k)=dnumber_a
+              end if
+              aerosol_procs(i_an2, iaproc%id)%column_data(k)=-dnumber_a
+              ! <WARNING: putting back in accumulation mode
             end if
-            aerosol_procs(i_an6, iaproc%id)%column_data(k)=-dnumber_d  ! <WARNING: putting back in coarse mode
-                
-            if (l_passivenumbers) then
-              aerosol_procs(i_an11, iaproc%id)%column_data(k)=dnumber_a
-            end if
-            aerosol_procs(i_an2, iaproc%id)%column_data(k)=-dnumber_a  ! <WARNING: putting back in accumulation mode
           end if
         end if
       end if

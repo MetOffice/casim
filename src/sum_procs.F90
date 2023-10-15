@@ -25,7 +25,7 @@ module sum_process
   public sum_aprocs, sum_procs,  tend_temp, aerosol_tend_temp
 contains
 
-  subroutine sum_aprocs(dst, procs, tend, iprocs)
+  subroutine sum_aprocs(dst, nz, procs, tend, iprocs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -35,13 +35,14 @@ contains
     character(len=*), parameter :: RoutineName='SUM_APROCS'
 
     real(wp), intent(in) :: dst  ! step length (s)
+    integer, intent(in) :: nz ! number of points in a column
     type(process_rate), intent(in) :: procs(:,:)
     type(process_name), intent(in) :: iprocs(:)
     real(wp), intent(inout) :: tend(:,:)
 
     !real(wp), allocatable :: tend_temp(:,:) ! Temporary storage for accumulated tendendies
 
-    integer :: k, iq, iproc, i, nz
+    integer :: k, iq, iproc, i
     integer :: nproc
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
@@ -57,7 +58,6 @@ contains
     aerosol_tend_temp=ZERO_REAL_WP
 
     nproc=size(iprocs)
-    nz=size(procs,1)
 
     do i=1, nproc
       if (iprocs(i)%on) then

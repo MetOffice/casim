@@ -5,7 +5,8 @@ module evaporation
   use mphys_switches, only: i_qr, i_nr, i_qv, i_ql, l_2mr, i_am2, &
        i_an2, i_am3, i_an3, i_am4, i_am5, l_process, aero_index, &
        l_separate_rain, i_am6, i_an6, i_am9, l_warm, i_an11, i_an12, l_passivenumbers, &
-       l_passivenumbers_ice, l_inhom_revp, l_gamma_online
+       l_passivenumbers_ice, l_inhom_revp, l_gamma_online, &
+       l_bypass_which_mode, iopt_which_mode
   use mphys_constants, only: Lv,ka, Dv, Rv
   use mphys_parameters, only: c_r, rain_params
   use process_routines, only: process_rate, i_prevp, i_arevp
@@ -14,7 +15,8 @@ module evaporation
   use aerosol_routines, only: aerosol_phys, aerosol_chem, aerosol_active
   use ventfac, only: ventilation_1M_2M, ventilation_3M
   use which_mode_to_use, only : which_mode
-
+  use mphys_die, only: throw_mphys_error, incorrect_opt, std_msg
+  
   implicit none
 
   character(len=*), parameter, private :: ModuleName='EVAPORATION'
@@ -146,18 +148,43 @@ contains
           if (l_process .and. abs(dnumber) >0) then
 
              dmac=dnumber*aeroact(k)%nratio2*aeroact(k)%mact2_mean
+             dmac=min(dmac,aeroact(k)%mact2/dt)
              if (l_separate_rain) then
                 aerosol_procs(i_am5, i_arevp%id)%column_data(k)=-dmac
              else
                 aerosol_procs(i_am4, i_arevp%id)%column_data(k)=-dmac
              end if
+             if (l_passivenumbers) then
+                dnumber_a=-dnumber*aeroact(k)%nratio2
+                aerosol_procs(i_an11, i_arevp%id)%column_data(k)=dnumber_a
+             end if
+
              ! Return aerosol
              if (aero_index%i_accum >0 .and. aero_index%i_coarse >0) then
                 ! Coarse and accumulation mode being used. Which one to return to?
-                call which_mode(dmac, dnumber*aeroact(k)%nratio2, aerophys(k)%rd(aero_index%i_accum), &
+                if (l_bypass_which_mode) then
+                   !Don't use which_mode - just transfer all to either
+                   !accum or coarse mode
+                  if (iopt_which_mode.eq.1) then !All to accum
+                       dmac1=dmac
+                       dmac2=0.0
+                       dnac1=dnumber_a
+                       dnac2=0.0
+                  else if (iopt_which_mode.eq.2) then !All to coarse
+                       dmac1=0.0
+                       dmac2=dmac
+                       dnac1=0.0
+                       dnac2=dnumber_a
+                  else
+                       write(std_msg, '(A)') "incorrect iopt_which_mode option selected"
+                       call throw_mphys_error(incorrect_opt,ModuleName, std_msg)
+                  endif
+                else
+                  call which_mode(dmac, dnumber*aeroact(k)%nratio2, aerophys(k)%rd(aero_index%i_accum), &
                      aerophys(k)%rd(aero_index%i_coarse), aerochem(k)%density(aero_index%i_accum),    &
                      aerophys(k)%sigma(aero_index%i_accum),                                           &
                      dmac1, dmac2, dnac1, dnac2)
+                end if !end of bypass whichmode
                 
                 aerosol_procs(i_am2, i_arevp%id)%column_data(k)=dmac1
                 aerosol_procs(i_an2, i_arevp%id)%column_data(k)=dnac1
@@ -175,19 +202,14 @@ contains
                         aeroact(k)%nratio2
                 end if
              end if
-             
+
              dmacd=dnumber*dustliq(k)%nratio2*dustliq(k)%mact2_mean
              if (.not. l_warm .and. dmacd /=0.0) then
                 aerosol_procs(i_am9, i_arevp%id)%column_data(k)=-dmacd
                 aerosol_procs(i_am6, i_arevp%id)%column_data(k)=dmacd
                 aerosol_procs(i_an6, i_arevp%id)%column_data(k)=dnumber*dustliq(k)%nratio2
              end if
-             
-             if (l_passivenumbers) then
-                dnumber_a=-dnumber*aeroact(k)%nratio2
-                aerosol_procs(i_an11, i_arevp%id)%column_data(k)=dnumber_a
-             end if
-             
+
              if (l_passivenumbers_ice) then
                 dnumber_d=-dnumber*dustliq(k)%nratio2
                 aerosol_procs(i_an12, i_arevp%id)%column_data(k)=dnumber_d
