@@ -65,7 +65,8 @@ contains
     real(wp) :: qv
     real(wp) :: ice_number
     real(wp) :: cloud_number, cloud_mass
-    real(wp) :: qs, qis, Si, Sw, dN_imm, dN_contact, ql
+    real(wp) :: qs, qis, dN_imm, dN_contact, ql
+    real(wp) :: Si(nz), Sw(nz)
     
     real(wp) :: cf_liquid, cf_ice
 
@@ -98,6 +99,31 @@ contains
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
     
     do k = 1, nz
+      if (l_Tcold(k)) then
+        th=qfields(k, i_th)
+        Tk=th*exner(k)
+        qs=qsaturation(Tk, pressure(k)/100.0)
+        qis=qisaturation(Tk, pressure(k)/100.0)
+        qv=qfields(k, i_qv)
+         
+        !!    if (qs==0.0 .or. qis==0.0) then
+        !!      write(std_msg, '(A)') 'Error in saturation calculation - qs or qis is zero'
+        !!      call throw_mphys_error(bad_values,  ModuleName//':'//RoutineName, std_msg)
+        !!    end if
+        if (qs > 0.0) then
+          Sw(k)=qv/qs - 1.0
+        else
+          Sw(k)=-999.0
+        end if
+        if (qis > 0.0) then
+          Si(k)=qv/qis - 1.0
+        else
+          Si(k)=-999.0
+        end if
+      end if
+    end do
+
+    do k = 1, nz
        if (l_Tcold(k)) then
           if (l_prf_cfrac) then
              if (cffields(k,i_cfl) .gt. cfliq_small) then
@@ -120,8 +146,6 @@ contains
           
           ql=qfields(k, i_ql)
           Tk=th*exner(k)
-          qs=qsaturation(Tk, pressure(k)/100.0)
-          qis=qisaturation(Tk, pressure(k)/100.0)
           cloud_mass=qfields(k, i_ql) / cf_liquid
           if (cloud_params%l_2m) then
              cloud_number=qfields(k, i_nl) / cf_liquid
@@ -129,31 +153,23 @@ contains
              cloud_number=cloud_params%fix_N0
           end if
           
-          !!    if (qs==0.0 .or. qis==0.0) then
-          !!      write(std_msg, '(A)') 'Error in saturation calculation - qs or qis is zero'
-          !!      call throw_mphys_error(bad_values,  ModuleName//':'//RoutineName, std_msg)
-          !!    end if
-          
-          Sw=-999.0
-          Si=-999.0
-          if (qs > 0.0) Sw=qv/qs - 1.0
-          if (qis > 0.0) Si=qv/qis - 1.0
           Tc=Tk - 273.15
 
           ! What's the condition for ice nucleation...?
           ! This condition needs to be consistent with the mechanisms we're
           ! parametrized
-          !l_condition=(( Sw >= -1.e-8 .and. TdegC(k) < -8)) .or. Si > 0.25
+          !l_condition=(( Sw(k) >= -1.e-8 .and. TdegC(k) < -8)) .or. Si(k) > 0.25
 
           select case(iopt_inuc)
           case default
-             l_condition=(( Sw >= -0.001 .and. Tc < -8 .and. Tc > -38) .or. Si >= 0.08)
+             l_condition=(( Sw(k) >= -0.001 .and. Tc < -8 .and. Tc > -38) .or. &
+                            Si(k) >= 0.08)
           case (2)
              ! Meyers, same condition as DeMott
              l_condition=( cloud_number >= nl_tidy .and. Tc < 0)
           case (4)
              ! DeMott Depletion of dust (contact and immersion)
-             l_condition=( Sw >= -0.001  .and. Tc < 0 .and. Tc > -38)
+             l_condition=( Sw(k) >= -0.001  .and. Tc < 0 .and. Tc > -38)
           case (6)
              l_condition=( cloud_number >= nl_tidy .and. Tc < 0)
           case (7)
@@ -181,12 +197,12 @@ contains
              case default
                 ! Cooper
                 ! Cooper WA (1986) Ice Initiation in Natural Clouds. Precipitation Enhancement -
-                ! A Scientific Challenge. Meteor Monogr, (Am Meteor Soc, Boston, MA), 21, pp 29–32.
+                ! A Scientific Challenge. Meteor Monogr, (Am Meteor Soc, Boston, MA), 21, pp 29-32.
                 
                 if (ql * cf_liquid > ql_small) then  !only make ice when liquid present
                    dN_imm=5.0*exp(-0.304*Tc)/rho(k)
                    if (iopt_act .eq. 0) then !for fixed number concs adjust the rate
-                                             !to nudge back to climatology- can be negative - 
+                                             !to nudge back to climatology- can be negative -
                                              !this just represents a nudging incr for cooper
                       dN_imm =  (dN_imm-ice_number)*0.8 
                    endif
@@ -194,7 +210,7 @@ contains
              case (2)
                 ! Meyers
                 ! Meyers MP, DeMott PJ, Cotton WR (1992) New primary ice-nucleation
-                ! parameterizations in an explicit cloud model. J Appl Meteorol 31:708–721
+                ! parameterizations in an explicit cloud model. J Appl Meteorol 31:708-721
                 lws_meyers = 6.112 * exp(17.62*Tc/(243.12 + Tc))
                 is_meyers  = 6.112 * exp(22.46*Tc/(272.62 + Tc))
                 dN_imm     = 1.0e3 * exp(meyers_a + meyers_b *(100.0*(lws_meyers/is_meyers-1.0)))/rho(k)
@@ -328,9 +344,8 @@ contains
                       dN_imm=MIN(dustliq(k)%nact1, dN_imm)
                       dN_contact=0.0
                    else if (dustphys(k)%N(1) > ni_tidy) then
-                      dN_contact=dN_imm
+                      dN_contact=MIN(0.9*dustphys(k)%N(1), dN_imm)
                       dN_imm=0.0
-                      dN_contact=MIN(0.9*dustphys(k)%N(1), dN_contact)
                    end if
                 end if
                 
