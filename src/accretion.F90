@@ -30,7 +30,7 @@ contains
   !> This subroutine calculates increments due to the accretion of
   !> cloud water by rain
   !--------------------------------------------------------------------------- !
-  subroutine racw(dt, qfields, cffields, aerofields, procs, params, aerosol_procs)
+  subroutine racw(ixy_inner, dt, qfields, cffields, aerofields, procs, params, aerosol_procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -39,6 +39,7 @@ contains
 
     ! Subroutine arguments
 
+    integer, intent(in) :: ixy_inner
     real(wp), intent(in) :: dt !< microphysics time increment (s)   
                          !! dt NEEDED for 3rd moment code
     real(wp), intent(in) :: qfields(:,:)     !< hydrometeor fields
@@ -124,7 +125,7 @@ contains
              n0=dist_n0(k,params%id)
              mu=dist_mu(k,params%id)
              lam=dist_lambda(k,params%id)
-             dmass=sweepout(n0, lam, mu, params, rho(k))*cloud_mass
+             dmass=sweepout(n0, lam, mu, params, rho(k,ixy_inner))*cloud_mass
           end if
           
           if (l_preventsmall .and. dmass < qr_small) dmass=0.0

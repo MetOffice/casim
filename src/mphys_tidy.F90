@@ -160,7 +160,7 @@ contains
 
   end subroutine finalise_mphystidy
 
-  subroutine qtidy(dt, nz, qfields, procs, aerofields, aeroact, dustact, aeroice, dustliq, &
+  subroutine qtidy(ixy_inner, dt, nz, qfields, procs, aerofields, aeroact, dustact, aeroice, dustliq, &
        aeroprocs, i_proc, i_aproc, l_negonly)
 
     USE yomhook, ONLY: lhook, dr_hook
@@ -170,6 +170,7 @@ contains
 
     character(len=*), parameter :: RoutineName='QTIDY'
 
+    integer, intent(in) :: ixy_inner
     integer, intent(in) :: nz
     real(wp), intent(in) :: dt
     real(wp), intent(in) :: qfields(:,:), aerofields(:,:)
@@ -427,7 +428,7 @@ contains
       dmass=qfields(k, i_ql)/dt
       procs(i_ql,i_proc%id)%column_data(k)=-dmass
       if (l_tidy_conserve_q)procs(i_qv,i_proc%id)%column_data(k)=dmass
-      if (l_tidy_conserve_E)procs(i_th,i_proc%id)%column_data(k)=-Lv*dmass/cp/exner(k)
+      if (l_tidy_conserve_E)procs(i_th,i_proc%id)%column_data(k)=-Lv*dmass/cp/exner(k,ixy_inner)
       if (l_2mc) then
         dnumber=qfields(k, i_nl)/dt
         procs(i_nl,i_proc%id)%column_data(k)=-dnumber
@@ -461,7 +462,7 @@ contains
       dmass=qfields(k, i_qr)/dt
       procs(i_qr,i_proc%id)%column_data(k)=-dmass
       if (l_tidy_conserve_q) procs(i_qv,i_proc%id)%column_data(k)=procs(i_qv,i_proc%id)%column_data(k) + dmass
-      if (l_tidy_conserve_E) procs(i_th,i_proc%id)%column_data(k)=procs(i_th,i_proc%id)%column_data(k) - Lv*dmass/cp/exner(k)
+      if (l_tidy_conserve_E) procs(i_th,i_proc%id)%column_data(k)=procs(i_th,i_proc%id)%column_data(k) - Lv*dmass/cp/exner(k,ixy_inner)
       if (l_2mr) then
         dnumber=qfields(k, i_nr)/dt
         procs(i_nr,i_proc%id)%column_data(k)=-dnumber
@@ -506,7 +507,7 @@ contains
         dmass=qfields(k, i_qi)/dt
         procs(i_qi,i_proc%id)%column_data(k)=-dmass
         if (l_tidy_conserve_q) procs(i_qv,i_proc%id)%column_data(k)=procs(i_qv,i_proc%id)%column_data(k)+dmass
-        if (l_tidy_conserve_E) procs(i_th,i_proc%id)%column_data(k)=procs(i_th,i_proc%id)%column_data(k)-Ls*dmass/cp/exner(k)
+        if (l_tidy_conserve_E) procs(i_th,i_proc%id)%column_data(k)=procs(i_th,i_proc%id)%column_data(k)-Ls*dmass/cp/exner(k,ixy_inner)
         if (l_2mi) then
           dnumber=qfields(k, i_ni)/dt
           procs(i_ni,i_proc%id)%column_data(k)=-dnumber
@@ -536,7 +537,7 @@ contains
         dmass=qfields(k, i_qs)/dt
         procs(i_qs,i_proc%id)%column_data(k)=-dmass
         if (l_tidy_conserve_q) procs(i_qv,i_proc%id)%column_data(k)=procs(i_qv,i_proc%id)%column_data(k)+dmass
-        if (l_tidy_conserve_E) procs(i_th,i_proc%id)%column_data(k)=procs(i_th,i_proc%id)%column_data(k)-Ls*dmass/cp/exner(k)
+        if (l_tidy_conserve_E) procs(i_th,i_proc%id)%column_data(k)=procs(i_th,i_proc%id)%column_data(k)-Ls*dmass/cp/exner(k,ixy_inner)
         if (l_2ms) then
           dnumber=qfields(k, i_ns)/dt
           procs(i_ns,i_proc%id)%column_data(k)=-dnumber
@@ -569,7 +570,7 @@ contains
         dmass=qfields(k, i_qg)/dt
         procs(i_qg,i_proc%id)%column_data(k)=-dmass
         if (l_tidy_conserve_q)procs(i_qv,i_proc%id)%column_data(k)=procs(i_qv,i_proc%id)%column_data(k)+dmass
-        if (l_tidy_conserve_E)procs(i_th,i_proc%id)%column_data(k)=procs(i_th,i_proc%id)%column_data(k)-Ls*dmass/cp/exner(k)
+        if (l_tidy_conserve_E)procs(i_th,i_proc%id)%column_data(k)=procs(i_th,i_proc%id)%column_data(k)-Ls*dmass/cp/exner(k,ixy_inner)
         if (l_2mg) then
           dnumber=qfields(k, i_ng)/dt
           procs(i_ng,i_proc%id)%column_data(k)=-dnumber
@@ -656,7 +657,7 @@ contains
 
   end subroutine qtidy
 
-  subroutine tidy_qin(qfields, l_negonly)
+  subroutine tidy_qin(ixy_inner, qfields, l_negonly)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -665,6 +666,7 @@ contains
 
     character(len=*), parameter :: RoutineName='TIDY_QIN'
 
+    integer, intent(in) :: ixy_inner
     real(wp), intent(inout) :: qfields(:,:)
     logical, intent(in), optional :: l_negonly
 
@@ -767,7 +769,7 @@ contains
       ! Now reset things...
       !==============================
       if (ql_reset .or. nl_reset) then
-        if (l_tidy_conserve_E) qfields(k,i_th)=qfields(k,i_th)-Lv/cp*qfields(k,i_ql)/exner(k)
+        if (l_tidy_conserve_E) qfields(k,i_th)=qfields(k,i_th)-Lv/cp*qfields(k,i_ql)/exner(k,ixy_inner)
         if (l_tidy_conserve_q) qfields(k,i_qv)=qfields(k,i_qv)+qfields(k,i_ql)
         qfields(k,i_ql)=0.0
         if (l_2mc) then
@@ -776,7 +778,7 @@ contains
       end if
 
       if (qr_reset .or. nr_reset .or. m3r_reset) then
-        if (l_tidy_conserve_E) qfields(k,i_th)=qfields(k,i_th)-Lv/cp*qfields(k,i_qr)/exner(k)
+        if (l_tidy_conserve_E) qfields(k,i_th)=qfields(k,i_th)-Lv/cp*qfields(k,i_qr)/exner(k,ixy_inner)
         if (l_tidy_conserve_q) qfields(k,i_qv)=qfields(k,i_qv)+qfields(k,i_qr)
         qfields(k,i_qr)=0.0
         if (l_2mr) then
@@ -788,7 +790,7 @@ contains
       end if
 
       if (qi_reset .or. ni_reset) then
-        if (l_tidy_conserve_E) qfields(k,i_th)=qfields(k,i_th)-Ls/cp*qfields(k,i_qi)/exner(k)
+        if (l_tidy_conserve_E) qfields(k,i_th)=qfields(k,i_th)-Ls/cp*qfields(k,i_qi)/exner(k,ixy_inner)
         if (l_tidy_conserve_q) qfields(k,i_qv)=qfields(k,i_qv)+qfields(k,i_qi)
         qfields(k,i_qi)=0.0
         if (l_2mi) then
@@ -797,7 +799,7 @@ contains
       end if
 
       if (qs_reset .or. ns_reset .or. m3s_reset) then
-        if (l_tidy_conserve_E) qfields(k,i_th)=qfields(k,i_th)-Ls/cp*qfields(k,i_qs)/exner(k)
+        if (l_tidy_conserve_E) qfields(k,i_th)=qfields(k,i_th)-Ls/cp*qfields(k,i_qs)/exner(k,ixy_inner)
         if (l_tidy_conserve_q) qfields(k,i_qv)=qfields(k,i_qv)+qfields(k,i_qs)
         qfields(k,i_qs)=0.0
         if (l_2ms) then
@@ -809,7 +811,7 @@ contains
       end if
 
       if (qg_reset .or. ng_reset .or. m3g_reset) then
-        if (l_tidy_conserve_E) qfields(k,i_th)=qfields(k,i_th)-Ls/cp*qfields(k,i_qg)/exner(k)
+        if (l_tidy_conserve_E) qfields(k,i_th)=qfields(k,i_th)-Ls/cp*qfields(k,i_qg)/exner(k,ixy_inner)
         if (l_tidy_conserve_q) qfields(k,i_qv)=qfields(k,i_qv)+qfields(k,i_qg)
         qfields(k,i_qg)=0.0
         if (l_2mg) then
@@ -1264,7 +1266,7 @@ contains
 
     ! Modified so it can also prevent sublimation processes from putting
     ! back too much vapour and so become supersaturated
-  subroutine ensure_saturated(nz, l_Tcold, dt, qfields, procs, iprocs_scalable)
+  subroutine ensure_saturated(ixy_inner, nz, l_Tcold, dt, qfields, procs, iprocs_scalable)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -1273,6 +1275,7 @@ contains
 
     character(len=*), parameter :: RoutineName='ENSURE_SATURATED'
 
+    integer, intent(in) :: ixy_inner
     integer, intent(in) :: nz
     logical, intent(in) :: l_Tcold(:) 
     real(wp), intent(in) :: dt
@@ -1309,7 +1312,7 @@ contains
     if (delta_scalable > spacing(delta_scalable)) then
       th=qfields(k, i_th)
 
-      qis=qisaturation(th*exner(k), pressure(k)/100.0)
+      qis=qisaturation(th*exner(k,ixy_inner), pressure(k,ixy_inner)/100.0)
 
       delta_sat=abs(qis-qfields(k, i_qv))
 

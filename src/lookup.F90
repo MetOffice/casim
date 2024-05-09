@@ -197,7 +197,7 @@ contains
 
   end subroutine get_slope_generic
 
-  subroutine get_slope_generic_kf(k, params, n0, lam, mu, lams, mass, Tk, number, &
+  subroutine get_slope_generic_kf(ixy_inner, k, params, n0, lam, mu, lams, mass, Tk, number, &
                                m3)
 
     USE yomhook, ONLY: lhook, dr_hook
@@ -207,6 +207,7 @@ contains
 
     character(len=*), parameter :: RoutineName='GET_SLOPE_GENERIC_KF'
 
+    integer, intent(in) :: ixy_inner
     integer, intent(in) :: k
     type(hydro_params), intent(inout) :: params
     real(wp), intent(out) :: n0, lam, mu
@@ -246,7 +247,7 @@ contains
       n_p = 0.0
       m_s(1)=0.0
       cficei(1) = 1.0
-      rhoa(1) = rho(k)
+      rhoa(1) = rho(k,ixy_inner)
       qcf(1) = mass
       Ta(1) = Tk
 

@@ -4,6 +4,10 @@ module mphys_parameters
 
   implicit none
 
+  real(wp) :: shipway_time, micro_time
+
+  integer :: nxy_inner = 1 ! default inner loop size
+
   ! some numbers
   integer :: nz ! number of levels
   integer :: nq ! number of q fields

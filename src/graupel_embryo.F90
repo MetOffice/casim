@@ -17,7 +17,7 @@ module graupel_embryo
   public graupel_embryos
 contains
 
-  subroutine graupel_embryos(dt, nz, l_Tcold, qfields, cffields, procs)
+  subroutine graupel_embryos(ixy_inner, dt, nz, l_Tcold, qfields, cffields, procs)
 
     !< Subroutine to convert some of the small rimed snow to graupel
     !< (Ikawa & Saito 1991)
@@ -32,6 +32,7 @@ contains
     implicit none
 
     ! Subroutine arguments
+    integer, intent(in) :: ixy_inner
     real(wp), intent(in) :: dt
     integer, intent(in) :: nz
     logical, intent(in) :: l_Tcold(:)
@@ -113,12 +114,12 @@ contains
              rhogms=graupel_params%density-snow_params%density  !this is inconsistent for mass~D**2
              
              Garg=2.0+2*snow_params%b_x + snow_mu
-            pgsacw = (0.75*alpha*dt*pi/rhogms)*Eff*Eff*rho(k)*rho(k)*cloud_mass*cloud_mass   &
+            pgsacw = (0.75*alpha*dt*pi/rhogms)*Eff*Eff*rho(k,ixy_inner)*rho(k,ixy_inner)*cloud_mass*cloud_mass   &
            *snow_params%a_x*snow_params%a_x*snow_n0*GammaFunc(Garg)*(2*snow_params%f_x + 2*snow_lam)**(-Garg) &
            !the 2* lambda etc doesnt look the same as in reisner)
-           *(rho0/rho(k))**(2*snow_params%g_x) !in-graupel rate
+           *(rho0/rho(k,ixy_inner))**(2*snow_params%g_x) !in-graupel rate
              
-             dnembryo=max(snow_params%density*pgsacw/rhogms/embryo_mass/rho(k), 0.0_wp)
+             dnembryo=max(snow_params%density*pgsacw/rhogms/embryo_mass/rho(k,ixy_inner), 0.0_wp)
              dnumber=min(dnembryo, 0.95*snow_number/dt)
              
              !use mixed-phase overlap function

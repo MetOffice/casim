@@ -83,7 +83,7 @@ module process_routines
 contains
 
   ! Allocate space to store the microphysical process rates
-  subroutine allocate_procs(procs, nz, nprocs, ntotalq)
+  subroutine allocate_procs(nxy_inner, procs, nz, nprocs, ntotalq)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -91,13 +91,14 @@ contains
     implicit none
 
     character(len=*), parameter :: RoutineName='ALLOCATE_PROCS'
-
-    type(process_rate), intent(inout) :: procs(:,:)
+  
+    integer, intent(in) :: nxy_inner
+    type(process_rate), intent(inout) :: procs(:,:,:)
     integer, intent(in) :: nz      ! number of height levels
     integer, intent(in) :: nprocs  ! number of physical processes
     integer, intent(in) :: ntotalq ! number of q or aerosol fields
 
-    integer :: iproc, iq
+    integer :: iproc, iq, ixy
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -108,14 +109,19 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+    do ixy=1, nxy_inner
      do iproc=1, nprocs
        do iq=1,ntotalq
-         allocate(procs(iq,iproc)%column_data(nz))
+         allocate(procs(iq,iproc,ixy)%column_data(nz))
        end do
      end do
-    
+    end do
 
-     call zero_procs(procs)
+    do ixy=1, nxy_inner
+       call zero_procs(procs(:,:,ixy))
+    end do
+
+    !  call zero_procs(procs)
 
      IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
@@ -147,7 +153,7 @@ contains
 
     lb1=lbound(procs,1)
     ub1=ubound(procs,1)
-    
+
     if(present(iprocs)) then 
        nproc = size(iprocs)
        do i = 1, nproc
@@ -160,7 +166,7 @@ contains
        lb2=lbound(procs,2)
        ub2=ubound(procs,2)
        do iproc=lb2, ub2
-          do iq=lb1,ub1
+          do iq=lb1, ub1
              procs(iq,iproc)%column_data(:)=0.0
           end do
        end do
@@ -170,7 +176,7 @@ contains
   end subroutine zero_procs
  
 
-  subroutine deallocate_procs(procs)
+  subroutine deallocate_procs(nxy_inner, procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -179,9 +185,10 @@ contains
 
     character(len=*), parameter :: RoutineName='DEALLOCATE_PROCS'
 
-    type(process_rate), intent(inout) :: procs(:,:)
+    integer, intent(in) :: nxy_inner
+    type(process_rate), intent(inout) :: procs(:,:,:)
 
-    integer :: iproc, iq
+    integer :: iproc, iq, ixy
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -192,9 +199,11 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-    do iproc=lbound(procs,2), ubound(procs,2)
-      do iq=lbound(procs,1), ubound(procs,1)
-        if (allocated(procs(iq,iproc)%column_data)) deallocate(procs(iq,iproc)%column_data)
+    do ixy=1, nxy_inner
+       do iproc=lbound(procs,2), ubound(procs,2)
+          do iq=lbound(procs,1), ubound(procs,1)
+             if (allocated(procs(iq,iproc,ixy)%column_data)) deallocate(procs(iq,iproc,ixy)%column_data)
+          end do
       end do
     end do
 

@@ -21,7 +21,7 @@ module autoconversion
   public raut
 contains
 
-  subroutine raut(dt, qfields, cffields, aerofields, procs, aerosol_procs)
+  subroutine raut(ixy_inner, dt, qfields, cffields, aerofields, procs, aerosol_procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -29,6 +29,7 @@ contains
     implicit none
 
     ! Subroutine arguments
+    integer, intent(in) :: ixy_inner
     real(wp), intent(in) :: dt
     real(wp), intent(in) :: qfields(:,:), aerofields(:,:),    cffields(:,:)
     type(process_rate), intent(inout), target :: procs(:,:)
@@ -83,11 +84,11 @@ contains
          cloud_number * cf_liquid > nl_small) then
       if (l_kk00) then
          dmass = 1350.*cloud_mass**2.47*  &
-              (cloud_number/1.e6*rho(k))**(-1.79)
+              (cloud_number/1.e6*rho(k,ixy_inner))**(-1.79)
       else
          ! new method, k13 scheme
          dmass = 7.98e10*cloud_mass**4.22*  &
-              (cloud_number/1.e6*rho(k))**(-3.01)
+              (cloud_number/1.e6*rho(k,ixy_inner))**(-3.01)
       endif
 
       dmass=min(.25*cloud_mass/dt, dmass)
