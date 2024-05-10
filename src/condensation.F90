@@ -96,7 +96,7 @@ contains
 
   end subroutine condevp_finalise  
 
-  subroutine condevp(ixy_inner, dt, nz, qfields, procs, aerophys, aerochem,   &
+  subroutine condevp(dt, nz, qfields, procs, aerophys, aerochem,   &
        aeroact, dustphys, dustchem, dustliq, aerosol_procs, rhcrit_lev)
 
     USE yomhook, ONLY: lhook, dr_hook
@@ -105,7 +105,6 @@ contains
     implicit none
 
     ! Subroutine arguments
-    integer, intent(in) :: ixy_inner
     real(wp), intent(in) :: dt
     integer, intent(in) :: nz
     real(wp), intent(in), target :: qfields(:,:)
@@ -193,15 +192,15 @@ contains
       if (l_cfrac_casim_diag_scheme) then
         ! work out saturation vapour pressure/mixing ratio based on
         ! liquid water temperature
-        abs_liquid_T=(th*exner(k,ixy_inner))-((lv * cloud_mass )/cp)
-        qs=qsaturation(abs_liquid_T, pressure(k,ixy_inner)/100.0)
+        abs_liquid_T=(th*exner(k))-((lv * cloud_mass )/cp)
+        qs=qsaturation(abs_liquid_T, pressure(k)/100.0)
       else
-        qs=qsaturation(th*exner(k,ixy_inner), pressure(k,ixy_inner)/100.0)
+        qs=qsaturation(th*exner(k), pressure(k)/100.0)
       end if
     
     else ! casim_parent /= parent_um
       qv=qfields(k, i_qv)
-      qs=qsaturation(th*exner(k,ixy_inner), pressure(k,ixy_inner)/100.0)
+      qs=qsaturation(th*exner(k), pressure(k)/100.0)
 
     end if ! casim_parent == parent_um
 
@@ -234,12 +233,12 @@ contains
         ! cloud fraction, which is used to derive in-cloud mass and number
         !
         !IMPORTANT - qv is total water at this stage!
-        call cloud_frac_casim_mphys(k, pressure(k,ixy_inner), th*exner(k,ixy_inner), abs_liquid_T, rhcrit_lev(k),  &
+        call cloud_frac_casim_mphys(k, pressure(k), th*exner(k), abs_liquid_T, rhcrit_lev(k),  &
              qs, qv, cloud_mass, qfields(k,i_qr), cloud_mass_new )
 
         dmass=max(-cloud_mass, (cloud_mass_new-cloud_mass))/dt
       else
-        dqsdt=dqwsatdt(qs, th*exner(k,ixy_inner))
+        dqsdt=dqwsatdt(qs, th*exner(k))
         qsatfac=1.0/(1.0 + Lv/Cp*dqsdt)
         dmass=max(-cloud_mass, (qv-qs)*qsatfac )/dt
       end if ! l_cfrac_casim_diag_scheme
@@ -252,10 +251,10 @@ contains
           cfrac = 1.0_wp
           if (cloud_params%l_2m) then
             ! If significant cloud formed then assume minimum velocity of 0.01m/s
-            w_act=max(w(k,ixy_inner), 0.01_wp)
+            w_act=max(w(k), 0.01_wp)
 
             call activate(tau, cloud_mass, cloud_number, w_act,         &
-                 rho(k,ixy_inner), dnumber, dmac, th*exner(k,ixy_inner), pressure(k,ixy_inner),       &
+                 rho(k), dnumber, dmac, th*exner(k), pressure(k),       &
                  cfrac, cfrac_old, aerophys(k), aerochem(k),            & 
                  aeroact(k), dustphys(k), dustchem(k), dustliq(k),      &
                  dnccn_all, dmac_all, dnumber_d, dmad,                  &

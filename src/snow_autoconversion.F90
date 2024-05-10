@@ -27,7 +27,7 @@ module snow_autoconversion
   public saut
 contains
 
-  subroutine saut(ixy_inner, dt, nz, l_Tcold, qfields, procs)
+  subroutine saut(dt, nz, l_Tcold, qfields, procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -36,7 +36,6 @@ contains
 
     character(len=*), parameter :: RoutineName='SAUT'
 
-    integer, intent(in) :: ixy_inner
     real(wp), intent(in) :: dt
     integer, intent(in) :: nz
     logical, intent(in) :: l_Tcold(:) 
@@ -91,7 +90,7 @@ contains
              if (l_harrington) then
                 qv=qfields(k, i_qv)
                 th=qfields(k, i_th)
-                qis=qisaturation(th*exner(k,ixy_inner), pressure(k,ixy_inner)/100.0)
+                qis=qisaturation(th*exner(k), pressure(k)/100.0)
                 l_condition=qv > qis
              else
                 l_condition=ice_lam < lami_min ! LEM autconversion
@@ -106,8 +105,8 @@ contains
              
              if (l_harrington) then
                 !< AB This is used elsewhere, so we should do it more efficiently.
-                AB=1.0/(Lv*Lv/(Rv*ka*TdegK(k,ixy_inner)*TdegK(k,ixy_inner))*rho(k,ixy_inner)+1.0/(Dv*qis))
-                dnumber=4.0/DImax/ice_params%density*(qv-qis)*rho(k,ixy_inner)*ice_number*exp(-ice_lam*DImax)*Dv/AB
+                AB=1.0/(Lv*Lv/(Rv*ka*TdegK(k)*TdegK(k))*rho(k)+1.0/(Dv*qis))
+                dnumber=4.0/DImax/ice_params%density*(qv-qis)*rho(k)*ice_number*exp(-ice_lam*DImax)*Dv/AB
                 dnumber=min(dnumber,0.9*ice_number/dt)
                 dmass=pi/6.0*ice_params%density*DImax**3*dnumber
                 dmass=min(dmass, 0.7*ice_mass/dt)

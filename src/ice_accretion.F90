@@ -27,7 +27,7 @@ module ice_accretion
   public iacc
 contains
 
-  subroutine iacc(ixy_inner, dt, nz, l_Tcold, params_X, params_Y, params_Z, qfields, cffields, procs, &
+  subroutine iacc(dt, nz, l_Tcold, params_X, params_Y, params_Z, qfields, cffields, procs, &
                   l_sigevap, aeroact, dustliq, aerosol_procs, params_snow)
     !
     !< CODE TIDYING: Move efficiencies into parameters
@@ -38,7 +38,6 @@ contains
     implicit none
 
     ! Subroutine arguments
-    integer, intent(in) :: ixy_inner
     real(wp), intent(in) :: dt
     integer, intent(in) :: nz
     logical, intent(in) :: l_Tcold(:) 
@@ -202,7 +201,7 @@ contains
       ! determine resulting hydrometeor type from snow collecting rain
       !
       if (params_X%id .eq. snow_params%id .and.  params_Y%id .eq. rain_params%id) then
-         if (TdegK(k,ixy_inner) < 268.15 .and. l_g .and. l_srg) then
+         if (TdegK(k) < 268.15 .and. l_g .and. l_srg) then
             ! resulting hydrometeor is graupel
             Zid = params_Z%id 
             Zi_1m = params_Z%i_1m 
@@ -275,11 +274,11 @@ contains
         case (4_iwp) !snow collects
           iproc=i_saci
           !Eff=1.0
-          Eff = min(1.0_wp, 0.2*exp(0.08*TdegC(k,ixy_inner)))
+          Eff = min(1.0_wp, 0.2*exp(0.08*TdegC(k)))
         case (5_iwp) !graupel collects
           iproc=i_gaci
           !Eff=1.0
-          Eff = min(1.0_wp, 0.2*exp(0.08*TdegC(k,ixy_inner)))
+          Eff = min(1.0_wp, 0.2*exp(0.08*TdegC(k)))
         end select
       case(4_iwp) ! snow is collected
         l_slow=.false. ! Y catagory falls slowly compared to X
@@ -287,7 +286,7 @@ contains
         case (5_iwp) !graupel collects
           iproc=i_gacs
           !Eff=1.0
-          Eff = min(1.0_wp, 0.2*exp(0.08*TdegC(k,ixy_inner)))
+          Eff = min(1.0_wp, 0.2*exp(0.08*TdegC(k)))
         end select
       end select
 
@@ -299,7 +298,7 @@ contains
 
       if (l_slow) then  ! collected species is approximated to have zero fallspeed
          !if (l_gamma_online) then
-            dmass_Y=-Eff*sweepout(n0_X, lam_X, mu_X, params_X, rho(k,ixy_inner))*mass_Y
+            dmass_Y=-Eff*sweepout(n0_X, lam_X, mu_X, params_X, rho(k))*mass_Y
          !else
          !   dmass_Y=-Eff*sweepout_1M2M(n0_X, lam_X, params_X, rho(k))*mass_Y
          !endif
@@ -318,7 +317,7 @@ contains
           end if
 
           !if (l_gamma_online) then
-             dmass_X=-Eff*sweepout(n0_X, lam_X, mu_X, params_X, rho(k,ixy_inner), mass_weight=.true.) * number_Y
+             dmass_X=-Eff*sweepout(n0_X, lam_X, mu_X, params_X, rho(k), mass_weight=.true.) * number_Y
           !else
           !   dmass_X=-Eff*sweepout_1M2M(n0_X, lam_X, params_X, rho(k), mass_weight=.true.) * number_Y
           !endif
@@ -338,7 +337,7 @@ contains
         lam_Y=dist_lambda(k,params_Y%id)
 
         !if (l_gamma_online) then
-           dmass_Y=-Eff*binary_collection(n0_X, lam_X, mu_X, n0_Y, lam_Y, mu_Y, params_X, params_Y, rho(k,ixy_inner), mass_weight=.true.)
+           dmass_Y=-Eff*binary_collection(n0_X, lam_X, mu_X, n0_Y, lam_Y, mu_Y, params_X, params_Y, rho(k), mass_weight=.true.)
         !else
         !   dmass_Y=-Eff*binary_collection_1M2M(n0_X, lam_X, n0_Y, lam_Y, params_X, params_Y, rho(k), mass_weight=.true.)
         !endif
@@ -346,7 +345,7 @@ contains
 
         if (params_Y%l_2m) then
            !if (l_gamma_online) then
-              dnumber_Y=-Eff*binary_collection(n0_X, lam_X, mu_X, n0_Y, lam_Y, mu_Y, params_X, params_Y, rho(k,ixy_inner))
+              dnumber_Y=-Eff*binary_collection(n0_X, lam_X, mu_X, n0_Y, lam_Y, mu_Y, params_X, params_Y, rho(k))
            !else
            !   dnumber_Y=-Eff*binary_collection_1M2M(n0_X, lam_X, n0_Y, lam_Y, params_X, params_Y, rho(k))
            !endif
@@ -355,7 +354,7 @@ contains
         if (l_alternate_Z) then ! We move resulting collision to another species.
            !if (l_gamma_online) then 
               dmass_X=-Eff*binary_collection(n0_Y, lam_Y, mu_Y, n0_X, lam_X, mu_X,                     &
-                      params_Y, params_X, rho(k,ixy_inner), mass_weight=.true.)
+                      params_Y, params_X, rho(k), mass_weight=.true.)
            !else
            !   dmass_X=-Eff*binary_collection_1M2M(n0_Y, lam_Y, n0_X, lam_X, params_Y, params_X, rho(k), mass_weight=.true.)
            !endif

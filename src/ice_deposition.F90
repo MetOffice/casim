@@ -36,7 +36,7 @@ contains
   !< Subroutine to determine the deposition/sublimation onto/from
   !< ice, snow and graupel.  There is no source/sink for number
   !< when undergoing deposition, but there is a sink when sublimating.
-  subroutine idep(ixy_inner, dt, nz, l_Tcold, params, qfields, cffields, procs, dustact, aeroice, aerosol_procs)
+  subroutine idep(dt, nz, l_Tcold, params, qfields, cffields, procs, dustact, aeroice, aerosol_procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -47,7 +47,6 @@ contains
     implicit none
 
     ! Subroutine arguments
-    integer, intent(in) :: ixy_inner
     real(wp), intent(IN) :: dt
     integer, intent(IN) :: nz
     logical, intent(in) :: l_Tcold(:) 
@@ -97,7 +96,7 @@ contains
     do k = 1, nz
       if (l_Tcold(k)) then
         th=qfields(k, i_th)
-        qis(k) = qisaturation(th*exner(k,ixy_inner), pressure(k,ixy_inner)/100.0)
+        qis(k) = qisaturation(th*exner(k), pressure(k)/100.0)
       end if
     end do
 
@@ -162,18 +161,18 @@ contains
           lam=dist_lambda(k,params%id)
             
           if (l_gamma_online) then
-            call ventilation_3M(ixy_inner, k, V_x, n0, lam, mu, params)
+            call ventilation_3M(k, V_x, n0, lam, mu, params)
           else
-            call ventilation_1M_2M(ixy_inner, k, V_x, n0, lam, mu, params)
+            call ventilation_1M_2M(k, V_x, n0, lam, mu, params)
           endif
              
-          AB=1.0/(Ls*Ls/(Rv*ka*TdegK(k,ixy_inner)*TdegK(k,ixy_inner))*rho(k,ixy_inner)+1.0/(Dv*qis(k)))
+          AB=1.0/(Ls*Ls/(Rv*ka*TdegK(k)*TdegK(k))*rho(k)+1.0/(Dv*qis(k)))
           dmass=(qv/qis(k)-1.0)*V_x*AB *cf ! grid mean
              
           ! Include latent heat effects of collection of rain and cloud
           ! as done in Milbrandt & Yau (2005)
           if (l_latenteffects) then
-            dmass=dmass - Lf*Ls/(Rv*ka*TdegK(k,ixy_inner)*TdegK(k,ixy_inner))                      &
+            dmass=dmass - Lf*Ls/(Rv*ka*TdegK(k)*TdegK(k))                      &
                   *(procs(cloud_params%i_1m, i_acw%id)%column_data(k)          &
                   + procs(rain_params%i_1m, i_acr%id)%column_data(k))
           end if

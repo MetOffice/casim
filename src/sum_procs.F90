@@ -81,7 +81,7 @@ contains
 
   end subroutine sum_aprocs
 
-  subroutine sum_procs(ixy_inner, dst, nz, procs, tend, iprocs, l_thermalexchange, i_thirdmoment, qfields, l_passive )
+  subroutine sum_procs(dst, nz, procs, tend, iprocs, l_thermalexchange, i_thirdmoment, qfields, l_passive )
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -90,7 +90,6 @@ contains
 
     character(len=*), parameter :: RoutineName='SUM_PROCS'
 
-    integer, intent(in) :: ixy_inner
     real(wp), intent(in) :: dst  ! step length (s)
     integer, intent(in) :: nz ! number of points in a column
     type(process_rate), intent(in) :: procs(:,:)
@@ -246,12 +245,12 @@ contains
     ! (this overwrites anything that was already stored in the theta tendency)
     if (do_thermal) then
        do k=1,nz
-          tend_temp(k, i_th)=(tend_temp(k, i_ql)+tend_temp(k,i_qr))*Lv/cp * rexner(k,ixy_inner)
+          tend_temp(k, i_th)=(tend_temp(k, i_ql)+tend_temp(k,i_qr))*Lv/cp * rexner(k)
        enddo
        if (.not. l_warm) then 
           do k=1, nz
              tend_temp(k, i_th)=tend_temp(k,i_th)+ &
-               (tend_temp(k, i_qi)+tend_temp(k, i_qs)+tend_temp(k,i_qg))*Ls/cp *rexner(k,ixy_inner)
+               (tend_temp(k, i_qi)+tend_temp(k, i_qs)+tend_temp(k,i_qg))*Ls/cp *rexner(k)
           end do
        endif
     end if
