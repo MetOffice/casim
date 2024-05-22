@@ -1042,6 +1042,11 @@ contains
       aerofields=aerofields_mod
     end if
 
+    do k=1,nz
+      l_Twarm=TdegK(k) > 273.15
+      l_Tcold(k)=.not. l_Twarm
+    enddo
+
     do n=1,nsubsteps
 
       call preconditioner(qfields)
@@ -1066,12 +1071,6 @@ contains
       if (aerosol_option > 0)  call examine_aerosol(aerofields, qfields, aerophys, aerochem, &
            aeroact, dustphys, dustchem, dustact, aeroice, dustliq, icall=1)
 
-      do k=1,nz
-
-          l_Twarm=TdegK(k) > 273.15
-          l_Tcold(k)=.not. l_Twarm
-       
-       enddo
        !
        !=================================
        !
