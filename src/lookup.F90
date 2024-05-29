@@ -162,9 +162,9 @@ contains
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     m1=mass/params%c_x
-    p1=params%p1
-    p2=params%p2
-    p3=params%p3
+    ! p1=params%p1
+    ! p2=params%p2
+    ! p3=params%p3
 
     ! if (params%l_3m) then
     !   if (l_passive3m) then

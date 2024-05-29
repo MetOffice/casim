@@ -89,9 +89,6 @@ contains
     real(wp) :: cf , q1_in, m2_in
     integer :: i_cf
 
-
-    character(2) :: chcall
-
     character(len=*), parameter :: RoutineName='QUERY_DISTRIBUTIONS'
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
@@ -102,13 +99,6 @@ contains
     ! End of header, no more declarations beyond here
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
-
-    ! Some diagnostic strings
-    if (present(icall)) then
-      write(chcall,'(A1,i1)') '_', icall
-    else
-      chcall=''
-    end if
 
     mu_maxes_calc=max_mu_frac*max_mu
 
