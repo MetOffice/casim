@@ -1205,7 +1205,7 @@ contains
   ! mass than is available and then rescales all processes
   ! (NB this follows any rescaling due to the parent microphysical processes and
   ! we might lose consistency between number and mass here)
-  subroutine ensure_positive_aerosol(k, dt, aerofields, aerosol_procs, iprocs)
+  subroutine ensure_positive_aerosol(nz, dt, aerofields, aerosol_procs, iprocs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -1214,13 +1214,13 @@ contains
 
     character(len=*), parameter :: RoutineName='ENSURE_POSITIVE_AEROSOL'
 
-    integer, intent(in) :: k
+    integer, intent(in) :: nz
     real(wp), intent(in) :: dt
     real(wp), intent(in) :: aerofields(:,:)
     type(process_rate), intent(inout) :: aerosol_procs(:,:)  ! aerosol process rates
     type(process_name), intent(in) :: iprocs(:)    ! list of processes to rescale
 
-    integer :: iq, iproc, id
+    integer :: iq, iproc, id, k
     real(wp) :: ratio, delta_scalable
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
@@ -1232,6 +1232,7 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+    do k=1,nz
     do iq=1, ntotala
       delta_scalable=0.0
       do iproc=1, size(iprocs)
@@ -1253,7 +1254,7 @@ contains
         end do
       end if
     end do
-
+    end do
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
   end subroutine ensure_positive_aerosol

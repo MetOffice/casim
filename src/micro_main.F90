@@ -1362,13 +1362,11 @@ contains
       call update_q(qfields_mod, qfields, tend,l_fixneg=.true.)
 
       if (l_process) then
-        do k=1,nz
-            call ensure_positive_aerosol(k, step_length, aerofields, aerosol_procs,&
-                 (/i_aaut, i_aacw, i_aevp, i_arevp, i_dnuc, i_dsub, i_dssub, i_dgsub, &
-                 i_dimlt, i_dsmlt, i_dgmlt, i_diacw, i_dsacw, i_dgacw, i_dsacr,    &
-                 i_dgacr, i_draci, &
-                 i_dhomr, i_dhomc /) )
-        end do
+          call ensure_positive_aerosol(nz, step_length, aerofields, aerosol_procs,&
+               (/i_aaut, i_aacw, i_aevp, i_arevp, i_dnuc, i_dsub, i_dssub, i_dgsub, &
+               i_dimlt, i_dsmlt, i_dgmlt, i_diacw, i_dsacw, i_dgacw, i_dsacr,    &
+               i_dgacr, i_draci, &
+               i_dhomr, i_dhomc /) )
 
         call sum_aprocs(step_length, nz, aerosol_procs, aerosol_tend,      &
              (/i_aaut, i_aacw, i_aevp, i_arevp/) )
@@ -1616,13 +1614,13 @@ contains
 
                if (l_process) then
                  if (l_warm) then
-                     call ensure_positive_aerosol(k, step_length, aerofields, aerosol_procs,&
+                     call ensure_positive_aerosol(nz, step_length, aerofields, aerosol_procs,&
                           (/i_asedr, i_asedl/) )
                      call sum_aprocs(sed_length, nz, aerosol_procs, aerosol_tend, &
                           (/i_asedr, i_asedl/) )
                      call update_q(aerofields_mod, aerofields, aerosol_tend, l_aerosol=.true.)
                  else !not l_warm - includes ice procs
-                     call ensure_positive_aerosol(k, step_length, aerofields, aerosol_procs,&
+                     call ensure_positive_aerosol(nz, step_length, aerofields, aerosol_procs,&
                           (/i_asedr, i_asedl,i_dsedi, i_dseds, i_dsedg/) )
                      call sum_aprocs(sed_length, nz, aerosol_procs, aerosol_tend, &
                           (/i_asedr, i_asedl,i_dsedi, i_dseds, i_dsedg/) )
