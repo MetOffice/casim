@@ -24,7 +24,7 @@ contains
   !> AEROSOL: All aerosol sinks/sources are assumed to come from soluble modes
   !
   !> OPTIMISATION POSSIBILITIES:
-  subroutine hallet_mossop(dt, nz, cffields, procs)
+  subroutine hallet_mossop(ixy_inner, dt, nz, cffields, procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -32,6 +32,7 @@ contains
     implicit none
 
     ! Subroutine arguments
+    integer, intent(in) :: ixy_inner
     real(wp), intent(in) :: dt
     integer, intent(in) :: nz
     real(wp), intent(in) :: cffields(:,:)
@@ -65,7 +66,7 @@ contains
     end if
     
     do k = 1, nz
-       if (TdegC(k) < 0.0_wp) then 
+       if (TdegC(k,ixy_inner) < 0.0_wp) then 
           if (l_prf_cfrac) then
              if (cffields(k,i_cfl) .gt. cfliq_small) then
                 cf_liquid=cffields(k,i_cfl)
@@ -94,7 +95,7 @@ contains
           overlap_cfgraupel=min(1.0,max(0.0,mpof*min(cf_liquid, cf_graupel) +   &
                max(0.0,(1.0-mpof)*(cf_liquid+cf_graupel-1.0))))
 
-          Eff=1.0 - abs(TdegC(k) + 5.0)/2.5 ! linear increase between -2.5/-7.5 and -5C
+          Eff=1.0 - abs(TdegC(k,ixy_inner) + 5.0)/2.5 ! linear increase between -2.5/-7.5 and -5C
 
           if (Eff > 0.0) then
              sacw=0.0

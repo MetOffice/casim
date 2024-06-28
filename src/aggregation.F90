@@ -23,7 +23,7 @@ module aggregation
   public racr, ice_aggregation
 contains
 
-  subroutine racr(dt, qfields, procs)
+  subroutine racr(ixy_inner, dt, qfields, procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -31,6 +31,7 @@ contains
     implicit none
 
     ! Subroutine arguments
+    integer, intent(in) :: ixy_inner
     real(wp), intent(in) :: dt           !! dt NEEDED for 3rd moment code
     real(wp), intent(in), target :: qfields(:,:)
     type(process_rate), intent(inout), target :: procs(:,:)
@@ -83,7 +84,7 @@ contains
                 ! equation below is multiplied by rho to convert from cgs to SI 
                 ! (also the 10e3 factor from Beheng is not included)
                 !Eff=1.0 !Beheng 1994 Atmos. Res.
-                dnumber=Eff * 8.0 * rain_number * rain_mass * rho(k)   ! #/kg/s
+                dnumber=Eff * 8.0 * rain_number * rain_mass * rho(k,ixy_inner)   ! #/kg/s
                  !CFL limitation 
                 dnumber=rain_number * min( dnumber*dt/rain_number, 0.5  )/dt                            
              end if
@@ -117,7 +118,7 @@ contains
   !< NB: Aerosol mass is not modified by this process
   !
   !< CODE TIDYING: Move efficiencies into parameters
-  subroutine ice_aggregation(dt, nz, l_Tcold, params, qfields, procs)
+  subroutine ice_aggregation(ixy_inner, dt, nz, l_Tcold, params, qfields, procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -126,6 +127,7 @@ contains
     implicit none
 
     ! Subroutine arguments
+    integer, intent(in) :: ixy_inner
     real(wp), intent(in) :: dt
     integer, intent(in) :: nz
     logical, intent(in) :: l_Tcold(:)   
@@ -155,13 +157,13 @@ contains
 
     do k = 1, nz
        if (l_Tcold(k)) then 
-          Eff=min(1.0_wp, 0.2*exp(0.08*TdegC(k)))
+          Eff=min(1.0_wp, 0.2*exp(0.08*TdegC(k,ixy_inner)))
           select case (params%id)
           case (3_iwp) !ice
              iproc=i_iagg
           case (4_iwp) !snow
              iproc=i_sagg
-             Eff=MIN(1.0_wp, 0.1*exp(0.08*TdegC(k)))
+             Eff=MIN(1.0_wp, 0.1*exp(0.08*TdegC(k,ixy_inner)))
           case (5_iwp) !graupel
              iproc=i_gagg
           end select
@@ -183,10 +185,13 @@ contains
                 call gaussfunclookup(params%id, gaussterm)
              end if
              
-             dnumber=-1.0*gaussterm * pi*0.125*(rho0/rho(k))**params%g_x*params%a_x*n0*n0*Eff*lam**(-(4.0 + 2.0*mu + params%b_x))
+             dnumber=-1.0*gaussterm * pi*0.125*                                &
+                 (rho0/rho(k,ixy_inner))**params%g_x*params%a_x*n0*n0*         &
+                 Eff*lam**(-(4.0 + 2.0*mu + params%b_x))
       
       
-             dnumber=-1.0 * qfields(k, i_ns) * min( -dnumber*dt/qfields(k, i_ns), 0.5  )/dt            
+             dnumber=-1.0 * qfields(k, i_ns) *                                 &
+                 min( -dnumber*dt/qfields(k, i_ns), 0.5  )/dt            
 
       
              procs(params%i_2m, iproc%id)%column_data(k)=dnumber

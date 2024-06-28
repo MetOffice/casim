@@ -22,7 +22,7 @@ contains
   !>
   !> OPTIMISATION POSSIBILITIES: Shouldn't have to recalculate all 3m quantities
   !>                             If just rescaling mass conversion for dry mode
-  subroutine melting(dt, nz, params, qfields, cffields, procs, l_sigevap, aeroice, dustact, aerosol_procs)
+  subroutine melting(ixy_inner, dt, nz, params, qfields, cffields, procs, l_sigevap, aeroice, dustact, aerosol_procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -32,6 +32,7 @@ contains
     implicit none
 
     ! Subroutine arguments
+    integer, intent(in) :: ixy_inner
     real(wp), intent(in) :: dt
     integer, intent(in) :: nz
     type(hydro_params), intent(in) :: params
@@ -74,11 +75,17 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+!intiliase
+    dmac=0.0
+    dmad=0.0
+    dmass=0.0
+    dnumber=0.0
+    
     do k = 1, nz
        if (.not. l_sigevap(k)) then 
           l_meltall=.false.
           mass=qfields(k, params%i_1m)
-          if (mass > thresh_tidy(params%i_1m) .and. TdegC(k) > 0.0) then
+          if (mass > thresh_tidy(params%i_1m) .and. TdegC(k,ixy_inner) > 0.0) then
              if (params%l_2m) number=qfields(k, params%i_2m)
              if (params%id == ice_params%id) then ! instantaneous removal
                 iaproc=i_dimlt
@@ -147,13 +154,13 @@ contains
                 lam=dist_lambda(k,params%id)
                 
                 if (l_gamma_online) then 
-                   call ventilation_3M(k, V_x, n0, lam, mu, params)
+                   call ventilation_3M(ixy_inner, k, V_x, n0, lam, mu, params)
                 else 
-                   call ventilation_1M_2M(k, V_x, n0, lam, mu, params)
+                   call ventilation_1M_2M(ixy_inner, k, V_x, n0, lam, mu, params)
                 endif
                 
-                dmass=(1.0/(rho(k)*Lf))*(Ka*TdegC(k) + Lv*Dv*rho(k)*(qv - qws0(k))) * V_x&
-                     + (Cwater*TdegC(k)/Lf)*acc_correction
+                dmass=(1.0/(rho(k,ixy_inner)*Lf))*(Ka*TdegC(k,ixy_inner) + Lv*Dv*rho(k,ixy_inner)*(qv - qws0(k,ixy_inner))) * V_x&
+                     + (Cwater*TdegC(k,ixy_inner)/Lf)*acc_correction
                 dmass=dmass*cf ! grid mean
 
 

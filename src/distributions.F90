@@ -64,7 +64,7 @@ contains
 
   ! Any changes in number should be applied to the prognostic variable
   ! rather than just these parameters.  Currently this is not done.
-  subroutine query_distributions(params, qfields, cffields, icall)
+  subroutine query_distributions(ixy_inner, params, qfields, cffields, icall)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -72,6 +72,7 @@ contains
     implicit none
 
     ! Subroutine arguments
+    integer, intent(in) :: ixy_inner
     type(hydro_params), intent(inout) :: params !< species parameters
     real(wp), intent(inout) :: qfields(:,:)
     real(wp), intent(in) :: cffields(:,:)
@@ -184,8 +185,8 @@ contains
     
       if (qfields(k, i1) > 0.0) then
         if (l_kfsm) then
-          Tk = qfields(k, i_th) * exner(k)
-          call get_slope_generic_kf(k, params, dist_n0(k,ispec),                &
+          Tk = qfields(k, i_th) * exner(k,ixy_inner)
+          call get_slope_generic_kf(ixy_inner, k, params, dist_n0(k,ispec),                &
                                     dist_lambda(k,ispec), dist_mu(k,ispec),     &
                                     dist_lams(k,ispec,:), q1_in, Tk,   &
                                     m2_in, m3(k))

@@ -26,7 +26,7 @@ module evaporation
   public revp
 contains
 
-  subroutine revp(dt, nz, qfields, cffields, aerophys, aerochem, aeroact, dustliq, procs, aerosol_procs, l_sigevap)
+  subroutine revp(ixy_inner, dt, nz, qfields, cffields, aerophys, aerochem, aeroact, dustliq, procs, aerosol_procs, l_sigevap)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -36,6 +36,7 @@ contains
     implicit none
 
     ! Subroutine arguments
+    integer, intent(in) :: ixy_inner
     real(wp), intent(in) :: dt
     real(wp), intent(in) :: qfields(:,:)
     integer, intent(in) :: nz
@@ -86,7 +87,7 @@ contains
        if (l_2mr)rain_number=qfields(k, i_nr)
        ! if (l_3mr)rain_m3=qfields(k, i_m3r)
        
-       if (qv/qws(k) < 1.0-ss_small .and. qfields(k, i_ql) < ql_tidy .and. rain_mass > qr_tidy) then
+       if (qv/qws(k,ixy_inner) < 1.0-ss_small .and. qfields(k, i_ql) < ql_tidy .and. rain_mass > qr_tidy) then
           
           m1=rain_mass/c_r
           if (l_2mr) m2=rain_number
@@ -101,13 +102,13 @@ contains
              cf=cffields(k,i_cfr)
 
              if (l_gamma_online) then 
-                call ventilation_3M(k, V_r, n0, lam, mu, rain_params)
+                call ventilation_3M(ixy_inner, k, V_r, n0, lam, mu, rain_params)
              else
-                call ventilation_1M_2M(k, V_r, n0, lam, mu, rain_params)
+                call ventilation_1M_2M(ixy_inner, k, V_r, n0, lam, mu, rain_params)
              endif
 
-             AB=1.0/(Lv**2/(Rv*ka)*rho(k)*TdegK(k)**(-2)+1.0/(Dv*qws(k)))
-             dmass=(1.0-qv/qws(k))*V_r*AB  *cf !grid mean
+             AB=1.0/(Lv**2/(Rv*ka)*rho(k,ixy_inner)*TdegK(k,ixy_inner)**(-2)+1.0/(Dv*qws(k,ixy_inner)))
+             dmass=(1.0-qv/qws(k,ixy_inner))*V_r*AB  *cf !grid mean
              
              dmass=MIN(dmass,rain_mass/dt)
            
@@ -157,6 +158,11 @@ contains
              if (l_passivenumbers) then
                 dnumber_a=-dnumber*aeroact(k)%nratio2
                 aerosol_procs(i_an11, i_arevp%id)%column_data(k)=dnumber_a
+             end if
+
+             if (l_passivenumbers_ice) then
+                dnumber_d=-dnumber*dustliq(k)%nratio2
+                aerosol_procs(i_an12, i_arevp%id)%column_data(k)=dnumber_d
              end if
 
              ! Return aerosol
@@ -210,10 +216,6 @@ contains
                 aerosol_procs(i_an6, i_arevp%id)%column_data(k)=dnumber*dustliq(k)%nratio2
              end if
 
-             if (l_passivenumbers_ice) then
-                dnumber_d=-dnumber*dustliq(k)%nratio2
-                aerosol_procs(i_an12, i_arevp%id)%column_data(k)=dnumber_d
-             end if
           end if
        end if
     enddo

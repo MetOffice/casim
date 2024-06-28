@@ -81,7 +81,7 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
 END SUBROUTINE setup_reflec_constants
 
-SUBROUTINE casim_reflec( points, nq, rho, qfields, cffields, &
+SUBROUTINE casim_reflec( ixy_inner, points, nq, rho, qfields, cffields, &
                          dbz_tot_c, dbz_g_c, dbz_i_c, &
                          dbz_i2_c, dbz_l_c, dbz_r_c )
 
@@ -117,6 +117,8 @@ IMPLICIT NONE
 !   Documentation: UMDP 26.
 !------------------------------------------------------------------------------
 ! Subroutine Arguments
+
+integer, intent(in) :: ixy_inner
 
 INTEGER, INTENT(IN) :: points      ! Number of points calculation is done over
 INTEGER, INTENT(IN) :: nq
@@ -207,13 +209,13 @@ kice_c = kice / 0.93 * (6.0 / pi / 900.0)**2!ice_params%density)**2
 
 ! determine n0, lambda, mu
 
-CALL query_distributions(cloud_params, qfields, cffields)
-CALL query_distributions(rain_params, qfields, cffields)
+CALL query_distributions(ixy_inner, cloud_params, qfields, cffields)
+CALL query_distributions(ixy_inner, rain_params, qfields, cffields)
 IF (.NOT. l_warm) THEN
-  CALL query_distributions(ice_params, qfields, cffields)
-  CALL query_distributions(snow_params, qfields, cffields)
+  CALL query_distributions(ixy_inner, ice_params, qfields, cffields)
+  CALL query_distributions(ixy_inner, snow_params, qfields, cffields)
   IF (l_g) THEN
-     CALL query_distributions(graupel_params, qfields, cffields)
+     CALL query_distributions(ixy_inner, graupel_params, qfields, cffields)
   END IF
 END IF
 

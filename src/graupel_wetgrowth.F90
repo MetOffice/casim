@@ -20,7 +20,7 @@ module graupel_wetgrowth
 
   public wetgrowth
 contains
-  subroutine wetgrowth(nz, l_Tcold, qfields, cffields, procs, l_sigevap)
+  subroutine wetgrowth(ixy_inner, nz, l_Tcold, qfields, cffields, procs, l_sigevap)
     !< Subroutine to determine if all liquid accreted by graupel can be
     !< frozen or if there will be some shedding
     !<
@@ -33,6 +33,7 @@ contains
     implicit none
 
     ! Subroutine arguments
+    integer, intent(in) :: ixy_inner
     integer, intent(in) :: nz
     logical, intent(in) :: l_Tcold(:)
     real(wp), intent(in), target :: qfields(:,:)
@@ -120,16 +121,16 @@ contains
                 lam=dist_lambda(k,graupel_params%id)
                 
                 if (l_gamma_online) then 
-                   call ventilation_3M(k, V_x, n0, lam, mu, graupel_params)
+                   call ventilation_3M(ixy_inner, k, V_x, n0, lam, mu, graupel_params)
                 else 
-                   call ventilation_1M_2M(k, V_x, n0, lam, mu, graupel_params)
+                   call ventilation_1M_2M(ixy_inner, k, V_x, n0, lam, mu, graupel_params)
                 endif
 
-                pgwet=(910.0/graupel_params%density)**0.625*(Lv*Dv*(qws0(k)-qv)- &
-                     Ka*TdegC(k)/rho(k))/(Lf+Cwater*TdegC(k))*V_x *cf_graupel ! grid mean
-                pgwet=pgwet+(pgaci+pgacs)*(1.0-Cice*TdegC(k)/(Lf+Cwater*TdegC(k)))
+                pgwet=(910.0/graupel_params%density)**0.625*(Lv*Dv*(qws0(k,ixy_inner)-qv)- &
+                     Ka*TdegC(k,ixy_inner)/rho(k,ixy_inner))/(Lf+Cwater*TdegC(k,ixy_inner))*V_x *cf_graupel ! grid mean
+                pgwet=pgwet+(pgaci+pgacs)*(1.0-Cice*TdegC(k,ixy_inner)/(Lf+Cwater*TdegC(k,ixy_inner)))
 
-                if (pgdry < pgwet .or. TdegC(k) < T_hom_freeze) then ! Dry growth, so use recalculated gaci, gacs
+                if (pgdry < pgwet .or. TdegC(k,ixy_inner) < T_hom_freeze) then ! Dry growth, so use recalculated gaci, gacs
                    if (pgaci + pgacs > 0.0) then
 
                       if ( .not. l_kfsm ) then

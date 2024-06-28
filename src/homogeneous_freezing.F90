@@ -22,7 +22,7 @@ contains
 
   !> Calculates immersion freezing of rain drops
   !> See Bigg 1953
-  subroutine ihom_rain(dt, nz, l_Tcold, qfields, l_sigevap, aeroact, dustliq,  &
+  subroutine ihom_rain(ixy_inner, dt, nz, l_Tcold, qfields, l_sigevap, aeroact, dustliq,  &
                       procs, aerosol_procs)
 
     USE yomhook, ONLY: lhook, dr_hook
@@ -30,6 +30,7 @@ contains
 
     implicit none
 
+    integer, intent(in) :: ixy_inner
     real(wp), intent(in) :: dt
     integer, intent(in) :: nz
     logical, intent(in) :: l_Tcold(:)
@@ -72,7 +73,7 @@ contains
     do k = 1, nz
        if (l_Tcold(k)) then 
           th = qfields(k, i_th)
-          Tc = th*exner(k) - 273.15
+          Tc = th*exner(k,ixy_inner) - 273.15
           qr = qfields(k, i_qr)
           if (rain_params%l_2m)then
              nr = qfields(k, i_nr)
@@ -89,11 +90,11 @@ contains
              lam = dist_lambda(k,rain_params%id)
              
              if (l_ziegler) then
-                dnumber = B_bigg*(exp(-A_bigg*Tc)-1.0)*rho(k)*qr/rain_params%density
+                dnumber = B_bigg*(exp(-A_bigg*Tc)-1.0)*rho(k,ixy_inner)*qr/rain_params%density
                 dnumber = min(dnumber, nr/dt)
                 dmass = (qr/nr)*dnumber
              else
-                coef = B_bigg*(pi/6.0)*(exp(-A_bigg*Tc)-1.0)/rho(k)               &
+                coef = B_bigg*(pi/6.0)*(exp(-A_bigg*Tc)-1.0)/rho(k,ixy_inner)               &
                      * n0 /(lam*lam*lam)/GammaFunc(1.0 + mu)
                 
                 dmass = coef * rain_params%c_x * lam**(-rain_params%d_x)          &
@@ -178,13 +179,14 @@ contains
 
   !> Calculates homogeneous freezing of cloud drops
   !> See Wisener 1972
-  subroutine ihom_droplets(dt, nz, l_Tcold, qfields, aeroact, dustliq, procs, aerosol_procs)
+  subroutine ihom_droplets(ixy_inner, dt, nz, l_Tcold, qfields, aeroact, dustliq, procs, aerosol_procs)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
 
     implicit none
 
+    integer, intent(in) :: ixy_inner
     real(wp), intent(in) :: dt
     integer, intent(in) :: nz
     logical, intent(in) :: l_Tcold(:) 
@@ -228,7 +230,7 @@ contains
     do k = 1, nz
        if (l_Tcold(k)) then
           th = qfields(k, i_th)
-          Tc = th*exner(k) - 273.15
+          Tc = th*exner(k,ixy_inner) - 273.15
           ql = qfields(k, i_ql) 
           
           l_condition=(Tc < T_hom_freeze .and. ql > thresh_tidy(i_ql))
@@ -250,7 +252,7 @@ contains
                    !! Mixed-phase clouds in a turbulent environment. Part 2: Analytic treatment, 
                    !! https://rmets.onlinelibrary.wiley.com/doi/full/10.1002/qj.2175
                    qv = qfields(k, i_qv)
-                   Tk = th*exner(k)
+                   Tk = th*exner(k,ixy_inner)
                    ka=((5.69+0.017*(Tk-273.15))*1e-5) * 418.6 
                    
                    cap=1.0 !assume spheres and radius used
@@ -258,18 +260,18 @@ contains
                    min_homog_ni=1e2 !kg-1
                    d0_homog=50e-6 !m
                    
-                   Ei=qisaturation(Tk,pressure(k)/100.)*pressure(k)/ &
-                        (qisaturation(Tk,pressure(k)/100.)+0.62198) !vap press over ice [Pa]
-                   Ew=qsaturation(Tk,pressure(k)/100.)*pressure(k)/ &
-                        (qsaturation(Tk,pressure(k)/100.)+0.62198) !vap press over liq [Pa]
+                   Ei=qisaturation(Tk,pressure(k,ixy_inner)/100.)*pressure(k,ixy_inner)/ &
+                        (qisaturation(Tk,pressure(k,ixy_inner)/100.)+0.62198) !vap press over ice [Pa]
+                   Ew=qsaturation(Tk,pressure(k,ixy_inner)/100.)*pressure(k,ixy_inner)/ &
+                        (qsaturation(Tk,pressure(k,ixy_inner)/100.)+0.62198) !vap press over liq [Pa]
                    
                    bm=1.0/(qv)+Lv*Lf/(cp*Rv*Tk**2)
                    Ai=1.0/(rhoi*Lf**2/(ka*Rv*Tk**2)+rhoi*Rv*Tk/(Ei*Dv))
-                   B0=4.0*pi*cap*rhoi*Ai/rho(k)
+                   B0=4.0*pi*cap*rhoi*Ai/rho(k,ixy_inner)
                    Bis=bm*B0*(Ew/Ei-1.0)
                    aw=g/(Rd*Tk)*(Lv*Rd/(cp*Rv*Tk)-1.0)
                    
-                   dnumberi=max(w(k),0.0)*(aw/Bis)/d0_homog  / dt  !convert to a rate
+                   dnumberi=max(w(k,ixy_inner),0.0)*(aw/Bis)/d0_homog  / dt  !convert to a rate
                    dniraw=dnumberi
                    !make max just below limit
                    dnumberi=min(dnumber*0.90, max(min_homog_ni, dnumberi))
