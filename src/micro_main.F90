@@ -1093,12 +1093,12 @@ contains
        !---------------------------------------------------------------
        ! Determine (and possibly limit) size distribution
        !---------------------------------------------------------------
-       call query_distributions(ixy_inner, cloud_params, qfields_mod(:,:,ixy_inner), cffields(:,:,ixy_inner), icall=1)
-       call query_distributions(ixy_inner, rain_params, qfields_mod(:,:,ixy_inner), cffields(:,:,ixy_inner), icall=1)
+       call query_distributions(ixy_inner, cloud_params, qfields_mod(:,:,ixy_inner), cffields(:,:,ixy_inner))
+       call query_distributions(ixy_inner, rain_params, qfields_mod(:,:,ixy_inner), cffields(:,:,ixy_inner))
        if (.not. l_warm_loc) then
-          call query_distributions(ixy_inner, ice_params, qfields_mod(:,:,ixy_inner), cffields(:,:,ixy_inner), icall=1)
-          call query_distributions(ixy_inner, snow_params, qfields_mod(:,:,ixy_inner), cffields(:,:,ixy_inner), icall=1)
-          call query_distributions(ixy_inner, graupel_params, qfields_mod(:,:,ixy_inner), cffields(:,:,ixy_inner), icall=1)
+          call query_distributions(ixy_inner, ice_params, qfields_mod(:,:,ixy_inner), cffields(:,:,ixy_inner))
+          call query_distributions(ixy_inner, snow_params, qfields_mod(:,:,ixy_inner), cffields(:,:,ixy_inner))
+          call query_distributions(ixy_inner, graupel_params, qfields_mod(:,:,ixy_inner), cffields(:,:,ixy_inner))
        end if
 
        qfields(:,:,ixy_inner)=qfields_mod(:,:,ixy_inner)
@@ -1154,8 +1154,10 @@ contains
             ! Derive aerosol distribution
             ! parameters
             !-------------------------------
-            if (aerosol_option > 0)  call examine_aerosol(aerofields(:,:,ixy_inner), qfields(:,:,ixy_inner), aerophys, aerochem, &
-            aeroact, dustphys, dustchem, dustact, aeroice, dustliq, icall=1)
+            if (aerosol_option > 0)                                           &
+               call examine_aerosol(aerofields(:,:,ixy_inner),                &
+                    qfields(:,:,ixy_inner), aerophys, aerochem, aeroact,      &
+                    dustphys, dustchem, dustact, aeroice, dustliq, icall=1)
 
             ! In order to get rid of "if precondition", here collect the columns that
             ! have "if precondition" to be "true"
@@ -1587,16 +1589,16 @@ contains
 
             !call update_q(qfields_mod, qfields, tend, l_fixneg=.true.)
             call query_distributions(ixy_inner, cloud_params,                  &
-                      qfields(:,:,ixy_inner), cffields(:,:,ixy_inner), icall=2)
+                      qfields(:,:,ixy_inner), cffields(:,:,ixy_inner))
             call query_distributions(ixy_inner, rain_params,                   &
-                      qfields(:,:,ixy_inner), cffields(:,:,ixy_inner), icall=2)
+                      qfields(:,:,ixy_inner), cffields(:,:,ixy_inner))
             if (.not. l_warm_loc) then
                call query_distributions(ixy_inner, ice_params,                 &
-                      qfields(:,:,ixy_inner), cffields(:,:,ixy_inner), icall=2)
+                      qfields(:,:,ixy_inner), cffields(:,:,ixy_inner))
                call query_distributions(ixy_inner, snow_params,                &
-                      qfields(:,:,ixy_inner), cffields(:,:,ixy_inner), icall=2)
+                      qfields(:,:,ixy_inner), cffields(:,:,ixy_inner))
                call query_distributions(ixy_inner, graupel_params,             &
-                      qfields(:,:,ixy_inner), cffields(:,:,ixy_inner), icall=2)
+                      qfields(:,:,ixy_inner), cffields(:,:,ixy_inner))
             end if
 
          else ! Not in UM or not using Paul's cloud fraction in UM
@@ -1622,16 +1624,16 @@ contains
             ! Re-Determine (and possibly limit) size distribution
             !---------------------------------------------------------------
             call query_distributions(ixy_inner, cloud_params,                  &
-                      qfields(:,:,ixy_inner), cffields(:,:,ixy_inner), icall=2)
+                      qfields(:,:,ixy_inner), cffields(:,:,ixy_inner))
             call query_distributions(ixy_inner, rain_params,                   &
-                      qfields(:,:,ixy_inner), cffields(:,:,ixy_inner), icall=2)
+                      qfields(:,:,ixy_inner), cffields(:,:,ixy_inner))
             if (.not. l_warm_loc) then
                call query_distributions(ixy_inner, ice_params,                 &
-                      qfields(:,:,ixy_inner), cffields(:,:,ixy_inner), icall=2)
+                      qfields(:,:,ixy_inner), cffields(:,:,ixy_inner))
                call query_distributions(ixy_inner, snow_params,                &
-                      qfields(:,:,ixy_inner), cffields(:,:,ixy_inner), icall=2)
+                      qfields(:,:,ixy_inner), cffields(:,:,ixy_inner))
                call query_distributions(ixy_inner, graupel_params,             &
-                      qfields(:,:,ixy_inner), cffields(:,:,ixy_inner), icall=2)
+                      qfields(:,:,ixy_inner), cffields(:,:,ixy_inner))
             end if
 
             if (l_process) then
@@ -1698,21 +1700,16 @@ contains
                      ! Re-Determine (and possibly limit) size distribution
                      !---------------------------------------------------------------
                      call query_distributions(ixy_inner, cloud_params,         &
-                          qfields(:,:,ixy_inner), cffields(:,:,ixy_inner),     &
-                          icall=nsed+2)
+                          qfields(:,:,ixy_inner), cffields(:,:,ixy_inner))
                      call query_distributions(ixy_inner, rain_params,          &
-                          qfields(:,:,ixy_inner), cffields(:,:,ixy_inner),     &
-                          icall=nsed+2)
+                          qfields(:,:,ixy_inner), cffields(:,:,ixy_inner))
                      if (.not. l_warm_loc) then
                         call query_distributions(ixy_inner, ice_params,        &
-                             qfields(:,:,ixy_inner), cffields(:,:,ixy_inner),  &
-                             icall=nsed+2)
+                             qfields(:,:,ixy_inner), cffields(:,:,ixy_inner))
                         call query_distributions(ixy_inner, snow_params,       &
-                             qfields(:,:,ixy_inner), cffields(:,:,ixy_inner),  &
-                             icall=nsed+2)
+                             qfields(:,:,ixy_inner), cffields(:,:,ixy_inner))
                         call query_distributions(ixy_inner, graupel_params,    &
-                             qfields(:,:,ixy_inner), cffields(:,:,ixy_inner),  &
-                             icall=nsed+2)
+                             qfields(:,:,ixy_inner), cffields(:,:,ixy_inner))
                      end if
 
                      !-------------------------------
@@ -1925,8 +1922,7 @@ contains
                         ! Re-Determine (and possibly limit) size distribution
                         !---------------------------------------------------------------
                         call query_distributions(ixy_inner, cloud_params,      &
-                             qfields(:,:,ixy_inner), cffields(:,:,ixy_inner),  &
-                             icall=nsed+2)
+                             qfields(:,:,ixy_inner), cffields(:,:,ixy_inner))
                         !-------------------------------
                         ! Re-Derive aerosol distribution
                         ! parameters
@@ -1997,8 +1993,7 @@ contains
                         ! Re-Determine (and possibly limit) size distribution
                         !---------------------------------------------------------------
                         call query_distributions(ixy_inner, rain_params,       &
-                             qfields(:,:,ixy_inner), cffields(:,:,ixy_inner),  &
-                             icall=nsed+2)
+                             qfields(:,:,ixy_inner), cffields(:,:,ixy_inner))
                         !-------------------------------
                         ! Re-Derive aerosol distribution
                         ! parameters
@@ -2066,8 +2061,7 @@ contains
                            ! Re-Determine (and possibly limit) size distribution
                            !---------------------------------------------------------------
                            call query_distributions(ixy_inner, ice_params,     &
-                                qfields(:,:,ixy_inner),                        &
-                                cffields(:,:,ixy_inner), icall=nsed+2)
+                               qfields(:,:,ixy_inner), cffields(:,:,ixy_inner))
                            !-------------------------------
                            ! Re-Derive aerosol distribution
                            ! parameters
@@ -2134,8 +2128,7 @@ contains
                            ! Re-Determine (and possibly limit) size distribution
                            !---------------------------------------------------------------
                            call query_distributions(ixy_inner, snow_params,    &
-                                qfields(:,:,ixy_inner),                        &
-                                cffields(:,:,ixy_inner), icall=nsed+2)
+                               qfields(:,:,ixy_inner), cffields(:,:,ixy_inner))
                            ! !-------------------------------
                            ! ! Re-Derive aerosol distribution
                            ! ! parameters
@@ -2203,8 +2196,7 @@ contains
                            ! Re-Determine (and possibly limit) size distribution
                            !---------------------------------------------------------------
                            call query_distributions(ixy_inner, graupel_params, &
-                                 qfields(:,:,ixy_inner),                       &
-                                 cffields(:,:,ixy_inner), icall=nsed+2)
+                               qfields(:,:,ixy_inner), cffields(:,:,ixy_inner))
                            !-------------------------------
                            ! Re-Derive aerosol distribution
                            ! parameters
@@ -2305,21 +2297,16 @@ contains
             ! Re-Determine (and possibly limit) size distribution
             !---------------------------------------------------------------
             call query_distributions(ixy_inner, cloud_params,                  &
-                 qfields(:,:,ixy_inner), cffields(:,:,ixy_inner),              &
-                 icall=nsubseds+3)
+                 qfields(:,:,ixy_inner), cffields(:,:,ixy_inner))
             call query_distributions(ixy_inner, rain_params,                   &
-                 qfields(:,:,ixy_inner), cffields(:,:,ixy_inner),              &
-                 icall=nsubseds+3)
+                 qfields(:,:,ixy_inner), cffields(:,:,ixy_inner))
             if (.not. l_warm_loc) then
                call query_distributions(ixy_inner, ice_params,                 &
-                    qfields(:,:,ixy_inner), cffields(:,:,ixy_inner),           &
-                    icall=nsubseds+3)
+                    qfields(:,:,ixy_inner), cffields(:,:,ixy_inner))
                call query_distributions(ixy_inner, snow_params,                &
-                    qfields(:,:,ixy_inner), cffields(:,:,ixy_inner),           &
-                    icall=nsubseds+3)
+                    qfields(:,:,ixy_inner), cffields(:,:,ixy_inner))
                call query_distributions(ixy_inner, graupel_params,             &
-                    qfields(:,:,ixy_inner), cffields(:,:,ixy_inner),           &
-                    icall=nsubseds+3)
+                    qfields(:,:,ixy_inner), cffields(:,:,ixy_inner))
             end if
          end if
        !end if ! precondition
@@ -2471,28 +2458,28 @@ contains
       !quick lem fixes  - this code should never be used ?
         do iqx=1, ubound(tend,2)
           do k=lbound(tend,1), ubound(tend,1)
-             if (iqx==i_ni .and. qfields(k,iqx)<=0) then
-                qfields(k,iqx)=0
-                qfields(k,i_qi)=0
+             if (iqx==i_ni .and. qfields(k,iqx)<=0.0) then
+                qfields(k,iqx)=0.0
+                qfields(k,i_qi)=0.0
              end if
-             if (iqx==i_nr .and. qfields(k,iqx)<=0) then
-                qfields(k,iqx)=0
-                qfields(k,i_qr)=0
-                if (i_m3r/=0)qfields(k,i_m3r)=0
+             if (iqx==i_nr .and. qfields(k,iqx)<=0.0) then
+                qfields(k,iqx)=0.0
+                qfields(k,i_qr)=0.0
+                if (i_m3r/=0) qfields(k,i_m3r)=0.0
              end if
-             if (iqx==i_nl .and. qfields(k,iqx)<=0) then
-                qfields(k,iqx)=0
-                qfields(k,i_ql)=0
+             if (iqx==i_nl .and. qfields(k,iqx)<=0.0) then
+                qfields(k,iqx)=0.0
+                qfields(k,i_ql)=0.0
              end if
-             if (iqx==i_ns .and. qfields(k,iqx)<=0) then
-                qfields(k,iqx)=0
-                qfields(k,i_qs)=0
-                if (i_m3s/=0)qfields(k,i_m3s)=0
+             if (iqx==i_ns .and. qfields(k,iqx)<=0.0) then
+                qfields(k,iqx)=0.0
+                qfields(k,i_qs)=0.0
+                if (i_m3s/=0) qfields(k,i_m3s)=0.0
              end if
-             if (iqx==i_ng .and. qfields(k,iqx)<=0) then
-                qfields(k,iqx)=0
-                qfields(k,i_qg)=0
-                if (i_m3g/=0)qfields(k,i_m3g)=0
+             if (iqx==i_ng .and. qfields(k,iqx)<=0.0) then
+                qfields(k,iqx)=0.0
+                qfields(k,i_qg)=0.0
+                if (i_m3g/=0) qfields(k,i_m3g)=0.0
              end if
           end do
        end do
@@ -2971,7 +2958,8 @@ contains
       IF (pswitch%l_psedi) THEN
         DO k = ks, ke
           kc = k - ks + 1
-          casdiags % psedi(i,j,k) = casdiags % psedi(i,j,k)+procs(ice_params%i_1m,i_psedi%id,ixy_inner)%column_data(kc)
+          casdiags % psedi(i,j,k) = casdiags % psedi(i,j,k)+                   &
+                    procs(ice_params%i_1m,i_psedi%id,ixy_inner)%column_data(kc)
         END DO
       END IF
     END IF
@@ -2980,7 +2968,8 @@ contains
       IF ((pswitch%l_psedi) .and. (snow_params%l_2m)) THEN
         DO k = ks, ke
           kc = k - ks + 1
-          casdiags % nsedi(i,j,k) = casdiags % nsedi(i,j,k)+procs(ice_params%i_2m,i_psedi%id,ixy_inner)%column_data(kc)
+          casdiags % nsedi(i,j,k) = casdiags % nsedi(i,j,k)+                  &
+                   procs(ice_params%i_2m,i_psedi%id,ixy_inner)%column_data(kc)
         END DO
       END IF
     END IF
@@ -2989,7 +2978,8 @@ contains
       IF (pswitch%l_pseds) THEN
         DO k = ks, ke
           kc = k - ks + 1
-          casdiags % pseds(i,j,k) = casdiags % pseds(i,j,k)+procs(snow_params%i_1m,i_pseds%id,ixy_inner)%column_data(kc)
+          casdiags % pseds(i,j,k) = casdiags % pseds(i,j,k)+                  &
+                  procs(snow_params%i_1m,i_pseds%id,ixy_inner)%column_data(kc)
         END DO
       END IF
     END IF
@@ -2998,7 +2988,8 @@ contains
       IF ((pswitch%l_pseds) .and. (snow_params%l_2m)) THEN
         DO k = ks, ke
           kc = k - ks + 1
-          casdiags % nseds(i,j,k) = casdiags % nseds(i,j,k)+procs(snow_params%i_2m,i_pseds%id,ixy_inner)%column_data(kc)
+          casdiags % nseds(i,j,k) = casdiags % nseds(i,j,k)+                   &
+                   procs(snow_params%i_2m,i_pseds%id,ixy_inner)%column_data(kc)
         END DO
       END IF
     END IF
@@ -3007,7 +2998,8 @@ contains
       IF (pswitch%l_psedr) THEN
         DO k = ks, ke
           kc = k - ks + 1
-          casdiags % psedr(i,j,k) = casdiags % psedr(i,j,k)+procs(rain_params%i_1m,i_psedr%id,ixy_inner)%column_data(kc)
+          casdiags % psedr(i,j,k) = casdiags % psedr(i,j,k)+                   &
+                   procs(rain_params%i_1m,i_psedr%id,ixy_inner)%column_data(kc)
         END DO
       END IF
     END IF
@@ -3016,7 +3008,8 @@ contains
       IF (pswitch%l_psedg) THEN
         DO k = ks, ke
           kc = k - ks + 1
-          casdiags % psedg(i,j,k) = casdiags % psedg(i,j,k)+procs(graupel_params%i_1m,i_psedg%id,ixy_inner)%column_data(kc)
+          casdiags % psedg(i,j,k) = casdiags % psedg(i,j,k)+                   &
+                procs(graupel_params%i_1m,i_psedg%id,ixy_inner)%column_data(kc)
         END DO
       END IF
     END IF
@@ -3025,7 +3018,8 @@ contains
       IF ((pswitch%l_psedg) .and. (graupel_params%l_2m)) THEN
         DO k = ks, ke
           kc = k - ks + 1
-          casdiags % nsedg(i,j,k) = casdiags % nsedg(i,j,k)+procs(graupel_params%i_2m,i_psedg%id,ixy_inner)%column_data(kc)
+          casdiags % nsedg(i,j,k) = casdiags % nsedg(i,j,k)+                   &
+                procs(graupel_params%i_2m,i_psedg%id,ixy_inner)%column_data(kc)
         END DO
       END IF
     END IF
@@ -3034,7 +3028,8 @@ contains
       IF (pswitch%l_psedl) THEN
         DO k = ks, ke
           kc = k - ks + 1
-          casdiags % psedl(i,j,k) = casdiags % psedl(i,j,k)+procs(cloud_params%i_1m,i_psedl%id,ixy_inner)%column_data(kc)
+          casdiags % psedl(i,j,k) = casdiags % psedl(i,j,k)+                   &
+                  procs(cloud_params%i_1m,i_psedl%id,ixy_inner)%column_data(kc)
         END DO
       END IF
     END IF

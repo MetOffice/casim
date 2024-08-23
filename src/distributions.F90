@@ -64,7 +64,7 @@ contains
 
   ! Any changes in number should be applied to the prognostic variable
   ! rather than just these parameters.  Currently this is not done.
-  subroutine query_distributions(ixy_inner, params, qfields, cffields, icall)
+  subroutine query_distributions(ixy_inner, params, qfields, cffields)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -76,7 +76,6 @@ contains
     type(hydro_params), intent(inout) :: params !< species parameters
     real(wp), intent(inout) :: qfields(:,:)
     real(wp), intent(in) :: cffields(:,:)
-    integer, intent(in), optional :: icall
 
     ! Local variables
     integer :: k    
@@ -89,6 +88,7 @@ contains
 
     real(wp) :: cf , q1_in, m2_in
     integer :: i_cf
+
 
     character(len=*), parameter :: RoutineName='QUERY_DISTRIBUTIONS'
 
@@ -152,9 +152,8 @@ contains
 !       end do
 !    end if
 
-    do k=1, nz
-    
-      select case (params%id)
+    if (l_prf_cfrac) then 
+      select case (ispec)
       case (1) !cloud
         i_cf=i_cfl
       case (2) !rain
@@ -168,7 +167,9 @@ contains
       case default
         STOP
       end select
+    end if
 
+    do k=1, nz
       if (l_prf_cfrac) then
         if (cffields(k,i_cf) .gt. cfliq_small) then
           cf=cffields(k,i_cf)
@@ -186,7 +187,7 @@ contains
       if (qfields(k, i1) > 0.0) then
         if (l_kfsm) then
           Tk = qfields(k, i_th) * exner(k,ixy_inner)
-          call get_slope_generic_kf(ixy_inner, k, params, dist_n0(k,ispec),                &
+          call get_slope_generic_kf(ixy_inner, k, params, dist_n0(k,ispec),     &
                                     dist_lambda(k,ispec), dist_mu(k,ispec),     &
                                     dist_lams(k,ispec,:), q1_in, Tk,   &
                                     m2_in, m3(k))
