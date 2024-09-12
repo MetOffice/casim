@@ -188,16 +188,14 @@ contains
 
     real(wp) :: dmass, dnumber
 
-    logical :: l_qsig(0:ntotalq), l_qpos(0:ntotalq), l_qsmall(0:ntotalq), &
-      l_qsneg(0:ntotalq), l_qpresent(0:ntotalq)
+    logical :: l_qsig(0:ntotalq), l_qpos, l_qsmall, l_qsneg(0:ntotalq)
     !    l_qpos: q variable is positive
-    !    l_qpresent: q variable is not zero
     !    l_qsmall:   q variable is positive, but below tidy threshold
     !    l_qsneg:    q variable is small or negative
 
     logical :: l_qice, l_qliquid
 
-    logical :: l_apos(ntotala), l_apresent(ntotala), l_asmall(ntotala), l_asneg(ntotala), l_asig(ntotala)
+    logical :: l_apos, l_asmall, l_asneg(ntotala), l_asig(ntotala)
 
     integer :: iq, k
 
@@ -211,19 +209,12 @@ contains
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     l_qsig(0)=.false.
-    l_qpos(0)=.false.
-    l_qsmall(0)=.false.
     l_qsneg(0)=.false.
-    l_qpresent(0)=.false.
     
     do k = 1, nz
-    ql_reset=.false.
-    nl_reset=.false.
-    qr_reset=.false.
     nr_reset=.false.
     m3r_reset=.false.
     qi_reset=.false.
-    ni_reset=.false.
     qs_reset=.false.
     ns_reset=.false.
     m3s_reset=.false.
@@ -251,22 +242,12 @@ contains
 
     do iq=1, ntotalq
       l_qsig(iq)=qfields(k, iq) > thresh(iq)
-    end do
 
-    do iq=1, ntotalq
-      l_qpos(iq)=qfields(k, iq) > 0.0
-    end do
+      l_qpos=qfields(k, iq) > 0.0
 
-    do iq=1,ntotalq
-      l_qsmall(iq) = (.not. l_qsig(iq)) .and. l_qpos(iq)
-    end do
+      l_qsmall = (.not. l_qsig(iq)) .and. l_qpos
 
-    do iq=1, ntotalq
-      l_qsneg(iq)=qfields(k, iq) < 0.0 .or. l_qsmall(iq)
-    end do
-
-    do iq=1, ntotalq
-      l_qpresent(iq)=l_qpos(iq) .or. l_qsneg(iq)
+      l_qsneg(iq)=qfields(k, iq) < 0.0 .or. l_qsmall
     end do
 
     if (l_process) then
@@ -277,22 +258,12 @@ contains
 
       do iq=1, ntotala
         l_asig(iq)=aerofields(k, iq) > athresh(iq)
-      end do
 
-      do iq=1, ntotala
-        l_apos(iq)=aerofields(k, iq) > 0.0
-      end do
+        l_apos=aerofields(k, iq) > 0.0
 
-      do iq=1, ntotala
-        l_asmall(iq)=(.not. l_asig(iq)) .and. l_apos(iq)
-      end do
+        l_asmall=(.not. l_asig(iq)) .and. l_apos
 
-      do iq=1, ntotala
-        l_asneg(iq)=aerofields(k, iq) < 0.0 .or. l_asmall(iq)
-      end do
-
-      do iq=1, ntotala
-        l_apresent(iq)=l_apos(iq) .or. l_asneg(iq)
+        l_asneg(iq)=aerofields(k, iq) < 0.0 .or. l_asmall
       end do
     end if
 
@@ -703,9 +674,7 @@ contains
     end if
 
     do k=1, ubound(qfields,1)
-      ql_reset=.false.
       nl_reset=.false.
-      qr_reset=.false.
       nr_reset=.false.
       m3r_reset=.false.
       qi_reset=.false.

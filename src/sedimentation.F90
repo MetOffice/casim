@@ -156,13 +156,14 @@ contains
     ! precip diag
     do k = 1, nz
       precip1d(k) = 0.0
+      flux_n1(k)  = 0.0
+      Grho(k)=(rho0/rho(k,ixy_inner))**params%g_x
     end do
 
     m1=0.0
     m2=0.0
     m3=0.0
 
-    flux_n1=0.0
     p1=params%p1
     p2=params%p2
     p3=params%p3
@@ -176,10 +177,6 @@ contains
       sp2=params%p2
       sp3=params%p3
     end if
-
-    do k = 1, nz
-       Grho(k)=(rho0/rho(k,ixy_inner))**params%g_x
-    end do
 
     ! we don't want flexible approach in this version....
     if (p1/=sp1 .or. p2/=sp2 .or. p3/=sp3) then
@@ -200,7 +197,7 @@ contains
     b2_x=params%b2_x
     f2_x=params%f2_x
 
-    if (params%l_2m) flux_n2=0.0     
+    if (params%l_2m) flux_n2(:)=0.0     
 !!$    if (params%l_3m) flux_n3=0.0      
 
     select case (params%id)
@@ -530,343 +527,327 @@ contains
 
   end subroutine sedr
 
-  subroutine sedr_1M_2M(ixy_inner, step_length, qfields, aeroact, dustact,   &
+subroutine sedr_1M_2M(ixy_inner, step_length, qfields, aeroact, dustact,   &
        params, procs, aerosol_procs, precip1d, l_doaerosol)
 
-    !!! This routine has the same functionality as sedr, except it will only work with 
-    !!! single moment or double moment settings, since the fallspeeds are calced using 
-    !!! pre-calculated gamma functions with fixed shape. This routine is default when 
-    !!! the third prognostic moment is switched off. 
+!!! This routine has the same functionality as sedr, except it will only work with 
+!!! single moment or double moment settings, since the fallspeeds are calced using 
+!!! pre-calculated gamma functions with fixed shape. This routine is default when 
+!!! the third prognostic moment is switched off. 
 
-    ! UM dummy routines
-    USE yomhook, ONLY: lhook, dr_hook
-    USE parkind1, ONLY: jprb, jpim
-    USE um_types, ONLY: real_lsprec
+! UM dummy routines
+USE yomhook, ONLY: lhook, dr_hook
+USE parkind1, ONLY: jprb, jpim
+USE um_types, ONLY: real_lsprec
 
-    use casim_parent_mod, only: casim_parent, parent_um
+use casim_parent_mod, only: casim_parent, parent_um
 
-    implicit none
+implicit none
 
-    character(len=*), parameter :: RoutineName='SEDR_1M_2M'
+character(len=*), parameter :: RoutineName='SEDR_1M_2M'
 
-    integer, intent(in) :: ixy_inner
+integer, intent(in) :: ixy_inner
 
-    real(wp), intent(in) :: step_length
-    real(wp), intent(in), target :: qfields(:,:)
-    type(hydro_params), intent(in) :: params
-    type(aerosol_active), intent(in) :: aeroact(:), dustact(:)
-    type(process_rate), intent(inout), target :: procs(:,:)
-    type(process_rate), intent(inout), target :: aerosol_procs(:,:)
-    real(wp), intent(out) :: precip1d(nz)
-    logical, optional, intent(in) :: l_doaerosol
+real(wp), intent(in) :: step_length
+real(wp), intent(in), target :: qfields(:,:)
+type(hydro_params), intent(in) :: params
+type(aerosol_active), intent(in) :: aeroact(:), dustact(:)
+type(process_rate), intent(inout), target :: procs(:,:)
+type(process_rate), intent(inout), target :: aerosol_procs(:,:)
+real(wp), intent(out) :: precip1d(nz)
+logical, optional, intent(in) :: l_doaerosol
 
-    real(wp) :: dm1, dm2
-    real(wp) :: dn1, dn2
-    real(wp) :: m1, m2
-    real(wp) :: n1, n2
-    real(wp) :: hydro_mass
-    real(wp) :: n0, lam, mu, u1r, u2r, u1r2, u2r2
-    integer :: k
+real(wp) :: dn1, dn2
+real(wp) :: m1, m2
+real(wp) :: n1, n2
+real(wp) :: hydro_mass
+real(wp) :: n0, lam, mu, u1r, u2r, u1r2, u2r2
+integer :: k
 
-    integer :: i_1m, i_2m
-    real(wp) :: p1, p2 
-    real(wp) :: sp1, sp2 
-    real :: a_x, b_x, f_x, g_x, c_x, d_x
-    real(wp) :: a2_x, b2_x, f2_x
-    logical :: l_fluxin, l_fluxout
+integer :: i_1m, i_2m
+real(wp) :: p1, p2 
+real(wp) :: sp1, sp2 
+real :: a_x, b_x, f_x, g_x, c_x, d_x
+real(wp) :: a2_x, b2_x, f2_x
+logical :: l_fluxin, l_fluxout
 
-    ! AH: variables needed for lsp_sedim_eulexp. All declared using real_lsprec from the UM or 
-    !     the dummy real_lsprec from MONC casim component, which is wp
-    real(real_lsprec) :: lsp_sedim_c_x
-    real(real_lsprec) :: u1r_above, u2r_above
+! AH: variables needed for lsp_sedim_eulexp. All declared using real_lsprec from the UM or 
+!     the dummy real_lsprec from MONC casim component, which is wp
+real(real_lsprec) :: lsp_sedim_c_x
+real(real_lsprec) :: u1r_above, u2r_above
 !   real(real_lsprec) :: u1w, u2w
 !   real(real_lsprec) :: mixingratio_fromabove, mixingratio
 !   real(real_lsprec) :: numberconc, numberconc_fromabove
 
-    real(real_lsprec) :: m0 
-    integer :: points
-    real(real_lsprec) :: dhi(1), dhir(1),rhor(1),rhoin(1),mixratio_thislayer(1), &
-         flux_fromabove(1),fallspeed_fromabove(1), fallspeed_thislayer(1),total_flux_out(1)
-    ! End declaration of variables for lsp_sedim_eulexp
+real(real_lsprec) :: m0 
+integer :: points
+real(real_lsprec) :: dhi(1), dhir(1),rhor(1),rhoin(1),mixratio_thislayer(1), &
+     flux_fromabove(1),fallspeed_fromabove(1), fallspeed_thislayer(1),total_flux_out(1)
+! End declaration of variables for lsp_sedim_eulexp
 
-    type(process_name) :: iproc, iaproc  ! processes selected depending on
-    ! which species we're depositing on.
+type(process_name) :: iproc, iaproc  ! processes selected depending on
+! which species we're depositing on.
 
-    real(wp) :: dmint
-    real(wp) :: dmac
-    real(wp) :: dmad
-    real(wp) :: dnumber_a, dnumber_d
-    logical :: l_da_local  ! local tranfer of l_doaerosol
-    logical :: l_sedim_generic
-    ! If this is used, you can't trust the results.
+real(wp) :: dmac
+real(wp) :: dmad
+real(wp) :: dnumber_a, dnumber_d
+logical :: l_da_local  ! local tranfer of l_doaerosol
+logical :: l_sedim_generic
+! If this is used, you can't trust the results.
 
-    INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
-    INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
-    REAL(KIND=jprb)               :: zhook_handle
+INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
+INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
+REAL(KIND=jprb)               :: zhook_handle
 
-    !--------------------------------------------------------------------------
-    ! End of header, no more declarations beyond here
-    !--------------------------------------------------------------------------
-    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+!--------------------------------------------------------------------------
+! End of header, no more declarations beyond here
+!--------------------------------------------------------------------------
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-    l_da_local=.false.
-    if (present(l_doaerosol)) l_da_local=l_doaerosol
+if (present(l_doaerosol)) then
+  l_da_local=l_doaerosol
+else
+  l_da_local=.false.
+end if
+
+if (l_kfsm) then
+  l_sedim_generic = (params%id==ice_params%id)
+else
+  l_sedim_generic = .false.
+  a_x=params%a_x
+  b_x=params%b_x
+end if
     
-    if (l_kfsm) then
-      l_sedim_generic = (params%id==ice_params%id)
-    else
-      l_sedim_generic = .false.
-    end if
-    
-    ! precip diag
-    do k = 1, nz
-      precip1d(k) = 0.0
-    end do
+! precip diag
+do k = 1, nz
+  precip1d(k) = 0.0
+  flux_n1(k)  = 0.0
+  Grho(k)=(rho0/rho(k,ixy_inner))**params%g_x
+end do
 
-    m1=0.0
-    m2=0.0
-    
-    flux_n1=0.0
-    i_1m=params%i_1m
-    i_2m=params%i_2m
-    p1=params%p1
-    p2=params%p2
+i_1m=params%i_1m
+i_2m=params%i_2m
+p1=params%p1
+p2=params%p2
 
-    sp1=params%p1
-    sp2=params%p2
+sp1=params%p1
+sp2=params%p2
 
-    do k = 1, nz
-       Grho(k)=(rho0/rho(k,ixy_inner))**params%g_x
-    end do
-    ! we don't want flexible approach in this version....
-    if (p1/=sp1 .or. p2/=sp2) then
-      write(std_msg, '(A)') 'Cannot have flexible sedimentation options '//&
-                            'with CASIM aerosol'
-      call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
-                             std_msg)
-    end if
+! we don't want flexible approach in this version....
+if (p1/=sp1 .or. p2/=sp2) then
+  write(std_msg, '(A)') 'Cannot have flexible sedimentation options '//&
+                        'with CASIM aerosol'
+  call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
+                         std_msg)
+end if
 
-    if (.not. l_kfsm) then
-      a_x=params%a_x
-      b_x=params%b_x
-    end if
+f_x=params%f_x
+g_x=params%g_x
+c_x=params%c_x
+lsp_sedim_c_x = c_x
+d_x=params%d_x
+a2_x=params%a2_x
+b2_x=params%b2_x
+f2_x=params%f2_x
 
-    f_x=params%f_x
-    g_x=params%g_x
-    c_x=params%c_x
-    lsp_sedim_c_x = c_x
-    d_x=params%d_x
-    a2_x=params%a2_x
-    b2_x=params%b2_x
-    f2_x=params%f2_x
+if (params%l_2m) flux_n2(:)=0.0          
 
-    if (params%l_2m) flux_n2=0.0          
+select case (params%id)
+case (1_iwp) !cloud
+  iproc=i_psedl
+  iaproc=i_asedl
+case (2_iwp) !rain
+  iproc=i_psedr
+  iaproc=i_asedr
+case (3_iwp) !ice
+  iproc=i_psedi
+  iaproc=i_dsedi
+case (4_iwp) !snow
+  iproc=i_pseds
+  iaproc=i_dseds
+case (5_iwp) !graupel
+  iproc=i_psedg
+  iaproc=i_dsedg
+end select
 
-    dmint=0.0
-    select case (params%id)
-    case (1_iwp) !cloud
-      iproc=i_psedl
-      iaproc=i_asedl
-    case (2_iwp) !rain
-      iproc=i_psedr
-      iaproc=i_asedr
-    case (3_iwp) !ice
-      iproc=i_psedi
-      iaproc=i_dsedi
-    case (4_iwp) !snow
-      iproc=i_pseds
-      iaproc=i_dseds
-    case (5_iwp) !graupel
-      iproc=i_psedg
-      iaproc=i_dsedg
-    end select
+! AH : initialise terminal velocity for level+1 before loop starts
+!     
+u1r_above=0.0
+u2r_above=0.0
 
-    ! AH : initialise terminal velocity for level+1 before loop starts
-    !     
-    u1r_above=0.0
-    u2r_above=0.0
-    
-    do k=nz-1, 1, -1
+do k=nz-1, 1, -1
 
-      ! initialize to zero
-      dm1=0.0
-      dm2=0.0
-      dn1=0.0
-      dn2=0.0
-      n1=0.0
-      n2=0.0
-      m1=0.0
-      m2=0.0
+  ! initialize to zero
+  dn1=0.0
+  dn2=0.0
+  n1=0.0
+  n2=0.0
+  m2=0.0
 
-      hydro_mass=qfields(k, params%i_1m)
-      if (params%l_2m) m2=qfields(k, params%i_2m)
+  hydro_mass=qfields(k, params%i_1m)
+  if (params%l_2m) m2=qfields(k, params%i_2m)
 
-      if (casim_parent == parent_um .and. l_sed_eulexp ) then
-         ! AH - the code below is required to run in the UM (GA) and 
-         !      it over-rides the above conditions. This code should be wrapped in 
-         !      in a condition that relates to l_sed_eulexp
-         !      NOTE: at this stage it is not clear to me why this has to 
-         !            be set to true when sed_eulexp is true!
-         l_fluxin=.true. 
-         l_fluxout=.true.
-      else
-         l_fluxin=.false.
-         l_fluxout=.false.
-         if (hydro_mass > thresh_small(params%i_1m)) l_fluxout=.true.
-         if (qfields(k+1, params%i_1m) > thresh_small(params%i_1m)) l_fluxin=.true.
+  if (casim_parent == parent_um .and. l_sed_eulexp ) then
+    ! AH - the code below is required to run in the UM (GA) and 
+    !      it over-rides the above conditions. This code should be wrapped in 
+    !      in a condition that relates to l_sed_eulexp
+    !      NOTE: at this stage it is not clear to me why this has to 
+    !            be set to true when sed_eulexp is true!
+    l_fluxin=.true. 
+    l_fluxout=.true.
+  else
+    l_fluxin=.false.
+    l_fluxout=.false.
+    if (hydro_mass > thresh_small(params%i_1m)) l_fluxout=.true.
+    if (qfields(k+1, params%i_1m) > thresh_small(params%i_1m)) l_fluxin=.true.
+  endif
+
+  if (l_sedim_generic) then
+    a_x=a_s(k)
+    b_x=b_s(k)
+  else
+    a_x=params%a_x
+    b_x=params%b_x
+  end if
+
+  if (l_fluxout) then
+    m1=(hydro_mass/c_x)
+
+    n0=dist_n0(k,params%id)
+    mu=dist_mu(k,params%id)
+    lam=dist_lambda(k,params%id)
+
+    n1=m1*rho(k,ixy_inner)
+    n2=m2*rho(k,ixy_inner)
+
+    if (lam > 0.0_wp) then 
+      if (l_kfsm) then 
+        u1r=a_x*Grho(k)*(lam**(1.0+mu+sp1)*(lam+f_x)**(-(1.0+mu+sp1+b_x)))     &
+            *(Gammafunc(1.0+mu+sp1+b_x)/Gammafunc(1.0+mu+sp1))
+      else 
+        u1r=a_x*Grho(k)*(lam**(params%exp_1_mu_sp1)*(lam+f_x)**(-(params%exp_1_mu_sp1_bx)))     &
+            *(params%gam_1_mu_sp1_bx/params%gam_1_mu_sp1)
+        if (params%l_2m)     &
+            u2r=a_x*Grho(k)*(lam**(params%exp_1_mu_sp2)*(lam+f_x)**(-(params%exp_1_mu_sp2_bx))) &
+                *(params%gam_1_mu_sp2_bx/params%gam_1_mu_sp2)
+      endif
+        
+      if (l_abelshipway .and. params%id==rain_params%id) then ! rain can use abel and shipway formulation
+        u1r2=a2_x*Grho(k)*(lam**(params%exp_1_mu_sp1)*(lam+f2_x)**(-(params%exp_1_mu_sp1_b2x)))   &
+             *(params%gam_1_mu_sp1_b2x/params%gam_1_mu_sp1)
+        u1r=u1r+u1r2
+           
+        if (params%l_2m) then
+          !u2r2=a2_x*Grho(k)*(lam**(1.0+mu+sp2)*(lam+f2_x)**(-(params%exp_1_mu_sp1_b2x))) &
+          !     *(Gammafunc(1.0+mu+sp2+b2_x)/Gammafunc(1.0+mu+sp2))
+          u2r2=a2_x*Grho(k)*(lam**(params%exp_1_mu_sp2)*(lam+f2_x)**(-(params%exp_1_mu_sp2_b2x))) &
+               *(params%gam_1_mu_sp2_b2x/params%gam_1_mu_sp2)
+          u2r=u2r+u2r2
+        end if
       endif
 
-      if (l_sedim_generic) then
-        a_x=a_s(k)
-        b_x=b_s(k)
-      else
-        a_x=params%a_x
-        b_x=params%b_x
-      end if
+      ! fall speeds shouldn't get too big...
+      u1r=min(u1r,params%maxv)
 
-      if (l_fluxout) then
-        m1=(hydro_mass/c_x)
-
-        n0=dist_n0(k,params%id)
-        mu=dist_mu(k,params%id)
-        lam=dist_lambda(k,params%id)
-
-        n1=m1*rho(k,ixy_inner)
-        n2=m2*rho(k,ixy_inner)
-
-        if (lam > 0.0_wp) then 
-        if (l_kfsm) then 
-           u1r=a_x*Grho(k)*(lam**(1.0+mu+sp1)*(lam+f_x)**(-(1.0+mu+sp1+b_x)))     &
-             *(Gammafunc(1.0+mu+sp1+b_x)/Gammafunc(1.0+mu+sp1))
-        else 
-           u1r=a_x*Grho(k)*(lam**(params%exp_1_mu_sp1)*(lam+f_x)**(-(params%exp_1_mu_sp1_bx)))     &
-                *(params%gam_1_mu_sp1_bx/params%gam_1_mu_sp1)
-           if (params%l_2m)     &
-                u2r=a_x*Grho(k)*(lam**(params%exp_1_mu_sp2)*(lam+f_x)**(-(params%exp_1_mu_sp2_bx))) &
-                *(params%gam_1_mu_sp2_bx/params%gam_1_mu_sp2)
-        endif
-        
-        if (l_abelshipway .and. params%id==rain_params%id) then ! rain can use abel and shipway formulation
-           u1r2=a2_x*Grho(k)*(lam**(params%exp_1_mu_sp1)*(lam+f2_x)**(-(params%exp_1_mu_sp1_b2x)))   &
-                *(params%gam_1_mu_sp1_b2x/params%gam_1_mu_sp1)
-           u1r=u1r+u1r2
-           
-           if (params%l_2m) then
-              !u2r2=a2_x*Grho(k)*(lam**(1.0+mu+sp2)*(lam+f2_x)**(-(params%exp_1_mu_sp1_b2x))) &
-              !     *(Gammafunc(1.0+mu+sp2+b2_x)/Gammafunc(1.0+mu+sp2))
-              u2r2=a2_x*Grho(k)*(lam**(params%exp_1_mu_sp2)*(lam+f2_x)**(-(params%exp_1_mu_sp2_b2x))) &
-                   *(params%gam_1_mu_sp2_b2x/params%gam_1_mu_sp2)
-              u2r=u2r+u2r2
-           end if
-        endif
-
-        ! fall speeds shouldn't get too big...
-        u1r=min(u1r,params%maxv)
-
-        ! For clouds and ice, we only use a 1M representation of sedimentation
-        ! so that spurious size sorting doesn't lead to overactive autoconversion
-        if (params%id==cloud_params%id .or. params%id==ice_params%id) then
-          if (l_sed_icecloud_as_1m)then
-            if (params%l_2m)u2r=u1r
-          else
-            if (params%l_2m)u2r=min(u2r,params%maxv)
-          end if
+      ! For clouds and ice, we only use a 1M representation of sedimentation
+      ! so that spurious size sorting doesn't lead to overactive autoconversion
+      if (params%id==cloud_params%id .or. params%id==ice_params%id) then
+        if (l_sed_icecloud_as_1m)then
+          if (params%l_2m)u2r=u1r
         else
           if (params%l_2m)u2r=min(u2r,params%maxv)
         end if
+      else
+        if (params%l_2m)u2r=min(u2r,params%maxv)
+      end if
 
-        if (params%id==rain_params%id .and. l_sed_rain_1m) then 
-           if (params%l_2m)u2r=u1r
-        end if
+      if ( (params%id==rain_params%id .and. l_sed_rain_1m) .or. &
+           (params%id==snow_params%id .and. l_sed_snow_1m) .or. &
+           (params%id==graupel_params%id .and. l_sed_graupel_1m) )  then
+        if (params%l_2m)u2r=u1r
+      end if
 
-        if (params%id==snow_params%id .and. l_sed_snow_1m) then 
-           if (params%l_2m)u2r=u1r
-        end if
-
-        if (params%id==graupel_params%id .and. l_sed_graupel_1m) then 
-           if (params%l_2m)u2r=u1r
-        end if
-
-        ! fall speeds shouldn't be negative (can happen with original AS formulation)
-        u1r=max(u1r,0.0_wp)
-        if (params%l_2m)u2r=max(u2r,0.0_wp)
-        else 
-          u1r=0.0_wp
-          if (params%l_2m)u2r=0.0_wp
-        endif
-        flux_n1(k)=n1*u1r
+      ! fall speeds shouldn't be negative (can happen with original AS formulation)
+      u1r=max(u1r,0.0_wp)
+      if (params%l_2m)u2r=max(u2r,0.0_wp)
+    else 
+      u1r=0.0_wp
+      if (params%l_2m)u2r=0.0_wp
+    endif
+    flux_n1(k)=n1*u1r
         
-        if (params%l_2m) flux_n2(k)=n2*u2r
+    if (params%l_2m) flux_n2(k)=n2*u2r
            
 
-        ! AH : derive the sedimentation flux
-        if (casim_parent == parent_um .and. l_sed_eulexp) then ! use the method, which is based on UM and is most appropriate 
-          !                      ! (and stable) for  long timesteps
-           !PRF use WB method -overwrite everything for now - put logicals in
-           !print *, 'sed_eulexp called', k, hydro_mass
-           if (hydro_mass < thresh_small(params%i_1m)) then
-              u1r=0.0
-              n1=0.0
-              if (params%l_2m) then
-                 u2r=0.0
-                 n2=0.0
-              endif
-           endif
+    ! AH : derive the sedimentation flux
+    if (casim_parent == parent_um .and. l_sed_eulexp) then 
+            ! use the method, which is based on UM and is most appropriate 
+            ! (and stable) for  long timesteps
+      !PRF use WB method -overwrite everything for now - put logicals in
+      !print *, 'sed_eulexp called', k, hydro_mass
+      if (hydro_mass < thresh_small(params%i_1m)) then
+        u1r=0.0
+        n1=0.0
+        if (params%l_2m) then
+          u2r=0.0
+          n2=0.0
+        endif
+      endif
            
-           points=1
-           m0=1e-10/lsp_sedim_c_x  !for the mass - does not apply to number - 
-                                   !fix zero in one but not the other below)
-           dhi(1)=step_length/dz(k,ixy_inner)
-           dhir(1)=dz(k,ixy_inner)/step_length
-           rhoin(1)=rho(k,ixy_inner)
-           rhor(1)=1.0/rho(k,ixy_inner)
-           mixratio_thislayer(1)=lsp_sedim_c_x*n1   /rho(k,ixy_inner)
-           flux_fromabove(1)=lsp_sedim_c_x*flux_n1(k+1)
-           fallspeed_fromabove(1)=u1r_above
-           fallspeed_thislayer(1)=u1r
-           total_flux_out(1)=0.0
+      points=1
+      m0=1e-10/lsp_sedim_c_x  !for the mass - does not apply to number - 
+                              !fix zero in one but not the other below)
+      dhi(1)=step_length/dz(k,ixy_inner)
+      dhir(1)=dz(k,ixy_inner)/step_length
+      rhoin(1)=rho(k,ixy_inner)
+      rhor(1)=1.0/rho(k,ixy_inner)
+      mixratio_thislayer(1)=lsp_sedim_c_x*n1   /rho(k,ixy_inner)
+      flux_fromabove(1)=lsp_sedim_c_x*flux_n1(k+1)
+      fallspeed_fromabove(1)=u1r_above
+      fallspeed_thislayer(1)=u1r
+      total_flux_out(1)=0.0
 
-           call lsp_sedim_eulexp(points,m0,dhi,dhir,rhoin,rhor,                                                 &
-                flux_fromabove, fallspeed_thislayer,                                         &
-                mixratio_thislayer, fallspeed_fromabove,                                     &
-                total_flux_out)
-           flux_n1(k)=total_flux_out(1)/lsp_sedim_c_x
-           u1r_above=fallspeed_thislayer(1)
+      call lsp_sedim_eulexp(points,m0,dhi,dhir,rhoin,rhor,                     &
+                            flux_fromabove, fallspeed_thislayer,               &
+                            mixratio_thislayer, fallspeed_fromabove,           &
+                            total_flux_out)
+      flux_n1(k)=total_flux_out(1)/lsp_sedim_c_x
+      u1r_above=fallspeed_thislayer(1)
            
-           if (params%l_2m) then
-              points=1
-              m0=1e-10/lsp_sedim_c_x  !for the mass - does not apply to number - 
-                                      !fix zero in one but not the other below)
-              dhi(1)=step_length/dz(k,ixy_inner)
-              dhir(1)=dz(k,ixy_inner)/step_length
-              rhoin(1)=rho(k,ixy_inner)
-              rhor(1)=1.0/rho(k,ixy_inner)
-              mixratio_thislayer(1)=n2   /rho(k,ixy_inner)
-              flux_fromabove(1)=flux_n2(k+1)
-              fallspeed_fromabove(1)=u2r_above
-              fallspeed_thislayer(1)=u2r
-              total_flux_out(1)=0.0
-              
-              call lsp_sedim_eulexp(points,m0,dhi,dhir,rhoin,rhor,                                                 &
-                   flux_fromabove, fallspeed_thislayer,                                         &
-                   mixratio_thislayer, fallspeed_fromabove,                                     &
-                   total_flux_out)
-              flux_n2(k)=total_flux_out(1)
-              u2r_above=fallspeed_thislayer(1)
-           endif
+      if (params%l_2m) then
+        points=1
+        m0=1e-10/lsp_sedim_c_x  !for the mass - does not apply to number - 
+                                !fix zero in one but not the other below)
+        dhi(1)=step_length/dz(k,ixy_inner)
+        dhir(1)=dz(k,ixy_inner)/step_length
+        rhoin(1)=rho(k,ixy_inner)
+        rhor(1)=1.0/rho(k,ixy_inner)
+        mixratio_thislayer(1)=n2/rho(k,ixy_inner)
+        flux_fromabove(1)=flux_n2(k+1)
+        fallspeed_fromabove(1)=u2r_above
+        fallspeed_thislayer(1)=u2r
+        total_flux_out(1)=0.0
+        
+        call lsp_sedim_eulexp(points,m0,dhi,dhir,rhoin,rhor,                   &
+                              flux_fromabove, fallspeed_thislayer,             &
+                              mixratio_thislayer, fallspeed_fromabove,         &
+                              total_flux_out)
+        flux_n2(k)=total_flux_out(1)
+        u2r_above=fallspeed_thislayer(1)
+      endif
            
-           if (flux_n1(k) .lt. epsilon(1.0_wp) ) then
-              flux_n1(k)=0.0
-              u1r_above=0.0
-           endif
+      if (flux_n1(k) .lt. epsilon(1.0_wp) ) then
+        flux_n1(k)=0.0
+        u1r_above=0.0
+      endif
            
-           if (params%l_2m .and. (flux_n2(k) .lt. epsilon(1.0_wp))) then
-              flux_n2(k)=0.0
-              u2r_above=0.0
-           endif    
+      if (params%l_2m .and. (flux_n2(k) .lt. epsilon(1.0_wp))) then
+        flux_n2(k)=0.0
+        u2r_above=0.0
+      endif    
         
 !!PRF
-        endif
+    endif
 !         else if (parent_model
 !                       ! ! Ported code that produces very different results to standard sed
 !             flux_fromabove(1) = c_x * flux_n1(k+1)
@@ -941,199 +922,205 @@ contains
 ! #endif
 !        endif ! L_sed_eulexp
 
-        precip1d(k) = flux_n1(k)*c_x
+    precip1d(k) = flux_n1(k)*c_x
         ! diagnostic for precip
 
-     end if
+  end if
 
-      dmac=0.0
-      dmad=0.0
-      dnumber_a=0.0
-      dnumber_d=0.0
+  dmac=0.0
+  dmad=0.0
+  dnumber_a=0.0
+  dnumber_d=0.0
 
-      if (l_fluxout) then !flux out (flux(k+1) will be zero if no flux in)
-        dn1=(flux_n1(k+1)-flux_n1(k))*rdz_on_rho(k,ixy_inner)
-        if (params%l_2m) dn2=(flux_n2(k+1)-flux_n2(k))*rdz_on_rho(k,ixy_inner)
+  if (l_fluxout) then !flux out (flux(k+1) will be zero if no flux in)
+    dn1=(flux_n1(k+1)-flux_n1(k))*rdz_on_rho(k,ixy_inner)
+    if (params%l_2m) dn2=(flux_n2(k+1)-flux_n2(k))*rdz_on_rho(k,ixy_inner)
 
-        !============================
-        ! aerosol processing
-        !============================
-        if (l_ased .and. l_da_local) then
-          if (params%id == cloud_params%id) then
-            dmac=(flux_n2(k+1)*aeroact(k+1)%nratio1*aeroact(k+1)%mact1_mean -    &
-                 flux_n2(k)*aeroact(k)%nratio1*aeroact(k)%mact1_mean)* rdz_on_rho(k,ixy_inner)
-            if (l_passivenumbers) then
-              dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio1 - flux_n2(k)*aeroact(k)%nratio1)* rdz_on_rho(k,ixy_inner)
-            end if
-            if (.not. l_warm) then
-              dmad=(flux_n2(k+1)*dustact(k+1)%nratio1*dustact(k+1)%mact1_mean-  &
-                   flux_n2(k)*dustact(k)%nratio1*dustact(k)%mact1_mean)*rdz_on_rho(k,ixy_inner)
-              if (l_passivenumbers_ice .and. dustact(k)%mact_mean > 0.0) then
-                dnumber_d=(flux_n2(k+1)*dustact(k+1)%nratio1-flux_n2(k)*dustact(k)%nratio1)*rdz_on_rho(k,ixy_inner)
-              end if
-            end if
-          else if (params%id == rain_params%id) then
-            dmac=(flux_n2(k+1)*aeroact(k+1)%nratio2*aeroact(k+1)%mact2_mean-    &
-                 flux_n2(k)*aeroact(k)%nratio2*aeroact(k)%mact2_mean)*rdz_on_rho(k,ixy_inner)
-            if (l_passivenumbers .and. aeroact(k)%mact_mean > 0.0) then
-              dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio2-flux_n2(k)*aeroact(k)%nratio2)*rdz_on_rho(k,ixy_inner)
-            end if
-            if (.not. l_warm) then
-              dmad=(flux_n2(k+1)*dustact(k+1)%nratio2*dustact(k+1)%mact2_mean-  &
-                   flux_n2(k)*dustact(k)%nratio2*dustact(k)%mact2_mean)*rdz_on_rho(k,ixy_inner)
-              if (l_passivenumbers_ice) then
-                dnumber_d=(flux_n2(k+1)*dustact(k+1)%nratio2-flux_n2(k)*dustact(k)%nratio2)*rdz_on_rho(k,ixy_inner)
-              end if
-            end if
-          end if
-
-          if (params%id == ice_params%id) then
-            dmac = (flux_n2(k+1)*aeroact(k+1)%nratio1*aeroact(k+1)%mact1_mean-    &
-                 flux_n2(k)*aeroact(k)%nratio1*aeroact(k)%mact1_mean)*rdz_on_rho(k,ixy_inner)
-            dmad = (flux_n2(k+1)*dustact(k+1)%nratio1*dustact(k+1)%mact1_mean-    &
-                 flux_n2(k)*dustact(k)%nratio1*dustact(k)%mact1_mean)*rdz_on_rho(k,ixy_inner)
-            if (l_passivenumbers) then
-              dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio1-flux_n2(k)*aeroact(k)%nratio1)*rdz_on_rho(k,ixy_inner)
-            end if
-            if (l_passivenumbers_ice) then
-              dnumber_d=(flux_n2(k+1)*dustact(k+1)%nratio1-flux_n2(k)*dustact(k)%nratio1)*rdz_on_rho(k,ixy_inner)
-            end if
-          else if (params%id == snow_params%id) then
-            dmac=(flux_n2(k+1)*aeroact(k+1)%nratio2*aeroact(k+1)%mact2_mean-    &
-                 flux_n2(k)*aeroact(k)%nratio2*aeroact(k)%mact2_mean)*rdz_on_rho(k,ixy_inner)
-            dmad=(flux_n2(k+1)*dustact(k+1)%nratio2*dustact(k+1)%mact2_mean-    &
-                 flux_n2(k)*dustact(k)%nratio2*dustact(k)%mact2_mean)*rdz_on_rho(k,ixy_inner)
-            if (l_passivenumbers) then
-              dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio2-flux_n2(k)*aeroact(k)%nratio2)*rdz_on_rho(k,ixy_inner)
-            end if
-            if (l_passivenumbers_ice) then
-              dnumber_d=(flux_n2(k+1)*dustact(k+1)%nratio2-flux_n2(k)*dustact(k)%nratio2)*rdz_on_rho(k,ixy_inner)
-            end if
-          else if (params%id == graupel_params%id) then
-            dmac=(flux_n2(k+1)*aeroact(k+1)%nratio3*aeroact(k+1)%mact3_mean-    &
-                 flux_n2(k)*aeroact(k)%nratio3*aeroact(k)%mact3_mean)*rdz_on_rho(k,ixy_inner)
-            dmad=(flux_n2(k+1)*dustact(k+1)%nratio3*dustact(k+1)%mact3_mean-    &
-                 flux_n2(k)*dustact(k)%nratio3*dustact(k)%mact3_mean)*rdz_on_rho(k,ixy_inner)
-
-            if (l_passivenumbers) then
-              dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio3-flux_n2(k)*aeroact(k)%nratio3)*rdz_on_rho(k,ixy_inner)
-            end if
-            if (l_passivenumbers_ice) then
-              dnumber_d=(flux_n2(k+1)*dustact(k+1)%nratio3-flux_n2(k)*dustact(k)%nratio3)*rdz_on_rho(k,ixy_inner)
-            end if
+    !============================
+    ! aerosol processing
+    !============================
+    if (l_ased .and. l_da_local) then
+      if (params%id == cloud_params%id) then
+        dmac=(flux_n2(k+1)*aeroact(k+1)%nratio1*aeroact(k+1)%mact1_mean -      &
+             flux_n2(k)*aeroact(k)%nratio1*aeroact(k)%mact1_mean)* rdz_on_rho(k,ixy_inner)
+        if (l_passivenumbers) then
+          dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio1 -                       &
+                    flux_n2(k)*aeroact(k)%nratio1)* rdz_on_rho(k,ixy_inner)
+        end if
+        if (.not. l_warm) then
+          dmad=(flux_n2(k+1)*dustact(k+1)%nratio1*dustact(k+1)%mact1_mean-     &
+               flux_n2(k)*dustact(k)%nratio1*dustact(k)%mact1_mean)*rdz_on_rho(k,ixy_inner)
+          if (l_passivenumbers_ice .and. dustact(k)%mact_mean > 0.0) then
+            dnumber_d=(flux_n2(k+1)*dustact(k+1)%nratio1-                      &
+                      flux_n2(k)*dustact(k)%nratio1)*rdz_on_rho(k,ixy_inner)
           end if
         end if
-      else if (l_fluxin) then !flux in, but not out
-        dn1=flux_n1(k+1)*rdz_on_rho(k,ixy_inner)
-        if (params%l_2m) dn2=flux_n2(k+1)*rdz_on_rho(k,ixy_inner)
-
-        !============================
-        ! aerosol processing
-        !============================
-        if (l_ased .and. l_da_local) then
-          if (params%id == cloud_params%id) then
-            dmac=(flux_n2(k+1)*aeroact(k+1)%nratio1*aeroact(k+1)%mact1_mean)*rdz_on_rho(k,ixy_inner)
-            if (l_passivenumbers) then
-              dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio1)*rdz_on_rho(k,ixy_inner)
-            end if
-            if (.not. l_warm) then
-              dmad=(flux_n2(k+1)*dustact(k+1)%nratio1*dustact(k+1)%mact1_mean)*rdz_on_rho(k,ixy_inner)
-              if (l_passivenumbers_ice) then
-                dnumber_d=(flux_n2(k+1)*dustact(k+1)%nratio1)*rdz_on_rho(k,ixy_inner)
-              end if
-            end if
-          else if (params%id == rain_params%id) then
-            dmac=(flux_n2(k+1)*aeroact(k+1)%nratio2*aeroact(k+1)%mact2_mean)*rdz_on_rho(k,ixy_inner)
-            if (l_passivenumbers) then
-              dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio2)*rdz_on_rho(k,ixy_inner)
-            end if
-            if (.not. l_warm) then
-              dmad=(flux_n2(k+1)*dustact(k+1)%nratio2*dustact(k+1)%mact2_mean)*rdz_on_rho(k,ixy_inner)
-              if (l_passivenumbers_ice) then
-                dnumber_d=flux_n2(k+1)*dustact(k+1)%nratio2*rdz_on_rho(k,ixy_inner)
-              end if
-            end if
-          end if
-
-          if (params%id == ice_params%id) then
-            dmac=(flux_n2(k+1)*aeroact(k+1)%nratio1*aeroact(k+1)%mact1_mean)*rdz_on_rho(k,ixy_inner)
-            dmad=(flux_n2(k+1)*dustact(k+1)%nratio1*dustact(k+1)%mact1_mean)*rdz_on_rho(k,ixy_inner)
-            if (l_passivenumbers) then
-              dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio1)*rdz_on_rho(k,ixy_inner)
-            end if
-            if (l_passivenumbers_ice) then
-              dnumber_d=(flux_n2(k+1)*dustact(k+1)%nratio1)*rdz_on_rho(k,ixy_inner)
-            end if
-          else if (params%id == snow_params%id) then
-            dmac=(flux_n2(k+1)*aeroact(k+1)%nratio2*aeroact(k+1)%mact2_mean)*rdz_on_rho(k,ixy_inner)
-            dmad=(flux_n2(k+1)*dustact(k+1)%nratio2*dustact(k+1)%mact2_mean)*rdz_on_rho(k,ixy_inner)
-            if (l_passivenumbers) then
-              dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio2)*rdz_on_rho(k,ixy_inner)
-            end if
-            if (l_passivenumbers_ice) then
-              dnumber_d=(flux_n2(k+1)*dustact(k+1)%nratio2)*rdz_on_rho(k,ixy_inner)
-            end if
-          else if (params%id == graupel_params%id) then
-            if (i_aerosed_method==1) then
-              dmac=(flux_n2(k+1)*aeroact(k+1)%nratio3*aeroact(k+1)%mact3_mean)*rdz_on_rho(k,ixy_inner)
-              dmad=(flux_n2(k+1)*dustact(k+1)%nratio3*dustact(k+1)%mact3_mean)*rdz_on_rho(k,ixy_inner)
-              if (l_passivenumbers) then
-                dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio3)*rdz_on_rho(k,ixy_inner)
-              end if
-              if (l_passivenumbers_ice) then
-                dnumber_d=(flux_n2(k+1)*dustact(k+1)%nratio3)*rdz_on_rho(k,ixy_inner)
-              end if
-            else
-              write(std_msg, '(A)') 'ERROR: GET RID OF i_aerosed_method variable!'
-              call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, &
-                                     std_msg )
-            end if
-          end if
+      else if (params%id == rain_params%id) then
+        dmac=(flux_n2(k+1)*aeroact(k+1)%nratio2*aeroact(k+1)%mact2_mean-       &
+             flux_n2(k)*aeroact(k)%nratio2*aeroact(k)%mact2_mean)*rdz_on_rho(k,ixy_inner)
+        if (l_passivenumbers .and. aeroact(k)%mact_mean > 0.0) then
+          dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio2-                        &
+                    flux_n2(k)*aeroact(k)%nratio2)*rdz_on_rho(k,ixy_inner)
         end if
-     end if
-
-      ! Store the aerosol process terms...
-      if (l_da_local) then
-        if (params%id == cloud_params%id .or. params%id == rain_params%id) then
-          !liquid phase
-          if (l_separate_rain .and. params%id == rain_params%id) then
-            aerosol_procs(i_am5, iaproc%id)%column_data(k)=dmac
-          else
-            aerosol_procs(i_am4, iaproc%id)%column_data(k)=dmac
-          end if
-          if (.not. l_warm) aerosol_procs(i_am9, iaproc%id)%column_data(k) =dmad
-          if (l_passivenumbers) then
-            aerosol_procs(i_an11, iaproc%id)%column_data(k)=dnumber_a
-          end if
+        if (.not. l_warm) then
+          dmad=(flux_n2(k+1)*dustact(k+1)%nratio2*dustact(k+1)%mact2_mean-     &
+               flux_n2(k)*dustact(k)%nratio2*dustact(k)%mact2_mean)*rdz_on_rho(k,ixy_inner)
           if (l_passivenumbers_ice) then
-            aerosol_procs(i_an12, iaproc%id)%column_data(k)=dnumber_d
-          end if
-
-        else
-          !ice phase
-          aerosol_procs(i_am7, iaproc%id)%column_data(k)=dmad
-          aerosol_procs(i_am8, iaproc%id)%column_data(k)=dmac
-          if (l_passivenumbers) then
-            aerosol_procs(i_an11, iaproc%id)%column_data(k)=dnumber_a
-          end if
-          if (l_passivenumbers_ice) then
-            aerosol_procs(i_an12, iaproc%id)%column_data(k)=dnumber_d
+            dnumber_d=(flux_n2(k+1)*dustact(k+1)%nratio2-                      &
+                      flux_n2(k)*dustact(k)%nratio2)*rdz_on_rho(k,ixy_inner)
           end if
         end if
       end if
 
-      dm1=dn1
-      dm2=dn2
+      if (params%id == ice_params%id) then
+        dmac = (flux_n2(k+1)*aeroact(k+1)%nratio1*aeroact(k+1)%mact1_mean-     &
+             flux_n2(k)*aeroact(k)%nratio1*aeroact(k)%mact1_mean)*rdz_on_rho(k,ixy_inner)
+        dmad = (flux_n2(k+1)*dustact(k+1)%nratio1*dustact(k+1)%mact1_mean-     &
+             flux_n2(k)*dustact(k)%nratio1*dustact(k)%mact1_mean)*rdz_on_rho(k,ixy_inner)
+        if (l_passivenumbers) then
+          dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio1-                        &
+                    flux_n2(k)*aeroact(k)%nratio1)*rdz_on_rho(k,ixy_inner)
+        end if
+        if (l_passivenumbers_ice) then
+          dnumber_d=(flux_n2(k+1)*dustact(k+1)%nratio1-                        &
+                    flux_n2(k)*dustact(k)%nratio1)*rdz_on_rho(k,ixy_inner)
+        end if
+      else if (params%id == snow_params%id) then
+        dmac=(flux_n2(k+1)*aeroact(k+1)%nratio2*aeroact(k+1)%mact2_mean-       &
+             flux_n2(k)*aeroact(k)%nratio2*aeroact(k)%mact2_mean)*rdz_on_rho(k,ixy_inner)
+        dmad=(flux_n2(k+1)*dustact(k+1)%nratio2*dustact(k+1)%mact2_mean-       &
+             flux_n2(k)*dustact(k)%nratio2*dustact(k)%mact2_mean)*rdz_on_rho(k,ixy_inner)
+        if (l_passivenumbers) then
+          dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio2-                        &
+                    flux_n2(k)*aeroact(k)%nratio2)*rdz_on_rho(k,ixy_inner)
+        end if
+        if (l_passivenumbers_ice) then
+          dnumber_d=(flux_n2(k+1)*dustact(k+1)%nratio2-                        &
+                    flux_n2(k)*dustact(k)%nratio2)*rdz_on_rho(k,ixy_inner)
+        end if
+      else if (params%id == graupel_params%id) then
+        dmac=(flux_n2(k+1)*aeroact(k+1)%nratio3*aeroact(k+1)%mact3_mean-       &
+             flux_n2(k)*aeroact(k)%nratio3*aeroact(k)%mact3_mean)*rdz_on_rho(k,ixy_inner)
+        dmad=(flux_n2(k+1)*dustact(k+1)%nratio3*dustact(k+1)%mact3_mean-       &
+             flux_n2(k)*dustact(k)%nratio3*dustact(k)%mact3_mean)*rdz_on_rho(k,ixy_inner)
 
-      procs(params%i_1m, iproc%id)%column_data(k)=c_x*dm1
+        if (l_passivenumbers) then
+          dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio3-                        &
+                    flux_n2(k)*aeroact(k)%nratio3)*rdz_on_rho(k,ixy_inner)
+        end if
+        if (l_passivenumbers_ice) then
+          dnumber_d=(flux_n2(k+1)*dustact(k+1)%nratio3-                        &
+                    flux_n2(k)*dustact(k)%nratio3)*rdz_on_rho(k,ixy_inner)
+        end if
+      end if
+    end if
+  else if (l_fluxin) then !flux in, but not out
+    dn1=flux_n1(k+1)*rdz_on_rho(k,ixy_inner)
+    if (params%l_2m) dn2=flux_n2(k+1)*rdz_on_rho(k,ixy_inner)
 
-      if (params%l_2m) procs(params%i_2m, iproc%id)%column_data(k)=dm2
+    !============================
+    ! aerosol processing
+    !============================
+    if (l_ased .and. l_da_local) then
+      if (params%id == cloud_params%id) then
+        dmac=(flux_n2(k+1)*aeroact(k+1)%nratio1*aeroact(k+1)%mact1_mean)*rdz_on_rho(k,ixy_inner)
+        if (l_passivenumbers) then
+          dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio1)*rdz_on_rho(k,ixy_inner)
+        end if
+        if (.not. l_warm) then
+          dmad=(flux_n2(k+1)*dustact(k+1)%nratio1*dustact(k+1)%mact1_mean)*rdz_on_rho(k,ixy_inner)
+          if (l_passivenumbers_ice) then
+            dnumber_d=(flux_n2(k+1)*dustact(k+1)%nratio1)*rdz_on_rho(k,ixy_inner)
+          end if
+        end if
+      else if (params%id == rain_params%id) then
+        dmac=(flux_n2(k+1)*aeroact(k+1)%nratio2*aeroact(k+1)%mact2_mean)*rdz_on_rho(k,ixy_inner)
+        if (l_passivenumbers) then
+          dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio2)*rdz_on_rho(k,ixy_inner)
+        end if
+        if (.not. l_warm) then
+          dmad=(flux_n2(k+1)*dustact(k+1)%nratio2*dustact(k+1)%mact2_mean)*rdz_on_rho(k,ixy_inner)
+          if (l_passivenumbers_ice) then
+            dnumber_d=flux_n2(k+1)*dustact(k+1)%nratio2*rdz_on_rho(k,ixy_inner)
+          end if
+        end if
+      end if
 
-    end do
+      if (params%id == ice_params%id) then
+        dmac=(flux_n2(k+1)*aeroact(k+1)%nratio1*aeroact(k+1)%mact1_mean)*rdz_on_rho(k,ixy_inner)
+        dmad=(flux_n2(k+1)*dustact(k+1)%nratio1*dustact(k+1)%mact1_mean)*rdz_on_rho(k,ixy_inner)
+        if (l_passivenumbers) then
+          dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio1)*rdz_on_rho(k,ixy_inner)
+        end if
+        if (l_passivenumbers_ice) then
+          dnumber_d=(flux_n2(k+1)*dustact(k+1)%nratio1)*rdz_on_rho(k,ixy_inner)
+        end if
+      else if (params%id == snow_params%id) then
+        dmac=(flux_n2(k+1)*aeroact(k+1)%nratio2*aeroact(k+1)%mact2_mean)*rdz_on_rho(k,ixy_inner)
+        dmad=(flux_n2(k+1)*dustact(k+1)%nratio2*dustact(k+1)%mact2_mean)*rdz_on_rho(k,ixy_inner)
+        if (l_passivenumbers) then
+          dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio2)*rdz_on_rho(k,ixy_inner)
+        end if
+        if (l_passivenumbers_ice) then
+          dnumber_d=(flux_n2(k+1)*dustact(k+1)%nratio2)*rdz_on_rho(k,ixy_inner)
+        end if
+      else if (params%id == graupel_params%id) then
+        if (i_aerosed_method==1) then
+          dmac=(flux_n2(k+1)*aeroact(k+1)%nratio3*aeroact(k+1)%mact3_mean)*rdz_on_rho(k,ixy_inner)
+          dmad=(flux_n2(k+1)*dustact(k+1)%nratio3*dustact(k+1)%mact3_mean)*rdz_on_rho(k,ixy_inner)
+          if (l_passivenumbers) then
+            dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio3)*rdz_on_rho(k,ixy_inner)
+          end if
+          if (l_passivenumbers_ice) then
+            dnumber_d=(flux_n2(k+1)*dustact(k+1)%nratio3)*rdz_on_rho(k,ixy_inner)
+          end if
+        else
+          write(std_msg, '(A)') 'ERROR: GET RID OF i_aerosed_method variable!'
+          call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, std_msg )
+        end if
+      end if
+    end if
+  end if
 
-    IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+  ! Store the aerosol process terms...
+  if (l_da_local) then
+    if (params%id == cloud_params%id .or. params%id == rain_params%id) then
+      !liquid phase
+      if (l_separate_rain .and. params%id == rain_params%id) then
+        aerosol_procs(i_am5, iaproc%id)%column_data(k)=dmac
+      else
+        aerosol_procs(i_am4, iaproc%id)%column_data(k)=dmac
+      end if
+      if (.not. l_warm) aerosol_procs(i_am9, iaproc%id)%column_data(k) =dmad
+      if (l_passivenumbers) then
+        aerosol_procs(i_an11, iaproc%id)%column_data(k)=dnumber_a
+      end if
+      if (l_passivenumbers_ice) then
+        aerosol_procs(i_an12, iaproc%id)%column_data(k)=dnumber_d
+      end if
 
-  end subroutine sedr_1M_2M
+    else
+      !ice phase
+      aerosol_procs(i_am7, iaproc%id)%column_data(k)=dmad
+      aerosol_procs(i_am8, iaproc%id)%column_data(k)=dmac
+      if (l_passivenumbers) then
+        aerosol_procs(i_an11, iaproc%id)%column_data(k)=dnumber_a
+      end if
+      if (l_passivenumbers_ice) then
+        aerosol_procs(i_an12, iaproc%id)%column_data(k)=dnumber_d
+      end if
+    end if
+  end if
+
+  procs(params%i_1m, iproc%id)%column_data(k)=c_x*dn1
+
+  if (params%l_2m) procs(params%i_2m, iproc%id)%column_data(k)=dn2
+
+end do
+
+IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
+
+end subroutine sedr_1M_2M
 
 
   subroutine terminal_velocity_CFL(dt, vt, nsubseds_hydro, sed_length_hydro, nsubseds_max, & 

@@ -193,7 +193,6 @@ ze_i(:)   = 0.0
 ze_i2(:)  = 0.0
 ze_r(:)   = 0.0
 ze_l(:)   = 0.0
-ze_tot(:) = 0.0
 
 
 kclw   = kliq / 0.93 * (6.0 / pi / cloud_params%density)**2
@@ -229,6 +228,8 @@ DO i = 1,points
      ze_l(i) = rho(i)*mm6m3*kclw*cloud_params%c_x**2*(dist_n0(i,cloud_params%id)* &
          dist_lambda(i,cloud_params%id)**(arg2)/Gammafunc(arg2)) / &
          dist_lambda(i,cloud_params%id)**(arg3)*Gammafunc(arg3) * cffields(i,i_cfl) 
+     ! Convert from linear (mm^6 m^-3) to dBZ
+     IF (ze_l(i)   > ref_lim_lin) dbz_l_c(i)   = 10.0 * LOG10(ze_l(i))
   END IF
 
   ! Reflectivity for rain water
@@ -239,6 +240,7 @@ DO i = 1,points
      ze_r(i) = rho(i)*mm6m3*kclw*rain_params%c_x**2*(dist_n0(i,rain_params%id)* &
          dist_lambda(i,rain_params%id)**(arg2)/Gammafunc(arg2)) / &
          dist_lambda(i,rain_params%id)**(arg3)*Gammafunc(arg3) * cffields(i,i_cfr) 
+     IF (ze_r(i)   > ref_lim_lin) dbz_r_c(i)   = 10.0 * LOG10(ze_r(i))
   END IF
 
   IF (.NOT. l_warm) THEN
@@ -249,7 +251,8 @@ DO i = 1,points
         arg3 = 2.0*ice_params%d_x+dist_mu(i,ice_params%id)+1.0
         ze_i(i) = rho(i)*mm6m3*kice_c*ice_params%c_x**2*(dist_n0(i,ice_params%id)* &
             dist_lambda(i,ice_params%id)**(arg2)/Gammafunc(arg2)) / &
-            dist_lambda(i,ice_params%id)**(arg3)*Gammafunc(arg3) * cffields(i,i_cfi) 
+            dist_lambda(i,ice_params%id)**(arg3)*Gammafunc(arg3) * cffields(i,i_cfi)
+        IF (ze_i(i)   > ref_lim_lin) dbz_i_c(i)   = 10.0 * LOG10(ze_i(i))
      END IF
 
      ! Reflectivity for snow
@@ -259,7 +262,8 @@ DO i = 1,points
         arg3 = 2.0*snow_params%d_x+dist_mu(i,snow_params%id)+1.0
         ze_i2(i) = rho(i)*mm6m3*kice_a*snow_params%c_x**2*(dist_n0(i,snow_params%id)* &
             dist_lambda(i,snow_params%id)**(arg2)/Gammafunc(arg2)) / &
-            dist_lambda(i,snow_params%id)**(arg3)*Gammafunc(arg3) * cffields(i,i_cfs) 
+            dist_lambda(i,snow_params%id)**(arg3)*Gammafunc(arg3) * cffields(i,i_cfs)
+        IF (ze_i2(i)  > ref_lim_lin) dbz_i2_c(i)  = 10.0 * LOG10(ze_i2(i))
      END IF
 
      IF (l_g) THEN
@@ -271,6 +275,7 @@ DO i = 1,points
            ze_g(i) = rho(i)*mm6m3*kgraup*graupel_params%c_x**2*(dist_n0(i,graupel_params%id)* &
                dist_lambda(i,graupel_params%id)**(arg2)/Gammafunc(arg2)) / &
                dist_lambda(i,graupel_params%id)**(arg3)*Gammafunc(arg3) * cffields(i,i_cfg) 
+           IF (ze_g(i)   > ref_lim_lin) dbz_g_c(i)   = 10.0 * LOG10(ze_g(i))
         END IF
      END IF
   END IF
@@ -280,11 +285,7 @@ DO i = 1,points
 
   ! Convert from linear (mm^6 m^-3) to dBZ
   IF (ze_tot(i) > ref_lim_lin) dbz_tot_c(i) = 10.0 * LOG10(ze_tot(i))
-  IF (ze_g(i)   > ref_lim_lin) dbz_g_c(i)   = 10.0 * LOG10(ze_g(i))
-  IF (ze_i(i)   > ref_lim_lin) dbz_i_c(i)   = 10.0 * LOG10(ze_i(i))
-  IF (ze_i2(i)  > ref_lim_lin) dbz_i2_c(i)  = 10.0 * LOG10(ze_i2(i))
-  IF (ze_r(i)   > ref_lim_lin) dbz_r_c(i)   = 10.0 * LOG10(ze_r(i))
-  IF (ze_l(i)   > ref_lim_lin) dbz_l_c(i)   = 10.0 * LOG10(ze_l(i))
+
 END DO
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)

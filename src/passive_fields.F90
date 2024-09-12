@@ -99,8 +99,6 @@ contains
     real(wp), intent(in), target :: qfields(:,:,:)
     integer :: k, ixy_inner, ixy, jy, ix
 
-    !real(wp), pointer :: theta(:)
-
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
     REAL(KIND=jprb)               :: zhook_handle
@@ -110,43 +108,41 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-    !theta=>qfields(:,i_th)
-
     dt=dt_in
 
     do ixy_inner=1, nxy_inner_loop
 
-       ixy  = (ixy_outer-1)*nxy_inner + ixy_inner
-       jy = modulo(ixy-1,(je_in-js_in+1))+js_in
-       ix = (ixy-1)/(je_in-js_in+1)+is_in
+      ixy  = (ixy_outer-1)*nxy_inner + ixy_inner
+      jy = modulo(ixy-1,(je_in-js_in+1))+js_in
+      ix = (ixy-1)/(je_in-js_in+1)+is_in
 
 
-    do k=1,nz
-          rho(k,ixy_inner)=rho_in(k,ix,jy)
-          pressure(k, ixy_inner)=p_in(k,ix,jy)
-          exner(k, ixy_inner)=exner_in(k,ix,jy)
-          rexner(k, ixy_inner)=1.0/exner(k, ixy_inner)
-          w(k, ixy_inner)=w_in(k,ix,jy)
-          !tke(k)=tke_in(kl:ku)
-          dz(k, ixy_inner)=dz_in(k,ix,jy)
-          rdz_on_rho(k, ixy_inner)=1.0/(dz_in(k,ix,jy)*rho_in(k,ix,jy))
+      do k=1,nz
+        rho(k,ixy_inner)=rho_in(k,ix,jy)
+        pressure(k, ixy_inner)=p_in(k,ix,jy)
+        exner(k, ixy_inner)=exner_in(k,ix,jy)
+        rexner(k, ixy_inner)=1.0/exner(k, ixy_inner)
+        w(k, ixy_inner)=w_in(k,ix,jy)
+        !tke(k)=tke_in(kl:ku)
+        dz(k, ixy_inner)=dz_in(k,ix,jy)
+        rdz_on_rho(k, ixy_inner)=1.0/(dz_in(k,ix,jy)*rho_in(k,ix,jy))
         !  do k=1,nz
-          TdegK(k, ixy_inner)=qfields(k,i_th,ixy_inner)*exner(k, ixy_inner)
-          TdegC(k, ixy_inner)=TdegK(k, ixy_inner)-273.15
-          qws(k, ixy_inner)=qsaturation(TdegK(k, ixy_inner), pressure(k, ixy_inner)/100.0)
-          qws0(k, ixy_inner)=qsaturation(273.15_wp, pressure(k, ixy_inner)/100.0)
-       end do ! k
+        TdegK(k, ixy_inner)=qfields(k,i_th,ixy_inner)*exner(k, ixy_inner)
+        TdegC(k, ixy_inner)=TdegK(k, ixy_inner)-273.15
+        qws(k, ixy_inner)=qsaturation(TdegK(k, ixy_inner), pressure(k, ixy_inner)/100.0)
+        qws0(k, ixy_inner)=qsaturation(273.15_wp, pressure(k, ixy_inner)/100.0)
+      end do ! k
 
-       qws(nz, ixy_inner)=1.0e-8
+      qws(nz, ixy_inner)=1.0e-8
 
-       min_dz(ixy_inner) = minval(dz(:,ixy_inner))
+      min_dz(ixy_inner) = minval(dz(:,ixy_inner))
 
-       if (any(qws(:,ixy_inner)==0.0)) then
-      write(std_msg, '(A)') 'Error in saturation calculation - qws is zero'
-      call throw_mphys_error( bad_values, ModuleName//':'//RoutineName,     &
-                              std_msg )
+      if (any(qws(:,ixy_inner)==0.0)) then
+        write(std_msg, '(A)') 'Error in saturation calculation - qws is zero'
+        call throw_mphys_error( bad_values, ModuleName//':'//RoutineName,     &
+                                std_msg )
 
-    end if
+      end if
     end do ! ixy_inner
     !nullify(theta)
 
