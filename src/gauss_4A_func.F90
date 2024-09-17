@@ -23,7 +23,7 @@ module gauss_casim_micro
   public gauss_casim_func, gaussfunclookup, gaussfunclookup_2d
 contains
 
-  subroutine gaussfunclookup(iq, value, a, b, init)
+  subroutine gaussfunclookup(iq, value, a, b)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -34,11 +34,9 @@ contains
     integer, intent(in) :: iq !< parameter index relating to variable we're considering
     real(wp), intent(out) :: value !< returned value
     real(wp), intent(in), optional :: a, b  !< Value of a and b to use. Only required if initializing
-    logical, intent(in), optional :: init !< if present and true then initialize values otherwise use precalculated values
 
     ! Local variables
     character(len=*), parameter :: RoutineName='GAUSSFUNCLOOKUP'
-    logical :: vinit
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -49,9 +47,7 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-    vinit=.false.
-    if (present(init) .and. present(a) .and. present(b)) vinit=init
-    if (vinit) then
+    if ( present(a) .and. present(b)) then
       value=gauss_casim_func(a,b)
       gaussfunc_save(iq)=gauss_casim_func(a,b)
     else
