@@ -104,7 +104,7 @@ contains
     Sc=visair/Dv
 
     T1=vent_1*(mu+1.0)/lam
-    T2=vent_2*Sc**(1.0/3.0)*(a_x*(rho0/rho(k,ixy_inner))**(0.5)*rho(k,ixy_inner)/visair)**(0.5)
+    T2=vent_2*Sc**(1.0/3.0)*SQRT(a_x*SQRT(rho0*rho(k,ixy_inner))/visair)
 
     V=2.0*pi*n0*rho(k,ixy_inner)*(T1+T2*params%gam_0p5bx_mu_2p5/params%gam_1_mu &
          *(1.0 + 0.5*f_x/lam)**(-(0.5*b_x + mu + 2.5))*lam**(-0.5*b_x-1.5))
