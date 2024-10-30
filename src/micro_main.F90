@@ -82,11 +82,11 @@ module micro_main
 
 !$OMP THREADPRIVATE(l_tendency_loc, l_warm_loc)
 
-  integer :: is, ie ! upper and lower i levels which are to be used
-  integer :: js, je ! upper and lower j levels
-  integer :: ks, ke ! upper and lower k levels
+  integer :: i_start, i_end ! upper and lower i levels which are to be used
+  integer :: j_start, j_end ! upper and lower j levels
+  integer :: k_start, k_end ! upper and lower k levels
 
-!$OMP THREADPRIVATE(is,ie,js,je,ks,ke)
+!$OMP THREADPRIVATE(i_start,i_end,j_start,j_end,k_start,k_end)
 !  integer :: nxny
   real(wp), allocatable, save :: precip(:,:) ! diagnostic for surface precip rate
 
@@ -192,14 +192,14 @@ contains
   
     l_warm_loc=l_warm ! Original setting
 
-    is=is_in
-    ie=ie_in
-    js=js_in
-    je=je_in
-    ks=ks_in
-    ke=ke_in
+    i_start=is_in
+    i_end=ie_in
+    j_start=js_in
+    j_end=je_in
+    k_start=ks_in
+    k_end=ke_in
 
-    !nxy_inner = (ie-is+1)*(je-js+1) ! test
+    !nxy_inner = (i_end-i_start+1)*(j_end-j_start+1) ! test
 
     allocate(rhcrit_1d(kl:ku))
     ! Set RHCrit to 1.0 as default; parent model can then overwrite
@@ -209,7 +209,7 @@ contains
     l_tendency_loc = l_tendency
 
     nq=sum(hydro_complexity%nmoments)+2 ! also includes vapour and theta
-    nz=ke-ks+1
+    nz=k_end-k_start+1
     nprocs = hydro_complexity%nprocesses
     
 
@@ -301,7 +301,7 @@ contains
     ! allocate diagnostics
     allocate(precip(il:iu,jl:ju))
 
-    call initialise_passive_fields(ks, ke)
+    call initialise_passive_fields(k_start, k_end)
 
     allocate(qfields_in(nz, nq, nxy_inner))
     allocate(qfields_mod(nz, nq, nxy_inner))
@@ -569,80 +569,80 @@ contains
              call zero_procs(aerosol_procs(:,:,ixy_inner))
           end if
           !set cloud fraction fields
-          cffields(:,i_cfl,ixy_inner)=cfliq(ks:ke,i,j)
-          cffields(:,i_cfr,ixy_inner)=cfrain(ks:ke,i,j)
-          cffields(:,i_cfi,ixy_inner)=cfice(ks:ke,i,j)
-          cffields(:,i_cfs,ixy_inner)=cfsnow(ks:ke,i,j)
-          cffields(:,i_cfg,ixy_inner)=cfgr(ks:ke,i,j)
+          cffields(:,i_cfl,ixy_inner)=cfliq(k_start:k_end,i,j)
+          cffields(:,i_cfr,ixy_inner)=cfrain(k_start:k_end,i,j)
+          cffields(:,i_cfi,ixy_inner)=cfice(k_start:k_end,i,j)
+          cffields(:,i_cfs,ixy_inner)=cfsnow(k_start:k_end,i,j)
+          cffields(:,i_cfg,ixy_inner)=cfgr(k_start:k_end,i,j)
           ! Set the qfields
-          qfields(:, i_qv, ixy_inner)=qv(ks:ke,i,j)
-          qfields(:, i_th, ixy_inner)=theta(ks:ke,i,j)
-          if (nq_l > 0) qfields(:,i_ql,ixy_inner)=q1(ks:ke,i,j)
-          if (nq_r > 0) qfields(:,i_qr,ixy_inner)=q2(ks:ke,i,j)
-          if (nq_l > 1) qfields(:,i_nl,ixy_inner)=q3(ks:ke,i,j)
-          if (nq_r > 1) qfields(:,i_nr,ixy_inner)=q4(ks:ke,i,j)
-          if (nq_r > 2) qfields(:,i_m3r,ixy_inner)=q5(ks:ke,i,j)
-          if (nq_i > 0) qfields(:,i_qi,ixy_inner)=q6(ks:ke,i,j)
-          if (nq_s > 0) qfields(:,i_qs,ixy_inner)=q7(ks:ke,i,j)
-          if (nq_g > 0) qfields(:,i_qg,ixy_inner)=q8(ks:ke,i,j)
-          if (nq_i > 1) qfields(:,i_ni,ixy_inner)=q9(ks:ke,i,j)
-          if (nq_s > 1) qfields(:,i_ns,ixy_inner)=q10(ks:ke,i,j)
-          if (nq_g > 1) qfields(:,i_ng,ixy_inner)=q11(ks:ke,i,j)
-          if (nq_s > 2) qfields(:,i_m3s,ixy_inner)=q12(ks:ke,i,j)
-          if (nq_g > 2) qfields(:,i_m3g,ixy_inner)=q13(ks:ke,i,j)
-          dqfields(:, i_qv, ixy_inner)=dqv(ks:ke,i,j)
-          dqfields(:, i_th, ixy_inner)=dth(ks:ke,i,j)
-          if (nq_l > 0) dqfields(:,i_ql,ixy_inner)=dq1(ks:ke,i,j)
-          if (nq_r > 0) dqfields(:,i_qr,ixy_inner)=dq2(ks:ke,i,j)
-          if (nq_l > 1) dqfields(:,i_nl,ixy_inner)=dq3(ks:ke,i,j)
-          if (nq_r > 1) dqfields(:,i_nr,ixy_inner)=dq4(ks:ke,i,j)
-          if (nq_r > 2) dqfields(:,i_m3r,ixy_inner)=dq5(ks:ke,i,j)
-          if (nq_i > 0) dqfields(:,i_qi,ixy_inner)=dq6(ks:ke,i,j)
-          if (nq_s > 0) dqfields(:,i_qs,ixy_inner)=dq7(ks:ke,i,j)
-          if (nq_g > 0) dqfields(:,i_qg,ixy_inner)=dq8(ks:ke,i,j)
-          if (nq_i > 1) dqfields(:,i_ni,ixy_inner)=dq9(ks:ke,i,j)
-          if (nq_s > 1) dqfields(:,i_ns,ixy_inner)=dq10(ks:ke,i,j)
-          if (nq_g > 1) dqfields(:,i_ng,ixy_inner)=dq11(ks:ke,i,j)
-          if (nq_s > 2) dqfields(:,i_m3s,ixy_inner)=dq12(ks:ke,i,j)
-          if (nq_g > 2) dqfields(:,i_m3g,ixy_inner)=dq13(ks:ke,i,j)
+          qfields(:, i_qv, ixy_inner)=qv(k_start:k_end,i,j)
+          qfields(:, i_th, ixy_inner)=theta(k_start:k_end,i,j)
+          if (nq_l > 0) qfields(:,i_ql,ixy_inner)=q1(k_start:k_end,i,j)
+          if (nq_r > 0) qfields(:,i_qr,ixy_inner)=q2(k_start:k_end,i,j)
+          if (nq_l > 1) qfields(:,i_nl,ixy_inner)=q3(k_start:k_end,i,j)
+          if (nq_r > 1) qfields(:,i_nr,ixy_inner)=q4(k_start:k_end,i,j)
+          if (nq_r > 2) qfields(:,i_m3r,ixy_inner)=q5(k_start:k_end,i,j)
+          if (nq_i > 0) qfields(:,i_qi,ixy_inner)=q6(k_start:k_end,i,j)
+          if (nq_s > 0) qfields(:,i_qs,ixy_inner)=q7(k_start:k_end,i,j)
+          if (nq_g > 0) qfields(:,i_qg,ixy_inner)=q8(k_start:k_end,i,j)
+          if (nq_i > 1) qfields(:,i_ni,ixy_inner)=q9(k_start:k_end,i,j)
+          if (nq_s > 1) qfields(:,i_ns,ixy_inner)=q10(k_start:k_end,i,j)
+          if (nq_g > 1) qfields(:,i_ng,ixy_inner)=q11(k_start:k_end,i,j)
+          if (nq_s > 2) qfields(:,i_m3s,ixy_inner)=q12(k_start:k_end,i,j)
+          if (nq_g > 2) qfields(:,i_m3g,ixy_inner)=q13(k_start:k_end,i,j)
+          dqfields(:, i_qv, ixy_inner)=dqv(k_start:k_end,i,j)
+          dqfields(:, i_th, ixy_inner)=dth(k_start:k_end,i,j)
+          if (nq_l > 0) dqfields(:,i_ql,ixy_inner)=dq1(k_start:k_end,i,j)
+          if (nq_r > 0) dqfields(:,i_qr,ixy_inner)=dq2(k_start:k_end,i,j)
+          if (nq_l > 1) dqfields(:,i_nl,ixy_inner)=dq3(k_start:k_end,i,j)
+          if (nq_r > 1) dqfields(:,i_nr,ixy_inner)=dq4(k_start:k_end,i,j)
+          if (nq_r > 2) dqfields(:,i_m3r,ixy_inner)=dq5(k_start:k_end,i,j)
+          if (nq_i > 0) dqfields(:,i_qi,ixy_inner)=dq6(k_start:k_end,i,j)
+          if (nq_s > 0) dqfields(:,i_qs,ixy_inner)=dq7(k_start:k_end,i,j)
+          if (nq_g > 0) dqfields(:,i_qg,ixy_inner)=dq8(k_start:k_end,i,j)
+          if (nq_i > 1) dqfields(:,i_ni,ixy_inner)=dq9(k_start:k_end,i,j)
+          if (nq_s > 1) dqfields(:,i_ns,ixy_inner)=dq10(k_start:k_end,i,j)
+          if (nq_g > 1) dqfields(:,i_ng,ixy_inner)=dq11(k_start:k_end,i,j)
+          if (nq_s > 2) dqfields(:,i_m3s,ixy_inner)=dq12(k_start:k_end,i,j)
+          if (nq_g > 2) dqfields(:,i_m3g,ixy_inner)=dq13(k_start:k_end,i,j)
           if (aerosol_option > 0) then
-             if (i_am1 >0) aerofields(:, i_am1, ixy_inner)=a1(ks:ke,i,j)
-             if (i_an1 >0) aerofields(:, i_an1, ixy_inner)=a2(ks:ke,i,j)
-             if (i_am2 >0) aerofields(:, i_am2, ixy_inner)=a3(ks:ke,i,j)
-             if (i_an2 >0) aerofields(:, i_an2, ixy_inner)=a4(ks:ke,i,j)
-             if (i_am3 >0) aerofields(:, i_am3, ixy_inner)=a5(ks:ke,i,j)
-             if (i_an3 >0) aerofields(:, i_an3, ixy_inner)=a6(ks:ke,i,j)
-             if (i_am4 >0) aerofields(:, i_am4, ixy_inner)=a7(ks:ke,i,j)
-             if (i_am5 >0) aerofields(:, i_am5, ixy_inner)=a8(ks:ke,i,j)
-             if (i_am6 >0) aerofields(:, i_am6, ixy_inner)=a9(ks:ke,i,j)
-             if (i_an6 >0) aerofields(:, i_an6, ixy_inner)=a10(ks:ke,i,j)
-             if (i_am7 >0) aerofields(:, i_am7, ixy_inner)=a11(ks:ke,i,j)
-             if (i_am8 >0) aerofields(:, i_am8, ixy_inner)=a12(ks:ke,i,j)
-             if (i_am9 >0) aerofields(:, i_am9, ixy_inner)=a13(ks:ke,i,j)
-             if (i_am10 >0) aerofields(:, i_am10, ixy_inner)=a14(ks:ke,i,j)
-             if (i_an10 >0) aerofields(:, i_an10, ixy_inner)=a15(ks:ke,i,j)
-             if (i_an11 >0) aerofields(:, i_an11, ixy_inner)=a16(ks:ke,i,j)
-             if (i_an12 >0) aerofields(:, i_an12, ixy_inner)=a17(ks:ke,i,j)
-             if (i_ak1 >0) aerofields(:, i_ak1, ixy_inner)=a18(ks:ke,i,j)
-             if (i_ak2 >0) aerofields(:, i_ak2, ixy_inner)=a19(ks:ke,i,j)
-             if (i_ak3 >0) aerofields(:, i_ak3, ixy_inner)=a20(ks:ke,i,j)
-             if (i_am1 >0) daerofields(:, i_am1, ixy_inner)=da1(ks:ke,i,j)
-             if (i_an1 >0) daerofields(:, i_an1, ixy_inner)=da2(ks:ke,i,j)
-             if (i_am2 >0) daerofields(:, i_am2, ixy_inner)=da3(ks:ke,i,j)
-             if (i_an2 >0) daerofields(:, i_an2, ixy_inner)=da4(ks:ke,i,j)
-             if (i_am3 >0) daerofields(:, i_am3, ixy_inner)=da5(ks:ke,i,j)
-             if (i_an3 >0) daerofields(:, i_an3, ixy_inner)=da6(ks:ke,i,j)
-             if (i_am4 >0) daerofields(:, i_am4, ixy_inner)=da7(ks:ke,i,j)
-             if (i_am5 >0) daerofields(:, i_am5, ixy_inner)=da8(ks:ke,i,j)
-             if (i_am6 >0) daerofields(:, i_am6, ixy_inner)=da9(ks:ke,i,j)
-             if (i_an6 >0) daerofields(:, i_an6, ixy_inner)=da10(ks:ke,i,j)
-             if (i_am7 >0) daerofields(:, i_am7, ixy_inner)=da11(ks:ke,i,j)
-             if (i_am8 >0) daerofields(:, i_am8, ixy_inner)=da12(ks:ke,i,j)
-             if (i_am9 >0) daerofields(:, i_am9, ixy_inner)=da13(ks:ke,i,j)
-             if (i_am10 >0) daerofields(:, i_am10, ixy_inner)=da14(ks:ke,i,j)
-             if (i_an10 >0) daerofields(:, i_an10, ixy_inner)=da15(ks:ke,i,j)
-             if (i_an11 >0) daerofields(:, i_an11, ixy_inner)=da16(ks:ke,i,j)
-             if (i_an12 >0) daerofields(:, i_an12, ixy_inner)=da17(ks:ke,i,j)
+             if (i_am1 >0) aerofields(:, i_am1, ixy_inner)=a1(k_start:k_end,i,j)
+             if (i_an1 >0) aerofields(:, i_an1, ixy_inner)=a2(k_start:k_end,i,j)
+             if (i_am2 >0) aerofields(:, i_am2, ixy_inner)=a3(k_start:k_end,i,j)
+             if (i_an2 >0) aerofields(:, i_an2, ixy_inner)=a4(k_start:k_end,i,j)
+             if (i_am3 >0) aerofields(:, i_am3, ixy_inner)=a5(k_start:k_end,i,j)
+             if (i_an3 >0) aerofields(:, i_an3, ixy_inner)=a6(k_start:k_end,i,j)
+             if (i_am4 >0) aerofields(:, i_am4, ixy_inner)=a7(k_start:k_end,i,j)
+             if (i_am5 >0) aerofields(:, i_am5, ixy_inner)=a8(k_start:k_end,i,j)
+             if (i_am6 >0) aerofields(:, i_am6, ixy_inner)=a9(k_start:k_end,i,j)
+             if (i_an6 >0) aerofields(:, i_an6, ixy_inner)=a10(k_start:k_end,i,j)
+             if (i_am7 >0) aerofields(:, i_am7, ixy_inner)=a11(k_start:k_end,i,j)
+             if (i_am8 >0) aerofields(:, i_am8, ixy_inner)=a12(k_start:k_end,i,j)
+             if (i_am9 >0) aerofields(:, i_am9, ixy_inner)=a13(k_start:k_end,i,j)
+             if (i_am10 >0) aerofields(:, i_am10, ixy_inner)=a14(k_start:k_end,i,j)
+             if (i_an10 >0) aerofields(:, i_an10, ixy_inner)=a15(k_start:k_end,i,j)
+             if (i_an11 >0) aerofields(:, i_an11, ixy_inner)=a16(k_start:k_end,i,j)
+             if (i_an12 >0) aerofields(:, i_an12, ixy_inner)=a17(k_start:k_end,i,j)
+             if (i_ak1 >0) aerofields(:, i_ak1, ixy_inner)=a18(k_start:k_end,i,j)
+             if (i_ak2 >0) aerofields(:, i_ak2, ixy_inner)=a19(k_start:k_end,i,j)
+             if (i_ak3 >0) aerofields(:, i_ak3, ixy_inner)=a20(k_start:k_end,i,j)
+             if (i_am1 >0) daerofields(:, i_am1, ixy_inner)=da1(k_start:k_end,i,j)
+             if (i_an1 >0) daerofields(:, i_an1, ixy_inner)=da2(k_start:k_end,i,j)
+             if (i_am2 >0) daerofields(:, i_am2, ixy_inner)=da3(k_start:k_end,i,j)
+             if (i_an2 >0) daerofields(:, i_an2, ixy_inner)=da4(k_start:k_end,i,j)
+             if (i_am3 >0) daerofields(:, i_am3, ixy_inner)=da5(k_start:k_end,i,j)
+             if (i_an3 >0) daerofields(:, i_an3, ixy_inner)=da6(k_start:k_end,i,j)
+             if (i_am4 >0) daerofields(:, i_am4, ixy_inner)=da7(k_start:k_end,i,j)
+             if (i_am5 >0) daerofields(:, i_am5, ixy_inner)=da8(k_start:k_end,i,j)
+             if (i_am6 >0) daerofields(:, i_am6, ixy_inner)=da9(k_start:k_end,i,j)
+             if (i_an6 >0) daerofields(:, i_an6, ixy_inner)=da10(k_start:k_end,i,j)
+             if (i_am7 >0) daerofields(:, i_am7, ixy_inner)=da11(k_start:k_end,i,j)
+             if (i_am8 >0) daerofields(:, i_am8, ixy_inner)=da12(k_start:k_end,i,j)
+             if (i_am9 >0) daerofields(:, i_am9, ixy_inner)=da13(k_start:k_end,i,j)
+             if (i_am10 >0) daerofields(:, i_am10, ixy_inner)=da14(k_start:k_end,i,j)
+             if (i_an10 >0) daerofields(:, i_an10, ixy_inner)=da15(k_start:k_end,i,j)
+             if (i_an11 >0) daerofields(:, i_an11, ixy_inner)=da16(k_start:k_end,i,j)
+             if (i_an12 >0) daerofields(:, i_an12, ixy_inner)=da17(k_start:k_end,i,j)
           end if
        end do ! ixy_inner
 
@@ -690,60 +690,60 @@ contains
            j = modulo(ixy-1,(je_in-js_in+1))+js_in
            i = (ixy-1)/(je_in-js_in+1)+is_in
 
-           dqv(ks:ke,i,j)=tend(:,i_qv,ixy_inner)
-           dth(ks:ke,i,j)=tend(:,i_th,ixy_inner)
-           dq1(ks:ke,i,j)=tend(:,i_ql,ixy_inner)
-           dq2(ks:ke,i,j)=tend(:,i_qr,ixy_inner)
-           if (cloud_params%l_2m) dq3(ks:ke,i,j)=tend(:,i_nl,ixy_inner)
-           if (rain_params%l_2m) dq4(ks:ke,i,j)=tend(:,i_nr,ixy_inner)
-           if (rain_params%l_3m) dq5(ks:ke,i,j)=tend(:,i_m3r,ixy_inner)
+           dqv(k_start:k_end,i,j)=tend(:,i_qv,ixy_inner)
+           dth(k_start:k_end,i,j)=tend(:,i_th,ixy_inner)
+           dq1(k_start:k_end,i,j)=tend(:,i_ql,ixy_inner)
+           dq2(k_start:k_end,i,j)=tend(:,i_qr,ixy_inner)
+           if (cloud_params%l_2m) dq3(k_start:k_end,i,j)=tend(:,i_nl,ixy_inner)
+           if (rain_params%l_2m) dq4(k_start:k_end,i,j)=tend(:,i_nr,ixy_inner)
+           if (rain_params%l_3m) dq5(k_start:k_end,i,j)=tend(:,i_m3r,ixy_inner)
 
            if (.not. l_warm) then
-              if (ice_params%l_1m) dq6(ks:ke,i,j)=tend(:,i_qi,ixy_inner)
-              if (snow_params%l_1m) dq7(ks:ke,i,j)=tend(:,i_qs,ixy_inner)
-              if (graupel_params%l_1m) dq8(ks:ke,i,j)=tend(:,i_qg,ixy_inner)
-              if (ice_params%l_2m) dq9(ks:ke,i,j)=tend(:,i_ni,ixy_inner)
-              if (snow_params%l_2m) dq10(ks:ke,i,j)=tend(:,i_ns,ixy_inner)
-              if (graupel_params%l_2m) dq11(ks:ke,i,j)=tend(:,i_ng,ixy_inner)
-              if (snow_params%l_3m) dq12(ks:ke,i,j)=tend(:,i_m3s,ixy_inner)
-              if (graupel_params%l_3m) dq13(ks:ke,i,j)=tend(:,i_m3g,ixy_inner)
+              if (ice_params%l_1m) dq6(k_start:k_end,i,j)=tend(:,i_qi,ixy_inner)
+              if (snow_params%l_1m) dq7(k_start:k_end,i,j)=tend(:,i_qs,ixy_inner)
+              if (graupel_params%l_1m) dq8(k_start:k_end,i,j)=tend(:,i_qg,ixy_inner)
+              if (ice_params%l_2m) dq9(k_start:k_end,i,j)=tend(:,i_ni,ixy_inner)
+              if (snow_params%l_2m) dq10(k_start:k_end,i,j)=tend(:,i_ns,ixy_inner)
+              if (graupel_params%l_2m) dq11(k_start:k_end,i,j)=tend(:,i_ng,ixy_inner)
+              if (snow_params%l_3m) dq12(k_start:k_end,i,j)=tend(:,i_m3s,ixy_inner)
+              if (graupel_params%l_3m) dq13(k_start:k_end,i,j)=tend(:,i_m3g,ixy_inner)
            end if
 
            if (l_process) then
-              if (i_am1 >0) da1(ks:ke,i,j)=aerosol_tend(:,i_am1,ixy_inner)
-              if (i_an1 >0) da2(ks:ke,i,j)=aerosol_tend(:,i_an1,ixy_inner)
-              if (i_am2 >0) da3(ks:ke,i,j)=aerosol_tend(:,i_am2,ixy_inner)
-              if (i_an2 >0) da4(ks:ke,i,j)=aerosol_tend(:,i_an2,ixy_inner)
-              if (i_am3 >0) da5(ks:ke,i,j)=aerosol_tend(:,i_am3,ixy_inner)
-              if (i_an3 >0) da6(ks:ke,i,j)=aerosol_tend(:,i_an3,ixy_inner)
-              if (i_am4 >0) da7(ks:ke,i,j)=aerosol_tend(:,i_am4,ixy_inner)
-              if (i_am5 >0) da8(ks:ke,i,j)=aerosol_tend(:,i_am5,ixy_inner)
-              if (i_am6 >0) da9(ks:ke,i,j)=aerosol_tend(:,i_am6,ixy_inner)
-              if (i_an6 >0) da10(ks:ke,i,j)=aerosol_tend(:,i_an6,ixy_inner)
-              if (i_am7 >0) da11(ks:ke,i,j)=aerosol_tend(:,i_am7,ixy_inner)
-              if (i_am8 >0) da12(ks:ke,i,j)=aerosol_tend(:,i_am8,ixy_inner)
-              if (i_am9 >0) da13(ks:ke,i,j)=aerosol_tend(:,i_am9,ixy_inner)
-              if (i_am10 >0) da14(ks:ke,i,j)=aerosol_tend(:,i_am10,ixy_inner)
-              if (i_an10 >0) da15(ks:ke,i,j)=aerosol_tend(:,i_an10,ixy_inner)
-              if (i_an11 >0) da16(ks:ke,i,j)=aerosol_tend(:,i_an11,ixy_inner)
-              if (i_an12 >0) da17(ks:ke,i,j)=aerosol_tend(:,i_an12,ixy_inner)
+              if (i_am1 >0) da1(k_start:k_end,i,j)=aerosol_tend(:,i_am1,ixy_inner)
+              if (i_an1 >0) da2(k_start:k_end,i,j)=aerosol_tend(:,i_an1,ixy_inner)
+              if (i_am2 >0) da3(k_start:k_end,i,j)=aerosol_tend(:,i_am2,ixy_inner)
+              if (i_an2 >0) da4(k_start:k_end,i,j)=aerosol_tend(:,i_an2,ixy_inner)
+              if (i_am3 >0) da5(k_start:k_end,i,j)=aerosol_tend(:,i_am3,ixy_inner)
+              if (i_an3 >0) da6(k_start:k_end,i,j)=aerosol_tend(:,i_an3,ixy_inner)
+              if (i_am4 >0) da7(k_start:k_end,i,j)=aerosol_tend(:,i_am4,ixy_inner)
+              if (i_am5 >0) da8(k_start:k_end,i,j)=aerosol_tend(:,i_am5,ixy_inner)
+              if (i_am6 >0) da9(k_start:k_end,i,j)=aerosol_tend(:,i_am6,ixy_inner)
+              if (i_an6 >0) da10(k_start:k_end,i,j)=aerosol_tend(:,i_an6,ixy_inner)
+              if (i_am7 >0) da11(k_start:k_end,i,j)=aerosol_tend(:,i_am7,ixy_inner)
+              if (i_am8 >0) da12(k_start:k_end,i,j)=aerosol_tend(:,i_am8,ixy_inner)
+              if (i_am9 >0) da13(k_start:k_end,i,j)=aerosol_tend(:,i_am9,ixy_inner)
+              if (i_am10 >0) da14(k_start:k_end,i,j)=aerosol_tend(:,i_am10,ixy_inner)
+              if (i_an10 >0) da15(k_start:k_end,i,j)=aerosol_tend(:,i_an10,ixy_inner)
+              if (i_an11 >0) da16(k_start:k_end,i,j)=aerosol_tend(:,i_an11,ixy_inner)
+              if (i_an12 >0) da17(k_start:k_end,i,j)=aerosol_tend(:,i_an12,ixy_inner)
            else
-              da1(ks:ke,i,j)=0.0
-              da2(ks:ke,i,j)=0.0
-              da3(ks:ke,i,j)=0.0
-              da4(ks:ke,i,j)=0.0
-              da5(ks:ke,i,j)=0.0
-              da6(ks:ke,i,j)=0.0
-              da7(ks:ke,i,j)=0.0
-              da9(ks:ke,i,j)=0.0
-              da10(ks:ke,i,j)=0.0
-              da11(ks:ke,i,j)=0.0
-              da12(ks:ke,i,j)=0.0
-              da13(ks:ke,i,j)=0.0
-              da14(ks:ke,i,j)=0.0
-              da15(ks:ke,i,j)=0.0
-              da16(ks:ke,i,j)=0.0
-              da17(ks:ke,i,j)=0.0
+              da1(k_start:k_end,i,j)=0.0
+              da2(k_start:k_end,i,j)=0.0
+              da3(k_start:k_end,i,j)=0.0
+              da4(k_start:k_end,i,j)=0.0
+              da5(k_start:k_end,i,j)=0.0
+              da6(k_start:k_end,i,j)=0.0
+              da7(k_start:k_end,i,j)=0.0
+              da9(k_start:k_end,i,j)=0.0
+              da10(k_start:k_end,i,j)=0.0
+              da11(k_start:k_end,i,j)=0.0
+              da12(k_start:k_end,i,j)=0.0
+              da13(k_start:k_end,i,j)=0.0
+              da14(k_start:k_end,i,j)=0.0
+              da15(k_start:k_end,i,j)=0.0
+              da16(k_start:k_end,i,j)=0.0
+              da17(k_start:k_end,i,j)=0.0
            end if
 
            if ( l_warm ) then
@@ -751,40 +751,40 @@ contains
               if ( casdiags % l_surface_rain ) casdiags % SurfaceRainR(i,j)  = precip_r(ixy_inner)
               if ( casdiags % l_surface_snow ) casdiags % SurfaceSnowR(i,j)  = 0.0
               if ( casdiags % l_surface_graup) casdiags % SurfaceGraupR(i,j) = 0.0
-              if ( casdiags % l_rainfall_3d ) casdiags % rainfall_3d(i,j,ks:ke)  = precip_r1d(:,ixy_inner)
-              if ( casdiags % l_snowfall_3d ) casdiags % snowfall_3d(i,j,ks:ke)  = 0.0
-              if ( casdiags % l_snowonly_3d ) casdiags % snowonly_3d(i,j,ks:ke)  = 0.0
-              if ( casdiags % l_graupfall_3d) casdiags % graupfall_3d(i,j,ks:ke) = 0.0
+              if ( casdiags % l_rainfall_3d ) casdiags % rainfall_3d(i,j,k_start:k_end)  = precip_r1d(:,ixy_inner)
+              if ( casdiags % l_snowfall_3d ) casdiags % snowfall_3d(i,j,k_start:k_end)  = 0.0
+              if ( casdiags % l_snowonly_3d ) casdiags % snowonly_3d(i,j,k_start:k_end)  = 0.0
+              if ( casdiags % l_graupfall_3d) casdiags % graupfall_3d(i,j,k_start:k_end) = 0.0
            else ! l_warm
 
               if ( casdiags % l_surface_rain ) casdiags % SurfaceRainR(i,j)  = precip_r(ixy_inner)
               if ( casdiags % l_surface_snow ) casdiags % SurfaceSnowR(i,j)  = precip_s(ixy_inner)
               if ( casdiags % l_surface_graup) casdiags % SurfaceGraupR(i,j) = precip_g(ixy_inner)
-              if ( casdiags % l_rainfall_3d ) casdiags % rainfall_3d(i,j,ks:ke)  = precip_r1d(:,ixy_inner)
-              if ( casdiags % l_snowfall_3d ) casdiags % snowfall_3d(i,j,ks:ke)  = precip_s1d(:,ixy_inner)
-              if ( casdiags % l_snowonly_3d ) casdiags % snowonly_3d(i,j,ks:ke)  = precip_so1d(:,ixy_inner)
-              if ( casdiags % l_graupfall_3d) casdiags % graupfall_3d(i,j,ks:ke) = precip_g1d(:,ixy_inner)
+              if ( casdiags % l_rainfall_3d ) casdiags % rainfall_3d(i,j,k_start:k_end)  = precip_r1d(:,ixy_inner)
+              if ( casdiags % l_snowfall_3d ) casdiags % snowfall_3d(i,j,k_start:k_end)  = precip_s1d(:,ixy_inner)
+              if ( casdiags % l_snowonly_3d ) casdiags % snowonly_3d(i,j,k_start:k_end)  = precip_so1d(:,ixy_inner)
+              if ( casdiags % l_graupfall_3d) casdiags % graupfall_3d(i,j,k_start:k_end) = precip_g1d(:,ixy_inner)
            end if ! l_warm
 
            if ( casdiags % l_radar ) then
 
               call tidy_qin(ixy_inner, qfields(:,:,ixy_inner))  !check this is conserving. If i do this here do we need a tidy_ain?
-              call casim_reflec(ixy_inner, nz, nq, rho(ks:ke,i,j), qfields(:,:,ixy_inner), cffields(:,:,ixy_inner),           &
+              call casim_reflec(ixy_inner, nz, nq, rho(k_start:k_end,i,j), qfields(:,:,ixy_inner), cffields(:,:,ixy_inner),           &
                                dbz_tot_c, dbz_g_c, dbz_i_c,                      &
                                dbz_s_c,   dbz_l_c, dbz_r_c  )
 
-              casdiags % dbz_tot(i,j, ks:ke) = dbz_tot_c(:)
-              casdiags % dbz_g(i,j,   ks:ke) = dbz_g_c(:)
-              casdiags % dbz_s(i,j,   ks:ke) = dbz_s_c(:)
-              casdiags % dbz_i(i,j,   ks:ke) = dbz_i_c(:)
-              casdiags % dbz_l(i,j,   ks:ke) = dbz_l_c(:)
-              casdiags % dbz_r(i,j,   ks:ke) = dbz_r_c(:)
+              casdiags % dbz_tot(i,j, k_start:k_end) = dbz_tot_c(:)
+              casdiags % dbz_g(i,j,   k_start:k_end) = dbz_g_c(:)
+              casdiags % dbz_s(i,j,   k_start:k_end) = dbz_s_c(:)
+              casdiags % dbz_i(i,j,   k_start:k_end) = dbz_i_c(:)
+              casdiags % dbz_l(i,j,   k_start:k_end) = dbz_l_c(:)
+              casdiags % dbz_r(i,j,   k_start:k_end) = dbz_r_c(:)
 
            end if ! casdiags % l_radar
 
            if ( casdiags % l_tendency_dg ) then
-              DO k = ks, ke
-                 kc = k - ks + 1
+              DO k = k_start, k_end
+                 kc = k - k_start + 1
                  casdiags % dth_cond_evap(i,j,k) = procs(cloud_params%i_1m,i_cond%id,ixy_inner)%column_data(kc) * &
                                                    Lv/cp * rexner(kc,ixy_inner)
                  casdiags % dqv_cond_evap(i,j,k) = -(procs(cloud_params%i_1m,i_cond%id,ixy_inner)%column_data(kc))
@@ -803,35 +803,35 @@ contains
 
            if ( casdiags % l_lwp ) then
               waterpath=0.0
-              DO k = ks, ke
+              DO k = k_start, k_end
                  waterpath = waterpath + (rho(k,i,j)*dz(k,i,j) * qfields(k,i_ql,ixy_inner) )
               enddo
               casdiags % lwp(i,j)=waterpath
            endif
            if ( casdiags % l_rwp ) then
               waterpath=0.0
-              DO k = ks, ke
+              DO k = k_start, k_end
                  waterpath = waterpath + (rho(k,i,j)*dz(k,i,j) * qfields(k,i_qr,ixy_inner) )
               enddo
               casdiags % rwp(i,j)=waterpath
            endif
            if ( casdiags % l_iwp ) then
               waterpath=0.0
-              DO k = ks, ke
+              DO k = k_start, k_end
                  waterpath = waterpath + (rho(k,i,j)*dz(k,i,j) * qfields(k,i_qi,ixy_inner) )
               enddo
               casdiags % iwp(i,j)=waterpath
            endif
            if ( casdiags % l_swp ) then
               waterpath=0.0
-              DO k = ks, ke
+              DO k = k_start, k_end
                  waterpath = waterpath + (rho(k,i,j)*dz(k,i,j) * qfields(k,i_qs,ixy_inner) )
               enddo
               casdiags % swp(i,j)=waterpath
            endif
            if ( casdiags % l_gwp ) then
               waterpath=0.0
-              DO k = ks, ke
+              DO k = k_start, k_end
                  waterpath = waterpath + (rho(k,i,j)*dz(k,i,j) * qfields(k,i_qg,ixy_inner) )
               enddo
               casdiags % gwp(i,j)=waterpath
@@ -1676,7 +1676,7 @@ contains
          end do
 
          if ( casdiags % l_process_rates ) then
-            call gather_process_diagnostics(ixy_inner, ix, jy, ks, ke,ncall=0)
+            call gather_process_diagnostics(ixy_inner, ix, jy, k_start, k_end,ncall=0)
          end if
 
          if (l_sed) then
@@ -1904,7 +1904,7 @@ contains
                   end if ! l_process
 
                   if ( casdiags % l_process_rates ) then
-                     call gather_process_diagnostics(ixy_inner, ix, jy, ks, ke, ncall=1)
+                     call gather_process_diagnostics(ixy_inner, ix, jy, k_start, k_end, ncall=1)
                   end if
 
                end do ! nsed
@@ -1958,7 +1958,7 @@ contains
                      end do
                   
                      if ( casdiags % l_process_rates ) then
-                        call gather_process_diagnostics(ixy_inner, ix, jy, ks, ke,ncall=1)
+                        call gather_process_diagnostics(ixy_inner, ix, jy, k_start, k_end,ncall=1)
                      end if
                   
                      call sum_procs(ixy_inner, sed_length_cloud, nz,           &
@@ -2025,7 +2025,7 @@ contains
                      end do
                   
                      if ( casdiags % l_process_rates ) then
-                        call gather_process_diagnostics(ixy_inner, ix, jy, ks, ke,ncall=1)
+                        call gather_process_diagnostics(ixy_inner, ix, jy, k_start, k_end,ncall=1)
                      end if
                   
                      call sum_procs(ixy_inner, sed_length_rain, nz,            &
@@ -2095,7 +2095,7 @@ contains
                         end do
                      
                         if ( casdiags % l_process_rates ) then
-                           call gather_process_diagnostics(ixy_inner, ix, jy, ks, ke,ncall=1)
+                           call gather_process_diagnostics(ixy_inner, ix, jy, k_start, k_end,ncall=1)
                         end if
                      
                         call sum_procs(ixy_inner, sed_length_ice, nz,          &
@@ -2163,7 +2163,7 @@ contains
                         end do
                      
                         if ( casdiags % l_process_rates ) then
-                           call gather_process_diagnostics(ixy_inner, ix, jy, ks, ke,ncall=1)
+                           call gather_process_diagnostics(ixy_inner, ix, jy, k_start, k_end,ncall=1)
                         end if
                      
                         call sum_procs(ixy_inner, sed_length_snow, nz,         &
@@ -2230,7 +2230,7 @@ contains
                         end do
                      
                         if ( casdiags % l_process_rates ) then
-                           call gather_process_diagnostics(ixy_inner, ix, jy, ks, ke,ncall=1)
+                           call gather_process_diagnostics(ixy_inner, ix, jy, k_start, k_end,ncall=1)
                         end if
 
                         call sum_procs(ixy_inner, sed_length_graupel, nz,      &
@@ -2489,7 +2489,7 @@ contains
 
   end subroutine update_q
 
-  subroutine gather_process_diagnostics(ixy_inner, i, j, ks, ke,ncall)
+  subroutine gather_process_diagnostics(ixy_inner, i, j, k_start, k_end,ncall)
 
     ! Gathers all process rate diagnostics if in use and outputs them to the
     ! CASIM generic diagnostic fields, ready for use in any model.
@@ -2501,7 +2501,7 @@ contains
 
     ! Indices of this particular grid square
     integer, intent(in) :: ixy_inner, i, j,ncall
-    integer, intent(in) :: ks, ke ! Start/end points of grid
+    integer, intent(in) :: k_start, k_end ! Start/end points of grid
 
     ! Local variables
 
@@ -2524,8 +2524,8 @@ contains
     if (ncall==0) THEN
     IF (casdiags % l_phomc) THEN
       IF (pswitch%l_phomc) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % phomc(i,j,k) = procs(ice_params%i_1m,i_homc%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2535,8 +2535,8 @@ contains
 
     IF (casdiags % l_nhomc) THEN
       IF ((pswitch%l_phomc) .and. (ice_params%l_2m)) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % nhomc(i,j,k) = procs(ice_params%i_2m,i_homc%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2546,8 +2546,8 @@ contains
 
     IF (casdiags % l_pinuc) THEN
       IF (pswitch%l_pinuc) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % pinuc(i,j,k) = procs(ice_params%i_1m,i_inuc%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2557,8 +2557,8 @@ contains
 
     IF (casdiags % l_ninuc) THEN
       IF ((pswitch%l_pinuc) .and. (ice_params%l_2m)) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % ninuc(i,j,k) = procs(ice_params%i_2m,i_inuc%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2568,8 +2568,8 @@ contains
 
     IF (casdiags % l_pidep) THEN
       IF (pswitch%l_pidep) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % pidep(i,j,k) = procs(ice_params%i_1m,i_idep%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2579,8 +2579,8 @@ contains
 
     IF (casdiags % l_psdep) THEN
       IF (pswitch%l_psdep) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % psdep(i,j,k) = procs(snow_params%i_1m,i_sdep%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2590,8 +2590,8 @@ contains
 
     IF (casdiags % l_piacw) THEN
       IF (pswitch%l_piacw) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % piacw(i,j,k) = procs(ice_params%i_1m,i_iacw%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2601,8 +2601,8 @@ contains
 
     IF (casdiags % l_psacw) THEN
       IF (pswitch%l_psacw) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % psacw(i,j,k) = procs(snow_params%i_1m,i_sacw%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2612,8 +2612,8 @@ contains
 
     IF (casdiags % l_psacr) THEN
       IF (pswitch%l_psacr) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % psacr(i,j,k) = procs(snow_params%i_1m,i_sacr%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2623,8 +2623,8 @@ contains
 
     IF (casdiags % l_pisub) THEN
       IF (pswitch%l_pisub) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % pisub(i,j,k) = -1.0 * procs(ice_params%i_1m,i_isub%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2634,8 +2634,8 @@ contains
 
     IF (casdiags % l_pssub) THEN
       IF (pswitch%l_pssub) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % pssub(i,j,k) = -1.0 * procs(snow_params%i_1m,i_ssub%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2646,8 +2646,8 @@ contains
 
     IF (casdiags % l_pimlt) THEN
       IF (pswitch%l_pimlt) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % pimlt(i,j,k) = procs(rain_params%i_1m,i_imlt%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2657,8 +2657,8 @@ contains
 
     IF (casdiags % l_psmlt) THEN
       IF (pswitch%l_psmlt) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % psmlt(i,j,k) = procs(rain_params%i_1m,i_smlt%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2668,8 +2668,8 @@ contains
 
     IF (casdiags % l_psaut) THEN
       IF (pswitch%l_psaut) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % psaut(i,j,k) = procs(snow_params%i_1m,i_saut%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2679,8 +2679,8 @@ contains
 
     IF (casdiags % l_psaci) THEN
       IF (pswitch%l_psaci) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % psaci(i,j,k) = procs(snow_params%i_1m,i_saci%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2690,8 +2690,8 @@ contains
 
     IF (casdiags % l_praut) THEN
       IF (pswitch%l_praut) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % praut(i,j,k) = procs(rain_params%i_1m,i_praut%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2701,8 +2701,8 @@ contains
 
     IF (casdiags % l_pracw) THEN
       IF (pswitch%l_pracw) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % pracw(i,j,k) = procs(rain_params%i_1m,i_pracw%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2711,8 +2711,8 @@ contains
     END IF
     IF (casdiags % l_prevp) THEN
       IF (pswitch%l_prevp) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % prevp(i,j,k) = -1.0 * procs(rain_params%i_1m,i_prevp%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2723,8 +2723,8 @@ contains
 ! #if DEF_MODEL==MODEL_KiD
 !      IF (casdiags % l_praut) THEN
 !        IF (pswitch%l_praut) THEN
-!           DO k = ks, ke
-!              kc = k - ks + 1
+!           DO k = k_start, k_end
+!              kc = k - k_start + 1
 !              call save_dg(k, casdiags % praut(i,j,k) , 'praut', i_dgtime)
 !           END DO
 !        ENDIF
@@ -2732,8 +2732,8 @@ contains
     
 !     IF (casdiags % l_pracw) THEN
 !         IF (pswitch%l_pracw) THEN
-!            DO k = ks, ke
-!               kc = k - ks + 1
+!            DO k = k_start, k_end
+!               kc = k - k_start + 1
 !               call save_dg(k, casdiags % pracw(i,j,k) , 'pracw', i_dgtime) 
 !            END DO
 !         END IF
@@ -2741,8 +2741,8 @@ contains
 
 !      IF (casdiags % l_prevp) THEN
 !         IF (pswitch%l_prevp) THEN
-!            DO k = ks, ke
-!               kc = k - ks + 1
+!            DO k = k_start, k_end
+!               kc = k - k_start + 1
 !               call save_dg(k, casdiags % prevp(i,j,k) , 'prevp', i_dgtime) 
 !             END DO
 !         END IF
@@ -2750,8 +2750,8 @@ contains
 
 !      IF (casdiags % l_psedr) THEN
 !         IF (pswitch%l_psedr) THEN
-!            DO k = ks, ke
-!               kc = k - ks + 1
+!            DO k = k_start, k_end
+!               kc = k - k_start + 1
 !               call save_dg(k, procs(rain_params%i_1m,i_psedr%id)%column_data(kc) , 'psedr', i_dgtime) 
 !            END DO
 !         END IF
@@ -2759,8 +2759,8 @@ contains
 
 !      IF (casdiags % l_psedl) THEN
 !         IF (pswitch%l_psedl) THEN
-!            DO k = ks, ke
-!               kc = k - ks + 1
+!            DO k = k_start, k_end
+!               kc = k - k_start + 1
 !               call save_dg(k, procs(cloud_params%i_1m,i_psedl%id)%column_data(kc) , 'psedl', i_dgtime) 
 !            END DO
 !         END IF
@@ -2768,8 +2768,8 @@ contains
      
 !      IF (casdiags % l_pracr) THEN
 !         IF (pswitch%l_pracr) THEN
-!            DO k = ks, ke
-!               kc = k - ks + 1
+!            DO k = k_start, k_end
+!               kc = k - k_start + 1
 !               call save_dg(k, procs(rain_params%i_1m,i_pracr%id)%column_data(kc), 'pracr', i_dgtime) 
 !            END DO
 !         END IF
@@ -2777,8 +2777,8 @@ contains
 ! #endif
     IF (casdiags % l_pgacw) THEN
       IF (pswitch%l_pgacw) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % pgacw(i,j,k) = procs(graupel_params%i_1m, i_gacw%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2788,8 +2788,8 @@ contains
 
     IF (casdiags % l_pgacs) THEN
       IF (pswitch%l_pgacs) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % pgacs(i,j,k) = procs(graupel_params%i_1m, i_gacs%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2799,8 +2799,8 @@ contains
 
     IF (casdiags % l_pgmlt) THEN
       IF (pswitch%l_pgmlt) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % pgmlt(i,j,k) = procs(rain_params%i_1m, i_gmlt%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2810,8 +2810,8 @@ contains
 
     IF (casdiags % l_pgsub) THEN
       IF (pswitch%l_pgsub) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % pgsub(i,j,k) = -1.0 * procs(graupel_params%i_1m,i_gsub%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2821,8 +2821,8 @@ contains
 
     IF (casdiags % l_psedi) THEN
       IF (pswitch%l_psedi) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % psedi(i,j,k) = procs(ice_params%i_1m, i_psedi%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2832,8 +2832,8 @@ contains
 
     IF (casdiags % l_nsedi) THEN
       IF ((pswitch%l_psedi) .and. (snow_params%l_2m)) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % nsedi(i,j,k) = procs(ice_params%i_2m,i_psedi%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2843,8 +2843,8 @@ contains
 
     IF (casdiags % l_pseds) THEN
       IF (pswitch%l_pseds) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % pseds(i,j,k) = procs(snow_params%i_1m, i_pseds%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2854,8 +2854,8 @@ contains
 
     IF (casdiags % l_nseds) THEN
       IF ((pswitch%l_pseds) .and. (snow_params%l_2m)) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % nseds(i,j,k) = procs(snow_params%i_2m, i_pseds%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2865,8 +2865,8 @@ contains
 
     IF (casdiags % l_psedr) THEN
       IF (pswitch%l_psedr) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % psedr(i,j,k) = procs(rain_params%i_1m,i_psedr%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2876,8 +2876,8 @@ contains
 
     IF (casdiags % l_psedg) THEN
       IF (pswitch%l_psedg) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % psedg(i,j,k) = procs(graupel_params%i_1m,i_psedg%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2887,8 +2887,8 @@ contains
 
     IF (casdiags % l_nsedg) THEN
       IF ((pswitch%l_psedg) .and. (graupel_params%l_2m)) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % nsedg(i,j,k) = procs(graupel_params%i_2m,i_psedg%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2898,8 +2898,8 @@ contains
 
     IF (casdiags % l_psedl) THEN
       IF (pswitch%l_psedl) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % psedl(i,j,k) = procs(cloud_params%i_1m,i_psedl%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2909,8 +2909,8 @@ contains
 
     IF (casdiags % l_pcond) THEN
       IF (pswitch%l_pcond) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % pcond(i,j,k) = procs(cloud_params%i_1m,i_cond%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2920,8 +2920,8 @@ contains
 
     IF (casdiags % l_phomr) THEN
       IF (pswitch%l_phomr) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % phomr(i,j,k) = procs(graupel_params%i_1m,i_homr%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2932,8 +2932,8 @@ contains
 
     IF (casdiags % l_nihal) THEN
       IF ((pswitch%l_pihal) .and. (ice_params%l_2m)) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % nihal(i,j,k) = procs(ice_params%i_2m,i_ihal%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2943,8 +2943,8 @@ contains
 
     IF (casdiags % l_nhomr) THEN
       IF ((pswitch%l_phomr) .and. (ice_params%l_2m)) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % nhomr(i,j,k) = procs(graupel_params%i_2m,i_homr%id,ixy_inner)%column_data(kc)
         END DO
       ELSE
@@ -2956,8 +2956,8 @@ contains
 
     IF (casdiags % l_psedi) THEN
       IF (pswitch%l_psedi) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % psedi(i,j,k) = casdiags % psedi(i,j,k)+                   &
                     procs(ice_params%i_1m,i_psedi%id,ixy_inner)%column_data(kc)
         END DO
@@ -2966,8 +2966,8 @@ contains
 
     IF (casdiags % l_nsedi) THEN
       IF ((pswitch%l_psedi) .and. (snow_params%l_2m)) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % nsedi(i,j,k) = casdiags % nsedi(i,j,k)+                  &
                    procs(ice_params%i_2m,i_psedi%id,ixy_inner)%column_data(kc)
         END DO
@@ -2976,8 +2976,8 @@ contains
 
     IF (casdiags % l_pseds) THEN
       IF (pswitch%l_pseds) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % pseds(i,j,k) = casdiags % pseds(i,j,k)+                  &
                   procs(snow_params%i_1m,i_pseds%id,ixy_inner)%column_data(kc)
         END DO
@@ -2986,8 +2986,8 @@ contains
 
     IF (casdiags % l_nseds) THEN
       IF ((pswitch%l_pseds) .and. (snow_params%l_2m)) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % nseds(i,j,k) = casdiags % nseds(i,j,k)+                   &
                    procs(snow_params%i_2m,i_pseds%id,ixy_inner)%column_data(kc)
         END DO
@@ -2996,8 +2996,8 @@ contains
 
     IF (casdiags % l_psedr) THEN
       IF (pswitch%l_psedr) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % psedr(i,j,k) = casdiags % psedr(i,j,k)+                   &
                    procs(rain_params%i_1m,i_psedr%id,ixy_inner)%column_data(kc)
         END DO
@@ -3006,8 +3006,8 @@ contains
 
     IF (casdiags % l_psedg) THEN
       IF (pswitch%l_psedg) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % psedg(i,j,k) = casdiags % psedg(i,j,k)+                   &
                 procs(graupel_params%i_1m,i_psedg%id,ixy_inner)%column_data(kc)
         END DO
@@ -3016,8 +3016,8 @@ contains
 
     IF (casdiags % l_nsedg) THEN
       IF ((pswitch%l_psedg) .and. (graupel_params%l_2m)) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % nsedg(i,j,k) = casdiags % nsedg(i,j,k)+                   &
                 procs(graupel_params%i_2m,i_psedg%id,ixy_inner)%column_data(kc)
         END DO
@@ -3026,8 +3026,8 @@ contains
 
     IF (casdiags % l_psedl) THEN
       IF (pswitch%l_psedl) THEN
-        DO k = ks, ke
-          kc = k - ks + 1
+        DO k = k_start, k_end
+          kc = k - k_start + 1
           casdiags % psedl(i,j,k) = casdiags % psedl(i,j,k)+                   &
                   procs(cloud_params%i_1m,i_psedl%id,ixy_inner)%column_data(kc)
         END DO

@@ -80,7 +80,7 @@ contains
                  end if
                 !
                 ! For RA3 testing Beheng 1994 Atmos. Res. (equ 10) was used (below)
-                ! Beheng uses cgs units, ie. g m-3, CASIM uses SI. Hence, the dnumber 
+                ! Beheng uses cgs units, ie. g m-3, CASIM uses SI. Hence, the dnumber
                 ! equation below is multiplied by rho to convert from cgs to SI 
                 ! (also the 10e3 factor from Beheng is not included)
                 !Eff=1.0 !Beheng 1994 Atmos. Res.

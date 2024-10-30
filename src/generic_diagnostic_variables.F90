@@ -215,7 +215,7 @@ TYPE (diaglist) :: casdiags
 
 CONTAINS
 
-SUBROUTINE allocate_diagnostic_space(is, ie, js, je, ks, ke)
+SUBROUTINE allocate_diagnostic_space(i_start, i_end, j_start, j_end, k_start, k_end)
 
 USE yomhook,          ONLY: lhook, dr_hook
 USE parkind1,         ONLY: jprb, jpim
@@ -224,12 +224,12 @@ USE mphys_parameters, ONLY: zero_real_wp
 IMPLICIT NONE
 
 ! Subroutine arguments
-INTEGER, INTENT(IN) :: is ! Start of i array
-INTEGER, INTENT(IN) :: ie ! End of i array
-INTEGER, INTENT(IN) :: js ! Start of j array
-INTEGER, INTENT(IN) :: je ! End of j array
-INTEGER, INTENT(IN) :: ks ! Start of k array
-INTEGER, INTENT(IN) :: ke ! End of k array
+INTEGER, INTENT(IN) :: i_start ! Start of i array
+INTEGER, INTENT(IN) :: i_end ! End of i array
+INTEGER, INTENT(IN) :: j_start ! Start of j array
+INTEGER, INTENT(IN) :: j_end ! End of j array
+INTEGER, INTENT(IN) :: k_start ! Start of k array
+INTEGER, INTENT(IN) :: k_end ! End of k array
 
 ! Local variables
 CHARACTER(LEN=*), PARAMETER :: RoutineName='ALLOCATE_DIAGNOSTIC_SPACE'
@@ -246,35 +246,35 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 IF ( casdiags % l_precip) THEN
 
-  ALLOCATE ( casdiags % precip(is:ie, js:je) )
+  ALLOCATE ( casdiags % precip(i_start:i_end, j_start:j_end) )
   casdiags % precip(:,:) = zero_real_wp
 
 END IF ! casdiags % l_precip
 
 IF ( casdiags % l_surface_cloud ) THEN
 
-  ALLOCATE ( casdiags % SurfaceCloudR(is:ie, js:je) )
+  ALLOCATE ( casdiags % SurfaceCloudR(i_start:i_end, j_start:j_end) )
   casdiags % SurfaceCloudR(:,:) = zero_real_wp
 
 END IF
 
 IF ( casdiags % l_surface_rain ) THEN
 
-  ALLOCATE ( casdiags % SurfaceRainR(is:ie, js:je) )
+  ALLOCATE ( casdiags % SurfaceRainR(i_start:i_end, j_start:j_end) )
   casdiags % SurfaceRainR(:,:) = zero_real_wp
 
 END IF
 
 IF ( casdiags % l_surface_snow ) THEN
 
-  ALLOCATE ( casdiags % SurfaceSnowR(is:ie, js:je) )
+  ALLOCATE ( casdiags % SurfaceSnowR(i_start:i_end, j_start:j_end) )
   casdiags % SurfaceSnowR(:,:) = zero_real_wp
 
 END IF
 
 IF ( casdiags % l_surface_graup ) THEN
 
-  ALLOCATE ( casdiags % SurfaceGraupR(is:ie, js:je) )
+  ALLOCATE ( casdiags % SurfaceGraupR(i_start:i_end, j_start:j_end) )
   casdiags % SurfaceGraupR(:,:) = zero_real_wp
 
 END IF
@@ -282,12 +282,12 @@ END IF
 IF ( casdiags % l_radar ) THEN
 
   ! A single logical allocates all variables
-  ALLOCATE ( casdiags % dbz_tot(is:ie, js:je, ks:ke) )
-  ALLOCATE ( casdiags % dbz_g(is:ie, js:je, ks:ke) )
-  ALLOCATE ( casdiags % dbz_i(is:ie, js:je, ks:ke) )
-  ALLOCATE ( casdiags % dbz_s(is:ie, js:je, ks:ke) )
-  ALLOCATE ( casdiags % dbz_l(is:ie, js:je, ks:ke) )
-  ALLOCATE ( casdiags % dbz_r(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % dbz_tot(i_start:i_end, j_start:j_end, k_start:k_end) )
+  ALLOCATE ( casdiags % dbz_g(i_start:i_end, j_start:j_end, k_start:k_end) )
+  ALLOCATE ( casdiags % dbz_i(i_start:i_end, j_start:j_end, k_start:k_end) )
+  ALLOCATE ( casdiags % dbz_s(i_start:i_end, j_start:j_end, k_start:k_end) )
+  ALLOCATE ( casdiags % dbz_l(i_start:i_end, j_start:j_end, k_start:k_end) )
+  ALLOCATE ( casdiags % dbz_r(i_start:i_end, j_start:j_end, k_start:k_end) )
 
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
@@ -304,7 +304,7 @@ IF ( casdiags % l_radar ) THEN
 END IF ! casdiags % l_radar
 
 IF (casdiags % l_phomc) THEN
-  ALLOCATE ( casdiags % phomc(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % phomc(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -315,7 +315,7 @@ IF (casdiags % l_phomc) THEN
 END IF
 
 IF (casdiags % l_nhomc) THEN
-  ALLOCATE ( casdiags % nhomc(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % nhomc(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -326,7 +326,7 @@ IF (casdiags % l_nhomc) THEN
 END IF
 
 IF (casdiags % l_pinuc) THEN
-  ALLOCATE ( casdiags % pinuc(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % pinuc(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -337,7 +337,7 @@ IF (casdiags % l_pinuc) THEN
 END IF
 
 IF (casdiags % l_ninuc) THEN
-  ALLOCATE ( casdiags % ninuc(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % ninuc(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -348,7 +348,7 @@ IF (casdiags % l_ninuc) THEN
 END IF
 
 IF (casdiags % l_pidep) THEN
-  ALLOCATE ( casdiags % pidep(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % pidep(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -359,7 +359,7 @@ IF (casdiags % l_pidep) THEN
 END IF
 
 IF (casdiags % l_psdep) THEN
-  ALLOCATE ( casdiags % psdep(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % psdep(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -370,7 +370,7 @@ IF (casdiags % l_psdep) THEN
 END IF
 
 IF (casdiags % l_piacw) THEN
-  ALLOCATE ( casdiags % piacw(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % piacw(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -381,7 +381,7 @@ IF (casdiags % l_piacw) THEN
 END IF
 
 IF (casdiags % l_psacw) THEN
-  ALLOCATE ( casdiags % psacw(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % psacw(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -392,7 +392,7 @@ IF (casdiags % l_psacw) THEN
 END IF
 
 IF (casdiags % l_psacr) THEN
-  ALLOCATE ( casdiags % psacr(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % psacr(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -403,7 +403,7 @@ IF (casdiags % l_psacr) THEN
 END IF
 
 IF (casdiags % l_pisub) THEN
-  ALLOCATE ( casdiags % pisub(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % pisub(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -414,7 +414,7 @@ IF (casdiags % l_pisub) THEN
 END IF
 
 IF (casdiags % l_pssub) THEN
-  ALLOCATE ( casdiags % pssub(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % pssub(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -425,7 +425,7 @@ IF (casdiags % l_pssub) THEN
 END IF
 
 IF (casdiags % l_pimlt) THEN
-  ALLOCATE ( casdiags % pimlt(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % pimlt(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -436,7 +436,7 @@ IF (casdiags % l_pimlt) THEN
 END IF
 
 IF (casdiags % l_psmlt) THEN
-  ALLOCATE ( casdiags % psmlt(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % psmlt(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -447,7 +447,7 @@ IF (casdiags % l_psmlt) THEN
 END IF
 
 IF (casdiags % l_psaut) THEN
-  ALLOCATE ( casdiags % psaut(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % psaut(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -458,7 +458,7 @@ IF (casdiags % l_psaut) THEN
 END IF
 
 IF (casdiags % l_psaci) THEN
-  ALLOCATE ( casdiags % psaci(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % psaci(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -469,7 +469,7 @@ IF (casdiags % l_psaci) THEN
 END IF
 
 IF (casdiags % l_praut) THEN
-  ALLOCATE ( casdiags % praut(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % praut(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -480,7 +480,7 @@ IF (casdiags % l_praut) THEN
 END IF
 
 IF (casdiags % l_pracw) THEN
-  ALLOCATE ( casdiags % pracw(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % pracw(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -491,7 +491,7 @@ IF (casdiags % l_pracw) THEN
 END IF
 
 IF (casdiags % l_pracr) THEN
-  ALLOCATE ( casdiags % pracr(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % pracr(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -502,7 +502,7 @@ IF (casdiags % l_pracr) THEN
 END IF
 
 IF (casdiags % l_prevp) THEN
-  ALLOCATE ( casdiags % prevp(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % prevp(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -513,7 +513,7 @@ IF (casdiags % l_prevp) THEN
 END IF
 
 IF (casdiags % l_pgacw) THEN
-  ALLOCATE ( casdiags % pgacw(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % pgacw(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -524,7 +524,7 @@ IF (casdiags % l_pgacw) THEN
 END IF
 
 IF (casdiags % l_pgacs) THEN
-  ALLOCATE ( casdiags % pgacs(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % pgacs(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -535,7 +535,7 @@ IF (casdiags % l_pgacs) THEN
 END IF
 
 IF (casdiags % l_pgmlt) THEN
-  ALLOCATE ( casdiags % pgmlt(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % pgmlt(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -546,7 +546,7 @@ IF (casdiags % l_pgmlt) THEN
 END IF
 
 IF (casdiags % l_pgsub) THEN
-  ALLOCATE ( casdiags % pgsub(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % pgsub(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -557,7 +557,7 @@ IF (casdiags % l_pgsub) THEN
 END IF
 
 IF (casdiags % l_psedi) THEN
-  ALLOCATE ( casdiags % psedi(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % psedi(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -568,7 +568,7 @@ IF (casdiags % l_psedi) THEN
 END IF
 
 IF (casdiags % l_nsedi) THEN
-  ALLOCATE ( casdiags % nsedi(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % nsedi(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -579,7 +579,7 @@ IF (casdiags % l_nsedi) THEN
 END IF
 
 IF (casdiags % l_pseds) THEN
-  ALLOCATE ( casdiags % pseds(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % pseds(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -590,7 +590,7 @@ IF (casdiags % l_pseds) THEN
 END IF
 
 IF (casdiags % l_nseds) THEN
-  ALLOCATE ( casdiags % nseds(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % nseds(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -601,7 +601,7 @@ IF (casdiags % l_nseds) THEN
 END IF
 
 IF (casdiags % l_psedr) THEN
-  ALLOCATE ( casdiags % psedr(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % psedr(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -612,7 +612,7 @@ IF (casdiags % l_psedr) THEN
 END IF
 
 IF (casdiags % l_psedg) THEN
-  ALLOCATE ( casdiags % psedg(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % psedg(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -623,7 +623,7 @@ IF (casdiags % l_psedg) THEN
 END IF
 
 IF (casdiags % l_nsedg) THEN
-  ALLOCATE ( casdiags % nsedg(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % nsedg(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -634,7 +634,7 @@ IF (casdiags % l_nsedg) THEN
 END IF
 
 IF (casdiags % l_psedl) THEN
-  ALLOCATE ( casdiags % psedl(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % psedl(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -645,7 +645,7 @@ IF (casdiags % l_psedl) THEN
 END IF
 
 IF (casdiags % l_pcond) THEN
-  ALLOCATE ( casdiags % pcond(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % pcond(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -656,7 +656,7 @@ IF (casdiags % l_pcond) THEN
 END IF
 
 IF (casdiags % l_phomr) THEN
-  ALLOCATE ( casdiags % phomr(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % phomr(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -667,7 +667,7 @@ IF (casdiags % l_phomr) THEN
 END IF
 
 IF (casdiags % l_nhomr) THEN
-  ALLOCATE ( casdiags % nhomr(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % nhomr(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -678,7 +678,7 @@ IF (casdiags % l_nhomr) THEN
 END IF
 
 IF (casdiags % l_nihal) THEN
-  ALLOCATE ( casdiags % nihal(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % nihal(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -690,8 +690,8 @@ END IF
 
 ! potential temp and mass tendencies
 IF (casdiags % l_dth) THEN
-  ALLOCATE ( casdiags % dth_total(is:ie, js:je, ks:ke) )
-  ALLOCATE ( casdiags % dth_cond_evap(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % dth_total(i_start:i_end, j_start:j_end, k_start:k_end) )
+  ALLOCATE ( casdiags % dth_cond_evap(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -703,8 +703,8 @@ IF (casdiags % l_dth) THEN
 END IF
 
 IF (casdiags % l_dqv) THEN
-  ALLOCATE ( casdiags % dqv_total(is:ie, js:je, ks:ke) )
-  ALLOCATE ( casdiags % dqv_cond_evap(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % dqv_total(i_start:i_end, j_start:j_end, k_start:k_end) )
+  ALLOCATE ( casdiags % dqv_cond_evap(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -716,7 +716,7 @@ IF (casdiags % l_dqv) THEN
 END IF
 
 IF (casdiags % l_dqc) THEN
-  ALLOCATE ( casdiags % dqc(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % dqc(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -727,7 +727,7 @@ IF (casdiags % l_dqc) THEN
 END IF
 
 IF (casdiags % l_dqr) THEN
-  ALLOCATE ( casdiags % dqr(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % dqr(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -738,7 +738,7 @@ IF (casdiags % l_dqr) THEN
 END IF
 
 IF (casdiags % l_dqi) THEN
-  ALLOCATE ( casdiags % dqi(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % dqi(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -749,7 +749,7 @@ IF (casdiags % l_dqi) THEN
 END IF
 
 IF (casdiags % l_dqs) THEN
-  ALLOCATE ( casdiags % dqs(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % dqs(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -760,7 +760,7 @@ IF (casdiags % l_dqs) THEN
 END IF
 
 IF (casdiags % l_dqg) THEN
-  ALLOCATE ( casdiags % dqg(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % dqg(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -771,7 +771,7 @@ IF (casdiags % l_dqg) THEN
 END IF
 
 IF (casdiags % l_rainfall_3d) THEN
-  ALLOCATE ( casdiags % rainfall_3d(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % rainfall_3d(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -781,7 +781,7 @@ IF (casdiags % l_rainfall_3d) THEN
 END IF
 
 IF (casdiags % l_snowfall_3d) THEN
-  ALLOCATE ( casdiags % snowfall_3d(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % snowfall_3d(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -791,7 +791,7 @@ IF (casdiags % l_snowfall_3d) THEN
 END IF
 
 IF (casdiags % l_snowonly_3d) THEN
-  ALLOCATE ( casdiags % snowonly_3d(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % snowonly_3d(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -801,7 +801,7 @@ IF (casdiags % l_snowonly_3d) THEN
 END IF
 
 IF (casdiags % l_graupfall_3d) THEN
-  ALLOCATE ( casdiags % graupfall_3d(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % graupfall_3d(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -811,7 +811,7 @@ IF (casdiags % l_graupfall_3d) THEN
 END IF
 
 IF (casdiags % l_mphys_pts) THEN
-  ALLOCATE ( casdiags % mphys_pts(is:ie, js:je, ks:ke) )
+  ALLOCATE ( casdiags % mphys_pts(i_start:i_end, j_start:j_end, k_start:k_end) )
 !$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE(k)                    &
 !$OMP SHARED(ks, ke, casdiags)
   DO k = ks, ke
@@ -822,23 +822,23 @@ END IF
 
 !PRF water paths
 IF (casdiags % l_lwp) THEN
-  ALLOCATE ( casdiags % lwp(is:ie, js:je) )
+  ALLOCATE ( casdiags % lwp(i_start:i_end, j_start:j_end) )
   casdiags % lwp(:,:) = zero_real_wp
 END IF
 IF (casdiags % l_rwp) THEN
-  ALLOCATE ( casdiags % rwp(is:ie, js:je) )
+  ALLOCATE ( casdiags % rwp(i_start:i_end, j_start:j_end) )
   casdiags % rwp(:,:) = zero_real_wp
 END IF
 IF (casdiags % l_iwp) THEN
-  ALLOCATE ( casdiags % iwp(is:ie, js:je) )
+  ALLOCATE ( casdiags % iwp(i_start:i_end, j_start:j_end) )
   casdiags % iwp(:,:) = zero_real_wp
 END IF
 IF (casdiags % l_swp) THEN
-  ALLOCATE ( casdiags % swp(is:ie, js:je) )
+  ALLOCATE ( casdiags % swp(i_start:i_end, j_start:j_end) )
   casdiags % swp(:,:) = zero_real_wp
 END IF
 IF (casdiags % l_gwp) THEN
-  ALLOCATE ( casdiags % gwp(is:ie, js:je) )
+  ALLOCATE ( casdiags % gwp(i_start:i_end, j_start:j_end) )
   casdiags % gwp(:,:) = zero_real_wp
 END IF
 !!!!

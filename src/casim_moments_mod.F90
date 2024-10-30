@@ -37,9 +37,9 @@ USE vectlib_mod,      ONLY: powr_v, oneover_v, exp_v
 IMPLICIT NONE
 
 #if DEF_MODEL==MODEL_MONC
-INTEGER, PARAMETER :: real64 = C_DOUBLE
+INTEGER, PARAMETER :: real_64 = C_DOUBLE
 ! General atmosphere modules
-REAL(KIND=real64), PARAMETER :: zerodegc            = 273.15_real64
+REAL(KIND=real_64), PARAMETER :: zerodegc            = 273.15_real_64
 #else
 USE conversions_mod,  ONLY: zerodegc
 #endif

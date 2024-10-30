@@ -122,7 +122,7 @@ contains
     ! See equation 21 of Shipway (2015)    
     real(wp), intent(in) :: t
 
-    real(wp) :: x, y, exponent
+    real(wp) :: x, y, expnt
 
     ! local variables
 
@@ -147,9 +147,9 @@ contains
     ! Not that we still expect some floating underflow in the
     ! part of the parameter space where the integral < tiny(1.0)
     ! This doesn't really matter since the left had side will presumabely be > tiny(1.0)!
-!    exponent=-0.5*log(t)*log(t)/(y*y)
-    exponent=max(-0.5*log(t)*log(t)/(y*y), (minexponent(t))*log(2.0) + 20.0)
-    J1_integrand = x*sqrt(x*x-t*t)/t*exp(exponent) &
+!    expnt=-0.5*log(t)*log(t)/(y*y)
+    expnt=max(-0.5*log(t)*log(t)/(y*y), (minexponent(t))*log(2.0) + 20.0)
+    J1_integrand = x*sqrt(x*x-t*t)/t*exp(expnt) &
        /sqrt(((x**3-t**3)/x**3)**0.6)/sqrt(0.5)
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)

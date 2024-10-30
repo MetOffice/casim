@@ -23,7 +23,7 @@ module gauss_casim_micro
   public gauss_casim_func, gaussfunclookup, gaussfunclookup_2d
 contains
 
-  subroutine gaussfunclookup(iq, value, a, b)
+  subroutine gaussfunclookup(iq, gauss_value, a, b)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -32,7 +32,7 @@ contains
 
     ! Subroutine arguments
     integer, intent(in) :: iq !< parameter index relating to variable we're considering
-    real(wp), intent(out) :: value !< returned value
+    real(wp), intent(out) :: gauss_value !< returned value
     real(wp), intent(in), optional :: a, b  !< Value of a and b to use. Only required if initializing
 
     ! Local variables
@@ -48,17 +48,17 @@ contains
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     if ( present(a) .and. present(b)) then
-      value=gauss_casim_func(a,b)
+      gauss_value=gauss_casim_func(a,b)
       gaussfunc_save(iq)=gauss_casim_func(a,b)
     else
-      value=gaussfunc_save(iq)
+      gauss_value=gaussfunc_save(iq)
     end if
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
   end subroutine gaussfunclookup
 
-  subroutine gaussfunclookup_2d(iq, value, a, b)
+  subroutine gaussfunclookup_2d(iq, gauss_value, a, b)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -67,7 +67,7 @@ contains
 
     ! Subroutine arguments
     integer, intent(in) :: iq !< parameter index relating to variable we're considering
-    real(wp), intent(out) :: value !< returned value
+    real(wp), intent(out) :: gauss_value !< returned value
     real(wp), intent(in) :: a, b  !< Value of a and b to use.  (a is mu, b is b_x)
 
     ! Local variables
@@ -86,11 +86,11 @@ contains
 
     ibin=int((a/max_mu)*(nbins_a-1))+1
     if (.not. l_save_2D(ibin,iq)) then
-      value=gauss_casim_func(a,b)
+      gauss_value=gauss_casim_func(a,b)
       gaussfunc_save_2d(ibin,iq)=gauss_casim_func(a,b)
       l_save_2D(ibin,iq)=.true.
     else
-      value=gaussfunc_save_2d(ibin,iq)
+      gauss_value=gaussfunc_save_2d(ibin,iq)
     end if
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
@@ -110,7 +110,7 @@ contains
     ! Local variables
     real(wp), parameter ::   tmax = 18.0    !< Limit of integration
     real(wp), parameter ::   dt   = 0.08   !< step size
-    real(wp) :: sum, t1, t2
+    real(wp) :: gauss_sum, t1, t2
     real(wp) :: Gauss_casim_Func
 
     character(len=*), parameter :: RoutineName='GAUSS_CASIM_FUNC'
@@ -124,17 +124,17 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-    sum=0.0
+    gauss_sum=0.0
     t1=0.5*dt
     Gaus_t1: do while (t1 <= tmax)
       t2=0.5*dt
       Gaus_t2: do while (t2 <= tmax)
-        sum=sum+(t1+t2)**2*abs((t1**b)-(t2**b))*(t1**a)*(t2**a)*exp(-(t1+t2))
+        gauss_sum=gauss_sum+(t1+t2)**2*abs((t1**b)-(t2**b))*(t1**a)*(t2**a)*exp(-(t1+t2))
         t2=t2+dt
       end do Gaus_t2
       t1=t1+dt
     end do Gaus_t1
-    Gauss_casim_Func=sum*dt*dt
+    Gauss_casim_Func=gauss_sum*dt*dt
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 

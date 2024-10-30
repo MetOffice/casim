@@ -38,7 +38,7 @@ contains
     ! Local variables
     type(process_name) :: iproc ! processes selected depending on which species we're modifying
     real(wp) :: dnumber
-    real(wp) :: number, mass
+    real(wp) :: num, mass
     real(wp) :: lam, mu
     real(wp) :: Dm ! Mass-weighted mean diameter
     
@@ -66,13 +66,13 @@ contains
           mass=qfields(k, params%i_1m)
 
           if (mass > thresh_small(params%i_1m) .and. params%l_2m) then ! if no existing ice, we don't bother
-             number=qfields(k, params%i_2m)
+             num=qfields(k, params%i_2m)
              mu=dist_mu(k,params%id)
              lam=dist_lambda(k,params%id)
              Dm=(1.0 + params%d_x + mu)/lam
              
              if (Dm > DSbrk) then ! Mean size exceeds threshold
-                dnumber=(Dm/DSbrk - 1.0)**params%d_x * number / tau_sbrk
+                dnumber=(Dm/DSbrk - 1.0)**params%d_x * num / tau_sbrk
                 procs(params%i_2m, iproc%id)%column_data(k)=dnumber
              end if
           end if

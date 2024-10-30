@@ -11,7 +11,7 @@ module type_process
   type :: process_name
      integer :: id          ! Id for array indexing
      integer :: unique_id   ! Unique id for diagnostic identification
-     character(20) :: name  ! Process name
+     character(20) :: p_name  ! Process name
      logical :: on          ! is the process going to be used, i.e. on=.true.
   end type process_name
 end module type_process

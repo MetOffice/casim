@@ -55,7 +55,7 @@ contains
     real(wp) :: qv
     real(wp) :: dmass, dnumber
 !   real(wp) :: dm1, dm2, dm3, dm3_r, m2, m3
-    real(wp) :: number, mass, m1
+    real(wp) :: num, mass, m1
     real(wp) :: n0, lam, mu, V_x
     real(wp) :: acc_correction
     logical :: l_meltall ! do we melt everything?
@@ -86,14 +86,14 @@ contains
           l_meltall=.false.
           mass=qfields(k, params%i_1m)
           if (mass > thresh_tidy(params%i_1m) .and. TdegC(k,ixy_inner) > 0.0) then
-             if (params%l_2m) number=qfields(k, params%i_2m)
+             if (params%l_2m) num=qfields(k, params%i_2m)
              if (params%id == ice_params%id) then ! instantaneous removal
                 iaproc=i_dimlt
                 iproc=i_imlt
                 dmass=mass/dt
                 
                 if (params%l_2m)then
-                   dnumber=number/dt
+                   dnumber=num/dt
                    procs(ice_params%i_2m, iproc%id)%column_data(k)=-dnumber
                    if (rain_params%l_2m) then
                       procs(rain_params%i_2m, iproc%id)%column_data(k)=dnumber
@@ -145,7 +145,7 @@ contains
                 qv=qfields(k, i_qv)
                 
                 m1=mass/params%c_x
-                if (params%l_2m) number=qfields(k, params%i_2m)
+                if (params%l_2m) num=qfields(k, params%i_2m)
                 ! 3-moment code retained for future implementation
                 ! if (params%l_3m) m3=qfields(k, params%i_3m)
                 
@@ -182,7 +182,7 @@ contains
                 procs(rain_params%i_1m, iproc%id)%column_data(k)=dmass
                 
                 if (params%l_2m) then
-                   dnumber=dmass*number/mass
+                   dnumber=dmass*num/mass
                    procs(params%i_2m, iproc%id)%column_data(k)=-dnumber
                    procs(rain_params%i_2m, iproc%id)%column_data(k)=dnumber
                 end if
@@ -193,7 +193,7 @@ contains
                 !   else
                 !     dm1=-dt*dmass/params%c_x
                 !     dm2=-dt*dnumber
-                !     m2=number
+                !     m2=num
                 !     call m3_inc_type2(m1, m2, m3, params%p1, params%p2, params%p3, dm1, dm2, dm3)
                 !     dm3=dm3/dt
                 !   end if

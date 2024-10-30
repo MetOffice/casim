@@ -50,7 +50,7 @@ contains
 
     ! local variables
     real(wp) :: rm    ! mean radius of increment
-    real(wp) :: gamma ! convenience variable
+    real(wp) :: gamma_var ! convenience variable
 
     real(wp) :: r1, r2     ! r1 and r2 (possibly modified) 
     real(wp) :: r1_3, r2_3 ! r1**3 and r2**3
@@ -113,8 +113,8 @@ contains
         else
           r1_3=r1*r1*r1
           r2_3=r2*r2*r2
-          gamma=(rm*rm*rm-r1_3)/(r2_3-r1_3)
-          dn2=dn*(gamma)
+          gamma_var=(rm*rm*rm-r1_3)/(r2_3-r1_3)
+          dn2=dn*(gamma_var)
           dn1=dn - dn2
           if (l_aeroproc_midway) then
             dm2=ftpi*density*r2_3*dn2*exp(4.5*log(sigma)**2) !DPG_bug_changes

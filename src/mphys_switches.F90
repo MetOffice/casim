@@ -983,7 +983,7 @@ contains
   end subroutine set_mphys_switches
 
   ! Allocate an index to a q variable
-  subroutine allocq(i, iq, names, name)
+  subroutine allocq(i, iq, names, p_name)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -995,7 +995,7 @@ contains
     integer, intent(out) :: i
     integer, intent(inout) :: iq
     character(10), intent(inout) :: names(:)
-    character(*), intent(in) :: name
+    character(*), intent(in) :: p_name
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -1008,13 +1008,13 @@ contains
 
     i=iq+1
     iq=i
-    names(iq)=adjustr(trim(name))
+    names(iq)=adjustr(trim(p_name))
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
   end subroutine allocq
 
-  subroutine allocp(proc, iproc, idgproc, name, l_onoff)
+  subroutine allocp(proc, iproc, idgproc, p_name, l_onoff)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -1025,7 +1025,7 @@ contains
     
     type(process_name), intent(inout) :: proc
     integer, intent(inout) :: iproc, idgproc
-    character(*), intent(in) :: name
+    character(*), intent(in) :: p_name
     logical, optional, intent(in) :: l_onoff
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
@@ -1041,7 +1041,7 @@ contains
     idgproc=idgproc+1
     proc%id=iproc
     !    proc%unique_id=iproc
-    proc%name=adjustr(trim(name))
+    proc%p_name=adjustr(trim(p_name))
     if (present(l_onoff)) then
       proc%on=l_onoff
     else
@@ -1056,7 +1056,7 @@ contains
   ! similar to allocq, but also adds information
   ! to aero_index if variable should act as an in
   ! or a ccn.
-  subroutine alloca(i, iq, names, name, aero_index, i_ccn, i_in)
+  subroutine alloca(i, iq, names, p_name, aero_index, i_ccn, i_in)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -1068,7 +1068,7 @@ contains
     integer, intent(out) :: i
     integer, intent(inout) :: iq
     character(20), intent(inout) :: names(:)
-    character(*), intent(in) :: name
+    character(*), intent(in) :: p_name
     type(aerosol_index), intent(inout) :: aero_index
     ! if present and >0 should be set to imass or inumber or ihyg
     integer, optional, intent(in) :: i_ccn, i_in
@@ -1091,7 +1091,7 @@ contains
 
     i=iq+1
     iq=i
-    names(iq)=adjustr(trim(name))
+    names(iq)=adjustr(trim(p_name))
     if (is_ccn == imass) then
       ! represents mass of aerosol which can act as ccn
       nccn=count(aero_index%ccn_m > 0)+1

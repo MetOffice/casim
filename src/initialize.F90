@@ -47,9 +47,9 @@ contains
     ! Local variables
     real(wp) :: tmp
 
-    integer :: is, ie ! upper and lower i levels which are to be used
-    integer :: js, je ! upper and lower j levels
-    integer :: ks, ke ! upper and lower k levels    
+    integer :: i_start, i_end ! upper and lower i levels which are to be used
+    integer :: j_start, j_end ! upper and lower j levels
+    integer :: k_start, k_end ! upper and lower k levels
     logical :: l_tendency_loc
 
     character(len=*), parameter :: RoutineName='MPHYS_INIT'
@@ -71,20 +71,20 @@ contains
 !$OMP END SINGLE
 
     ! Set grid extents to operate on
-    if (present(is_in)) is=is_in
-    if (present(ie_in)) ie=ie_in
-    if (present(js_in)) js=js_in
-    if (present(je_in)) je=je_in
-    if (present(ks_in)) ks=ks_in
-    if (present(ke_in)) ke=ke_in
+    if (present(is_in)) i_start=is_in
+    if (present(ie_in)) i_end=ie_in
+    if (present(js_in)) j_start=js_in
+    if (present(je_in)) j_end=je_in
+    if (present(ks_in)) k_start=ks_in
+    if (present(ke_in)) k_end=ke_in
 
     ! if not passed in, then default to full grid
-    if (.not. present(is_in)) is=il
-    if (.not. present(ie_in)) ie=iu
-    if (.not. present(js_in)) js=jl
-    if (.not. present(je_in)) je=ju
-    if (.not. present(ks_in)) ks=kl
-    if (.not. present(ke_in)) ke=ku
+    if (.not. present(is_in)) i_start=il
+    if (.not. present(ie_in)) i_end=iu
+    if (.not. present(js_in)) j_start=jl
+    if (.not. present(je_in)) j_end=ju
+    if (.not. present(ks_in)) k_start=kl
+    if (.not. present(ke_in)) k_end=ku
     
     if (present(l_tendency)) then
       l_tendency_loc=l_tendency
@@ -92,7 +92,7 @@ contains
       l_tendency_loc=.true.
     end if
 
-    call initialise_micromain(il, iu, jl, ju, kl, ku, is, ie, js, je, ks, ke, l_tendency_loc)
+    call initialise_micromain(il, iu, jl, ju, kl, ku, i_start, i_end, j_start, j_end, k_start, k_end, l_tendency_loc)
 
     call initialise_sedr()
 

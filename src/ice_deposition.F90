@@ -72,7 +72,7 @@ contains
 
     real(wp) :: th
     real(wp) :: qv
-    real(wp) :: number, mass
+    real(wp) :: num, mass
 
     real(wp) :: qis(nz)
     real(wp) :: n0, lam, mu
@@ -155,7 +155,7 @@ contains
           
         if (mass > thresh_small(params%i_1m)) then ! if no existing ice, we don't grow/deplete it.
              
-          if (params%l_2m) number=qfields(k, params%i_2m)
+          if (params%l_2m) num=qfields(k, params%i_2m)
              
           n0=dist_n0(k,params%id)
           mu=dist_mu(k,params%id)
@@ -186,14 +186,14 @@ contains
              
           if (params%l_2m) then
             dnumber=0.0
-            if (dmass < 0.0) dnumber=dmass*number/mass
+            if (dmass < 0.0) dnumber=dmass*num/mass
           end if
              
           if (-dmass*dt >0.98*mass .or. (params%l_2m .and.                     &
-              -dnumber*dt > 0.98*number)) then
+              -dnumber*dt > 0.98*num)) then
             l_suball=.true.
             dmass=-mass/dt
-            dnumber=-number/dt
+            dnumber=-num/dt
           end if
              
           procs(i_qv, iproc%id)%column_data(k)=-dmass

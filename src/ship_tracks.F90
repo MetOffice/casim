@@ -32,7 +32,7 @@ INTEGER :: iship ! ship counter
 
 CONTAINS
 
-SUBROUTINE include_ship_source(is, ie, js, je, ks, ke, timestep, &
+SUBROUTINE include_ship_source(i_start, i_end, j_start, j_end, k_start, k_end, timestep, &
                                timestep_number, height,          &
                                r_theta_levels,                   &
                                true_latitude, true_longitude,    &
@@ -45,18 +45,18 @@ USE mphys_constants,  ONLY: pi
 IMPLICIT NONE
 
 ! Subroutine arguments
-INTEGER, INTENT(IN) :: is, ie, js, je, ks, ke
+INTEGER, INTENT(IN) :: i_start, i_end, j_start, j_end, k_start, k_end
 
 REAL, INTENT(IN) :: timestep
 INTEGER, INTENT(IN) :: timestep_number
 
-REAL, INTENT(IN) :: height(ks:ke, is:ie, js:je)
-REAL, INTENT(IN) :: r_theta_levels(is:ie, js:je, 0:ke)
-REAL, INTENT(IN) :: true_latitude(is:ie, js:je)
-REAL, INTENT(IN) :: true_longitude(is:ie,js:je)
+REAL, INTENT(IN) :: height(k_start:k_end, i_start:i_end, j_start:j_end)
+REAL, INTENT(IN) :: r_theta_levels(i_start:i_end, j_start:j_end, 0:k_end)
+REAL, INTENT(IN) :: true_latitude(i_start:i_end, j_start:j_end)
+REAL, INTENT(IN) :: true_longitude(i_start:i_end,j_start:j_end)
 
-REAL, INTENT(INOUT) :: dAccumSolMass(ks:ke, is:ie, js:je)
-REAL, INTENT(INOUT) :: dAccumSolNumber(ks:ke, is:ie, js:je)
+REAL, INTENT(INOUT) :: dAccumSolMass(k_start:k_end, i_start:i_end, j_start:j_end)
+REAL, INTENT(INOUT) :: dAccumSolNumber(k_start:k_end, i_start:i_end, j_start:j_end)
 
 ! Local Variables
 
@@ -69,8 +69,8 @@ REAL(KIND=jprb)               :: zhook_handle
 
 REAL :: dttime, rspeed, theta, true_lat, true_lon
 
-REAL :: xarray1(ks:ke)
-REAL :: xarray2(is:ie,js:je)
+REAL :: xarray1(k_start:k_end)
+REAL :: xarray2(i_start:i_end,j_start:j_end)
 
 INTEGER :: ijval(2)
 INTEGER :: i, j, kval(1), k
@@ -123,7 +123,7 @@ DO iship = 1, nships
 
       kval = MINLOC(xarray1)
       ! Ensure not model level 1 or top of model
-      k    = MAX(2, MIN(kval(1), ke-1) )
+      k    = MAX(2, MIN(kval(1), k_end-1) )
 
       IF ( ship_dmdt < 0.0 ) ship_dmdt = ship_dndt * default_mean_mass
       IF ( ship_dndt < 0.0 ) ship_dndt = ship_dmdt / default_mean_mass

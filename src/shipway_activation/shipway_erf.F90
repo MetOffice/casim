@@ -23,7 +23,7 @@ contains
     integer :: j, cc
 
     real(wp) :: t, a1, a2, a3, a4, a5, p
-    integer :: sign
+    integer :: sign_x
 
     character(len=*), parameter :: RoutineName='ERFG'
 
@@ -50,7 +50,7 @@ contains
     else
       ! Something wrong with this for x<~-2
       ! so use A&S instead
-      ! cc=cc*sign(1.,z)
+      ! cc=cc*sign_x(1.,z)
       ! j=3 + int(32/abs(z))
       ! f=0
       ! do while(j /= 0)
@@ -60,9 +60,9 @@ contains
       ! f=f*(cc*cc+cc-1.)*sqrt(2./pi)*exp(-z*z) + (1-cc)
       !---------------------
       ! Following from A&S 
-      ! save the sign of x
-      sign = 1
-      if (x <= 0) sign = -1
+      ! save the sign_x of x
+      sign_x = 1
+      if (x <= 0) sign_x = -1
       z = abs(x)
 
       !# constants

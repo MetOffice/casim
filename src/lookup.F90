@@ -100,7 +100,7 @@ contains
 
   end function Hfunc
 
-  subroutine set_mu_lookup(p1, p2, p3, index, value)
+  subroutine set_mu_lookup(p1, p2, p3, ind, val)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -110,7 +110,7 @@ contains
     character(len=*), parameter :: RoutineName='SET_MU_LOOKUP'
 
     real(wp), intent(in) :: p1, p2, p3
-    real(wp), intent(inout) :: index(:), value(:)
+    real(wp), intent(inout) :: ind(:), val(:)
 
     integer :: i, lb, ub
 
@@ -123,19 +123,19 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-    lb=lbound(index,1)
-    ub=ubound(index,1)
+    lb=lbound(ind,1)
+    ub=ubound(ind,1)
 
     do i=lb, ub
-      index(i)=min_mu+(max_mu-min_mu)/(nmu-1.0)*(i-1)
-      value(i)=Gfunc(index(i), p1, p2, p3)
+      ind(i)=min_mu+(max_mu-min_mu)/(nmu-1.0)*(i-1)
+      val(i)=Gfunc(ind(i), p1, p2, p3)
     end do
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
   end subroutine set_mu_lookup
 
-  subroutine get_slope_generic(params, n0, lam, mu, mass, number, m3)
+  subroutine get_slope_generic(params, n0, lam, mu, mass, num, m3)
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -147,7 +147,7 @@ contains
     type(hydro_params), intent(in) :: params
     real(wp), intent(out) :: n0, lam, mu
     real(wp), intent(in) :: mass
-    real(wp), intent(in), optional :: number, m3
+    real(wp), intent(in), optional :: num, m3
                                     !! m3 NEEDED for 3rd moment code
 
     real(wp) :: m1, m2, p1, p2, p3
@@ -168,17 +168,17 @@ contains
 
     ! if (params%l_3m) then
     !   if (l_passive3m) then
-    !     m2=number
+    !     m2=num
     !     mu=params%fix_mu
     !      call get_lam_n0(m1, m2, params, lam, n0, params%id)
     !   else
-    !     m2=number
+    !     m2=num
     !     call get_mu(m1, m2, m3, p1, p2, p3, mu)
     !     call get_lam_n0(m1, m2, m3, params, mu, lam, n0)
     !   end if
     ! elseif (params%l_2m) then
     if (params%l_2m) then
-      m2=number
+      m2=num
       mu=params%fix_mu
       !call get_lam_n0(m1, m2, p1, p2, mu, lam, n0)
       call get_lam_n0(m1, m2, params, lam, n0, params%id)
@@ -189,7 +189,7 @@ contains
       call get_lam_n0(m1, params, lam, n0)
     end if
     if (lam <= 0) then
-      write(std_msg, *) 'ERROR in lookup', params%id, params%i_2m, m1, number, lam
+      write(std_msg, *) 'ERROR in lookup', params%id, params%i_2m, m1, num, lam
       call throw_mphys_error(bad_values, ModuleName//':'//RoutineName, std_msg)
     end if
 
@@ -197,7 +197,7 @@ contains
 
   end subroutine get_slope_generic
 
-  subroutine get_slope_generic_kf(ixy_inner, k, params, n0, lam, mu, lams, mass, Tk, number, &
+  subroutine get_slope_generic_kf(ixy_inner, k, params, n0, lam, mu, lams, mass, Tk, num, &
                                m3)
 
     USE yomhook, ONLY: lhook, dr_hook
@@ -213,7 +213,7 @@ contains
     real(wp), intent(out) :: n0, lam, mu
     real(wp), intent(out) :: lams(2)
     real(wp), intent(in) :: mass, Tk
-    real(wp), intent(in), optional :: number, m3
+    real(wp), intent(in), optional :: num, m3
 
     real(wp) :: m1, ms, p1, p2, p3
     real(wp) :: n_p, cficei(1), m_s(1), Ta(1), rhoa(1), qcf(1)
@@ -314,7 +314,7 @@ contains
       end if ! l_kfsm
 
     if (lam <= 0) then
-      write(std_msg, *) 'ERROR in lookup', params%id, params%i_2m, m1, number, lam, n0, qcf(1)
+      write(std_msg, *) 'ERROR in lookup', params%id, params%i_2m, m1, num, lam, n0, qcf(1)
       call throw_mphys_error(bad_values, ModuleName//':'//RoutineName, std_msg)
     end if
 

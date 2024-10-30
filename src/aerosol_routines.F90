@@ -730,12 +730,12 @@ contains
 
     real(wp), allocatable :: s_cr(:)
     real(wp) :: s_cr_active
-    real(wp) :: Tc, Ak, Bk, eta, alpha, gamma, es, bigG
+    real(wp) :: Tc, Ak, Bk, eta, alpha, gamma_var, es, bigG
     real(wp) :: f1, f2, zeta, error_func
     real(wp) :: rsmax2  ! 1/(smax*smax)
     real(wp) :: diff
     integer :: i
-    real(wp) :: sum
+    real(wp) :: total
 
     character(len=*), parameter :: RoutineName='ABDULRAZZAKGHAN2000'
 
@@ -763,7 +763,7 @@ contains
     Ak=2.0*Mw*zetasa/(Ru*T*rhow)
     alpha=g*(Lv/(mp_eps*cp*T)-1)/(T*Rd)
     es=(100.0*6.1121)*exp((18.678-Tc/(234.5))*Tc/(257.14+Tc))
-    gamma=mp_eps*p/es+Lv**2/(Rv*T**2*cp)
+    gamma_var=mp_eps*p/es+Lv**2/(Rv*T**2*cp)
     !Dv = (0.211*((T/273.15)**(1.94))*((100000.)/(p))) / 1.e4
     bigG=1.0/(rhow*(Rv*T/(es*Dv)+Lv*(Lv/(Rv*T)-1)/(ka*T)))
     zeta=(2.0/3.0)*Ak*(w*alpha/BigG)**0.5
@@ -777,7 +777,7 @@ contains
           Bk=chem%vantHoff(i)*Mw*chem%density(i)/(chem%massMole(i)*rhow)
         endif
         s_cr(i)=(2.0/sqrt(Bk))*(Ak/(3.0*phys%rd(i)))**1.5
-        eta=(w*alpha/BigG)**1.5/(2.0*pi*rhow*gamma*phys%N(i))
+        eta=(w*alpha/BigG)**1.5/(2.0*pi*rhow*gamma_var*phys%N(i))
         f1=0.5*exp(2.5*(log(phys%sigma(i)))**2)
         f2=1.0+0.25*log(phys%sigma(i))
         rsmax2=rsmax2+(f1*(zeta/eta)**1.5+f2*(s_cr(i)*s_cr(i)/(eta+3.0*zeta))**.75)/(s_cr(i)*s_cr(i))
@@ -793,7 +793,7 @@ contains
           Bk=chem%vantHoff(i)*Mw*chem%density(i)/(chem%massMole(i)*rhow)
         endif
         s_cr_active=(2.0/sqrt(Bk))*(Ak/(3.0*active_phys%rd))**1.5
-        eta=(w*alpha/BigG)**1.5/(2.0*pi*rhow*gamma*active_phys%nact)
+        eta=(w*alpha/BigG)**1.5/(2.0*pi*rhow*gamma_var*active_phys%nact)
         f1=0.5*exp(2.5*(log(active_phys%sigma))**2)
         f2=1.0+0.25*log(active_phys%sigma)
         rsmax2=rsmax2+(f1*(zeta/eta)**1.5+f2*(s_cr_active*s_cr_active/(eta+3.0*zeta))**.75)/(s_cr_active*s_cr_active)
@@ -825,10 +825,10 @@ contains
       ! from newly activated
       ! Start from smallest mode
       diff =active_phys%nact-nccn_active
-      sum=0.0
+      total=0.0
       do i=1, size(nccn)
-        sum=nccn(i)+sum
-        nccn(i)=min(nccn(i), max(0.0_wp, sum - diff))
+        total=nccn(i)+total
+        nccn(i)=min(nccn(i), max(0.0_wp, total - diff))
       end do
       !nccn(1) = max(0.0, nccn(1) - diff)
       !nccn(2) = min(nccn(2), max(0.0, nccn(2) + nccn(1) - diff))
@@ -864,12 +864,12 @@ contains
 
     real(wp), allocatable :: s_cr(:)
     real(wp) :: s_cr_active
-    real(wp) :: Tc, Ak, Bk, eta, alpha, gamma, es, bigG
+    real(wp) :: Tc, Ak, Bk, eta, alpha, gamma_var, es, bigG
     real(wp) :: f1, f2, zeta, error_func
     real(wp) :: rsmax2  ! 1/(smax*smax)
     real(wp) :: diff
     integer :: i
-    real(wp) :: sum
+    real(wp) :: total
 
     TYPE(aerosol_phys), INTENT(IN) :: dphys
     TYPE(aerosol_chem), INTENT(IN) :: dchem
@@ -899,7 +899,7 @@ contains
     Ak=2.0*Mw*zetasa/(Ru*T*rhow)
     alpha=g*(Lv/(mp_eps*cp*T)-1)/(T*Rd)
     es=(100.0*6.1121)*exp((18.678-Tc/(234.5))*Tc/(257.14+Tc))
-    gamma=mp_eps*p/es+Lv**2/(Rv*T**2*cp)
+    gamma_var=mp_eps*p/es+Lv**2/(Rv*T**2*cp)
     !Dv = (0.211*((T/273.15)**(1.94))*((100000.)/(p))) / 1.e4
     bigG=1.0/(rhow*(Rv*T/(es*Dv)+Lv*(Lv/(Rv*T)-1)/(ka*T)))
     zeta=(2.0/3.0)*Ak*(w*alpha/BigG)**0.5
@@ -913,7 +913,7 @@ contains
           Bk=chem%vantHoff(i)*Mw*chem%density(i)/(chem%massMole(i)*rhow)
         endif
         s_cr(i)=(2.0/sqrt(Bk))*(Ak/(3.0*phys%rd(i)))**1.5
-        eta=(w*alpha/BigG)**1.5/(2.0*pi*rhow*gamma*phys%N(i))
+        eta=(w*alpha/BigG)**1.5/(2.0*pi*rhow*gamma_var*phys%N(i))
         f1=0.5*exp(2.5*(log(phys%sigma(i)))**2)
         f2=1.0+0.25*log(phys%sigma(i))
         rsmax2=rsmax2+(f1*(zeta/eta)**1.5+f2*(s_cr(i)*s_cr(i)/(eta+3.0*zeta))**.75)/(s_cr(i)*s_cr(i))
@@ -924,7 +924,7 @@ contains
       if (dphys%N(i) > ni_tidy) then
         Bk = dchem%vantHoff(i)*Mw*dchem%density(i)/(dchem%massMole(i)*rhow)
         s_cr(phys%nmodes+i) = (2.0/SQRT(Bk))*(Ak/(3.0*dphys%rd(i)))**1.5
-        eta = (w*alpha/BigG)**1.5/(2.0*pi*rhow*gamma*dphys%N(i))
+        eta = (w*alpha/BigG)**1.5/(2.0*pi*rhow*gamma_var*dphys%N(i))
         f1 = 0.5*EXP(2.5*(LOG(dphys%sigma(i)))**2)
         f2 = 1.0 + 0.25*LOG(dphys%sigma(i))
         rsmax2 = rsmax2+(f1*(zeta/eta)**1.5+ f2*(s_cr(phys%nmodes+i)*s_cr(phys%nmodes+i)/(eta+3.0*zeta))**.75)/ &
@@ -941,7 +941,7 @@ contains
           Bk=chem%vantHoff(i)*Mw*chem%density(i)/(chem%massMole(i)*rhow)
         endif
         s_cr_active=(2.0/sqrt(Bk))*(Ak/(3.0*active_phys%rd))**1.5
-        eta=(w*alpha/BigG)**1.5/(2.0*pi*rhow*gamma*active_phys%nact)
+        eta=(w*alpha/BigG)**1.5/(2.0*pi*rhow*gamma_var*active_phys%nact)
         f1=0.5*exp(2.5*(log(active_phys%sigma))**2)
         f2=1.0+0.25*log(active_phys%sigma)
         rsmax2=rsmax2+(f1*(zeta/eta)**1.5+f2*(s_cr_active*s_cr_active/(eta+3.0*zeta))**.75)/(s_cr_active*s_cr_active)
@@ -951,7 +951,7 @@ contains
         i = aero_index%i_coarse_dust
         Bk = dchem%vantHoff(i)*Mw*dchem%density(i)/(dchem%massMole(i)*rhow)
         s_cr_active_d = (2.0/SQRT(Bk))*(Ak/(3.0*active_dphys%rd))**1.5
-        eta = (w*alpha/BigG)**1.5/(2.0*pi*rhow*gamma*active_dphys%nact)
+        eta = (w*alpha/BigG)**1.5/(2.0*pi*rhow*gamma_var*active_dphys%nact)
         f1 = 0.5*EXP(2.5*(LOG(active_dphys%sigma))**2)
         f2 = 1.0+0.25*LOG(active_dphys%sigma)
         rsmax2 = rsmax2 + (f1*(zeta/eta)**1.5     &
@@ -999,20 +999,20 @@ contains
       ! from newly activated
       ! Start from smallest mode
       diff =active_phys%nact-nccn_active
-      sum=0.0
+      total=0.0
       do i=1, size(nccn)
-        sum=nccn(i)+sum
-        nccn(i)=min(nccn(i), max(0.0_wp, sum - diff))
+        total=nccn(i)+total
+        nccn(i)=min(nccn(i), max(0.0_wp, total - diff))
       end do
       !nccn(1) = max(0.0, nccn(1) - diff)
       !nccn(2) = min(nccn(2), max(0.0, nccn(2) + nccn(1) - diff))
       !nccn(3) = min(nccn(3), max(0.0, nccn(3) + nccn(2) + nccn(1) - diff))
 
       diff = active_dphys%nact - nccn_dactive
-      sum = 0.0
+      total = 0.0
       do i=1,SIZE(dnccn)
-        sum = dnccn(i) + sum
-        dnccn(i) = MIN(dnccn(i),MAX(0.0_wp, sum-diff))
+        total = dnccn(i) + total
+        dnccn(i) = MIN(dnccn(i),MAX(0.0_wp, total-diff))
       end do
     end if
     nccn=.99*nccn ! Don't allow all aerosol to be removed.
