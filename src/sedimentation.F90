@@ -840,8 +840,12 @@ do k=nz-1, 1, -1
         flux_n1(k)=0.0
         u1r_above=0.0
       endif
-           
-      if (params%l_2m .and. (flux_n2(k) .lt. epsilon(1.0_wp))) then
+
+      ! if the fallspeed is within a typical number value of the precision
+      ! used in lsp_sedim_eulexp, there is the chance a floating point
+      ! error will occur on the next level down, hence stop sedimentation     
+      if (params%l_2m .and. (flux_n2(k) .lt. epsilon(1.0_wp) &
+           .or. u2r_above .lt. 1.0e5*tiny(1.0_real_lsprec))) then
         flux_n2(k)=0.0
         u2r_above=0.0
       endif    
