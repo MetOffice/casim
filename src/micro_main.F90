@@ -9,7 +9,7 @@ module micro_main
        i_sdep, i_saci, i_raci, i_sacr, i_gacw, i_gacr, i_gaci, i_gacs, i_gdep, i_psedg, i_sagg, &
        i_gshd, i_ihal, i_smlt, i_gmlt, i_psedi, i_homr, i_homc, i_imlt, i_isub, i_ssub, i_gsub, i_sbrk, i_dssub, &
        i_dgsub, i_dsedi, i_dseds, i_dsedg, i_dimlt, i_dsmlt, i_dgmlt, i_diacw, i_dsacw, i_dgacw, i_dsacr, &
-       i_dgacr, i_draci, i_dhomr, i_dhomc
+       i_dgacr, i_draci, i_dhomr, i_dhomc, i_idps, i_iics
   use sum_process, only: sum_procs, sum_aprocs, tend_temp, aerosol_tend_temp
   use aerosol_routines, only: examine_aerosol, aerosol_phys, aerosol_chem, aerosol_active, allocate_aerosol, &
        deallocate_aerosol
@@ -19,7 +19,7 @@ module micro_main
        aerosol_option, l_warm, &
        l_sed, l_idep, aero_index, nq_l, nq_r, nq_i, nq_s, nq_g, &
        l_sg, l_g, l_process, max_sed_length, max_step_length, l_harrington, l_passive, ntotala, ntotalq, &
-       l_onlycollect, pswitch, l_isub, l_pos1, l_pos2, l_pos3, l_pos4, &
+       l_onlycollect, pswitch, l_isub, l_pos1, l_pos2, l_pos3, l_pos4, l_no_pgacs_in_sumprocs, &
        l_pos5, l_pos6, i_hstart, l_tidy_negonly,  &
        iopt_act, iopt_shipway_act, l_prf_cfrac, l_kfsm, l_gamma_online, l_subseds_maxv, &
        i_cfl, i_cfr, i_cfi, i_cfs, i_cfg, l_reisner_graupel_embryo
@@ -39,7 +39,7 @@ module micro_main
   use ice_accretion, only: iacc
   use breakup, only: ice_breakup
   use snow_autoconversion, only: saut
-  use ice_multiplication, only: hallet_mossop
+  use ice_multiplication, only: hallet_mossop, droplet_shattering, ice_collision
   use graupel_wetgrowth, only: wetgrowth
   use graupel_embryo, only: graupel_embryos
   use ice_melting, only: melting
@@ -1334,6 +1334,20 @@ contains
                    ! Graupel -> Snow -> Graupel
                    !                   if(pswitch%l_gsacs)call iacc(step_length, k, graupel_params, snow_params, graupel_params, qfields, &
                    !                       procs, aeroact, dustliq, aerosol_procs)
+
+                ! Graupel -> Ice -> Graupel
+                if (pswitch%l_pgaci) then
+                   call iacc(ixy_inner, step_length, nz,  l_Tcold(:,ixy_inner), graupel_params, ice_params, &
+                        graupel_params, qfields(:,:,ixy_inner), cffields(:,:,ixy_inner), & 
+                        procs(:,:,ixy_inner), l_sigevap(:,ixy_inner), aeroact, dustliq, aerosol_procs(:,:,ixy_inner))
+                end if
+
+                ! Graupel -> Snow -> Graupel
+                if (pswitch%l_pgacs) then
+                   call iacc(ixy_inner, step_length, nz, l_Tcold(:,ixy_inner),  graupel_params, snow_params, &
+                        graupel_params, qfields(:,:,ixy_inner), cffields(:,:,ixy_inner), &
+                        procs(:,:,ixy_inner), l_sigevap(:,ixy_inner), aeroact, dustliq, aerosol_procs(:,:,ixy_inner))
+                end if
                 end if
              end if
 
@@ -1404,6 +1418,22 @@ contains
                   l_Tcold(:,ixy_inner), qfields(:,:,ixy_inner), aeroact,       &
                   dustliq, procs(:,:,ixy_inner), aerosol_procs(:,:,ixy_inner))
              endif
+          
+          !------------------------------------------------------
+          ! Droplet shattering
+          !------------------------------------------------------
+          if (pswitch%l_pidps .and. .not. l_kfsm) then
+             call droplet_shattering(ixy_inner, step_length, nz, cffields(:,:,ixy_inner), &
+                  qfields(:,:,ixy_inner), procs(:,:,ixy_inner))
+          end if
+
+          !------------------------------------------------------
+          ! Ice-ice collision (breakup)
+          if (pswitch%l_piics .and. .not. l_kfsm) then
+             call ice_collision(ixy_inner, step_length, nz, cffields(:,:,ixy_inner), &
+                  procs(:,:,ixy_inner))
+          end if
+
              !------------------------------------------------------
              ! Deposition/sublimation of ice/snow/graupel
              !------------------------------------------------------
@@ -1486,7 +1516,7 @@ contains
             if (l_pos2) call ensure_positive(nz, step_length,                  &
               qfields(:,:,ixy_inner), procs(:,:,ixy_inner), ice_params,        &
               (/i_raci, i_saci, i_gaci, i_saut, i_isub, i_imlt/),              &
-              (/i_ihal, i_gshd, i_inuc, i_homc, i_iacw, i_idep/))
+              (/i_ihal, i_idps, i_iics, i_gshd, i_inuc, i_homc, i_iacw, i_idep/))
 
             if (l_pos3) call ensure_positive(nz, step_length,                  &
               qfields(:,:,ixy_inner), procs(:,:,ixy_inner), rain_params,       &
@@ -1498,7 +1528,7 @@ contains
             if (l_pos4) call ensure_positive(nz, step_length,                  &
               qfields(:,:,ixy_inner), procs(:,:,ixy_inner), snow_params,       &
               (/i_gacs, i_smlt, i_sacr, i_ssub /),                             &
-              (/i_sdep, i_sacw, i_saut, i_saci, i_raci, i_gshd, i_ihal/))
+              (/i_sdep, i_sacw, i_saut, i_saci, i_raci, i_gshd, i_ihal, i_iics/)) 
          else
             if (pswitch%l_praut .and. pswitch%l_pracw) then
                 if (l_pos5) call ensure_positive(nz, step_length,              &
@@ -1528,14 +1558,22 @@ contains
 
 
          if (.not. l_warm_loc) then
+           if (.not. l_no_pgacs_in_sumprocs) then
+             call sum_procs(ixy_inner, step_length, nz, procs(:,:,ixy_inner), tend(:,:,ixy_inner),      &
+                (/i_idep, i_sdep, i_gdep, i_iacw, i_sacr, i_sacw, i_saci, i_raci,&
+                i_gacw, i_gacr, i_gaci, i_gacs, i_ihal, i_iics, i_idps,  i_gshd, i_sbrk,&
+                i_saut, i_sagg, i_isub, i_ssub, i_gsub/),        &
+                l_thermalexchange=.true., qfields=qfields(:,:,ixy_inner),&
+                l_passive=l_passive, i_thirdmoment=2)
+           else
+             call sum_procs(ixy_inner, step_length, nz, procs(:,:,ixy_inner), tend(:,:,ixy_inner),      &
+                (/i_idep, i_sdep, i_gdep, i_iacw, i_sacr, i_sacw, i_saci, i_raci,&
+                i_gacw, i_gacr, i_gaci, i_ihal, i_iics, i_idps, i_gshd, i_sbrk,&
+                i_saut, i_sagg, i_isub, i_ssub, i_gsub/),        &
+                l_thermalexchange=.true., qfields=qfields(:,:,ixy_inner),&
+                l_passive=l_passive, i_thirdmoment=2)
+           end if
 
-            call sum_procs(ixy_inner, step_length, nz, procs(:,:,ixy_inner),   &
-                 tend(:,:,ixy_inner),                                          &
-                 (/i_idep, i_sdep, i_gdep, i_iacw, i_sacr, i_sacw, i_saci,     &
-                 i_raci, i_gacw, i_gacr, i_gaci, i_gacs, i_ihal, i_gshd,       &
-                 i_sbrk, i_saut, i_sagg, i_isub, i_ssub, i_gsub/),             &
-                 l_thermalexchange=.true., qfields=qfields(:,:,ixy_inner),     &
-                 l_passive=l_passive, i_thirdmoment=2)
             call sum_procs(ixy_inner, step_length, nz, procs(:,:,ixy_inner),   &
                  tend(:,:,ixy_inner),                                          &
                  (/i_inuc, i_imlt, i_smlt, i_gmlt, i_homr, i_homc/),           &
@@ -2599,6 +2637,17 @@ contains
       END IF
     END IF
 
+    IF (casdiags % l_niacw) THEN
+      IF ((pswitch%l_piacw) .and. (cloud_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % niacw(i,j,k) = procs(cloud_params%i_2m,i_iacw%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % niacw(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF  
+
     IF (casdiags % l_psacw) THEN
       IF (pswitch%l_psacw) THEN
         DO k = k_start, k_end
@@ -2607,6 +2656,17 @@ contains
         END DO
       ELSE
         casdiags % psacw(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_nsacw) THEN
+      IF ((pswitch%l_psacw) .and. (cloud_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % nsacw(i,j,k) = procs(cloud_params%i_2m,i_sacw%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % nsacw(i,j,:) = ZERO_REAL_WP
       END IF
     END IF
 
@@ -2621,6 +2681,17 @@ contains
       END IF
     END IF
 
+    IF (casdiags % l_nsacr) THEN
+      IF ((pswitch%l_psacr) .and. (rain_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % nsacr(i,j,k) = procs(rain_params%i_2m,i_sacr%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % nsacr(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
     IF (casdiags % l_pisub) THEN
       IF (pswitch%l_pisub) THEN
         DO k = k_start, k_end
@@ -2629,6 +2700,17 @@ contains
         END DO
       ELSE
         casdiags % pisub(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_nisub) THEN
+      IF ((pswitch%l_pisub) .and. (ice_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % nisub(i,j,k) = -1.0 * procs(ice_params%i_2m,i_isub%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % nisub(i,j,:) = ZERO_REAL_WP
       END IF
     END IF
 
@@ -2643,6 +2725,16 @@ contains
       END IF
     END IF
 
+    IF (casdiags % l_nssub) THEN
+      IF ((pswitch%l_pssub) .and. (snow_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % nssub(i,j,k) = -1.0 * procs(snow_params%i_2m,i_ssub%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % nssub(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
 
     IF (casdiags % l_pimlt) THEN
       IF (pswitch%l_pimlt) THEN
@@ -2652,6 +2744,17 @@ contains
         END DO
       ELSE
         casdiags % pimlt(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_nimlt) THEN
+      IF ((pswitch%l_pimlt) .and. (rain_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % nimlt(i,j,k) = procs(rain_params%i_2m,i_imlt%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % nimlt(i,j,:) = ZERO_REAL_WP
       END IF
     END IF
 
@@ -2666,6 +2769,17 @@ contains
       END IF
     END IF
 
+    IF (casdiags % l_nsmlt) THEN
+      IF ((pswitch%l_psmlt) .and. (rain_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % nsmlt(i,j,k) = procs(rain_params%i_2m,i_smlt%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % nsmlt(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
     IF (casdiags % l_psaut) THEN
       IF (pswitch%l_psaut) THEN
         DO k = k_start, k_end
@@ -2674,6 +2788,17 @@ contains
         END DO
       ELSE
         casdiags % psaut(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_nsaut) THEN
+      IF ((pswitch%l_psaut) .and. (snow_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % nsaut(i,j,k) = procs(snow_params%i_2m,i_saut%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % nsaut(i,j,:) = ZERO_REAL_WP
       END IF
     END IF
 
@@ -2688,6 +2813,17 @@ contains
       END IF
     END IF
 
+    IF (casdiags % l_nsaci) THEN
+      IF ((pswitch%l_psaci) .and. (ice_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % nsaci(i,j,k) = procs(ice_params%i_2m,i_saci%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % nsaci(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
     IF (casdiags % l_praut) THEN
       IF (pswitch%l_praut) THEN
         DO k = k_start, k_end
@@ -2696,6 +2832,17 @@ contains
         END DO
       ELSE
         casdiags % praut(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_nraut) THEN
+      IF ((pswitch%l_praut) .and. (rain_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % nraut(i,j,k) = procs(rain_params%i_2m,i_praut%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % nraut(i,j,:) = ZERO_REAL_WP
       END IF
     END IF
 
@@ -2709,6 +2856,29 @@ contains
         casdiags % pracw(i,j,:) = ZERO_REAL_WP
       END IF
     END IF
+
+    IF (casdiags % l_nracw) THEN
+      IF ((pswitch%l_pracw) .and. (cloud_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % nracw(i,j,k) = procs(cloud_params%i_2m,i_pracw%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % nracw(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_nracr) THEN
+      IF ((pswitch%l_pracr) .and. (rain_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % nracr(i,j,k) = procs(rain_params%i_2m,i_pracr%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % nracr(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
     IF (casdiags % l_prevp) THEN
       IF (pswitch%l_prevp) THEN
         DO k = k_start, k_end
@@ -2717,6 +2887,17 @@ contains
         END DO
       ELSE
         casdiags % prevp(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_nrevp) THEN
+      IF ((pswitch%l_prevp) .and. (rain_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % nrevp(i,j,k) = -1.0 * procs(rain_params%i_2m,i_prevp%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % nrevp(i,j,:) = ZERO_REAL_WP
       END IF
     END IF
 
@@ -2752,7 +2933,7 @@ contains
 !         IF (pswitch%l_psedr) THEN
 !            DO k = k_start, k_end
 !               kc = k - k_start + 1
-!               call save_dg(k, procs(rain_params%i_1m,i_psedr%id)%column_data(kc) , 'psedr', i_dgtime)
+!               call save_dg(k, procs(rain_params%i_1m,i_psedr%id,ixy_inner)%column_data(kc) , 'psedr', i_dgtime)
 !            END DO
 !         END IF
 !      END IF
@@ -2761,7 +2942,7 @@ contains
 !         IF (pswitch%l_psedl) THEN
 !            DO k = k_start, k_end
 !               kc = k - k_start + 1
-!               call save_dg(k, procs(cloud_params%i_1m,i_psedl%id)%column_data(kc) , 'psedl', i_dgtime)
+!               call save_dg(k, procs(cloud_params%i_1m,i_psedl%id,ixy_inner)%column_data(kc) , 'psedl', i_dgtime)
 !            END DO
 !         END IF
 !      END IF
@@ -2770,7 +2951,7 @@ contains
 !         IF (pswitch%l_pracr) THEN
 !            DO k = k_start, k_end
 !               kc = k - k_start + 1
-!               call save_dg(k, procs(rain_params%i_1m,i_pracr%id)%column_data(kc), 'pracr', i_dgtime)
+!               call save_dg(k, procs(rain_params%i_1m,i_pracr%id,ixy_inner)%column_data(kc), 'pracr', i_dgtime)
 !            END DO
 !         END IF
 !      END IF
@@ -2786,6 +2967,17 @@ contains
       END IF
     END IF
 
+    IF (casdiags % l_ngacw) THEN
+      IF ((pswitch%l_pgacw) .and. (cloud_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % ngacw(i,j,k) = procs(cloud_params%i_2m, i_gacw%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % ngacw(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
     IF (casdiags % l_pgacs) THEN
       IF (pswitch%l_pgacs) THEN
         DO k = k_start, k_end
@@ -2794,6 +2986,17 @@ contains
         END DO
       ELSE
         casdiags % pgacs(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_ngacs) THEN
+      IF ((pswitch%l_pgacs) .and. (snow_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % ngacs(i,j,k) = procs(snow_params%i_2m, i_gacs%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % ngacs(i,j,:) = ZERO_REAL_WP
       END IF
     END IF
 
@@ -2808,6 +3011,17 @@ contains
       END IF
     END IF
 
+    IF (casdiags % l_ngmlt) THEN
+      IF ((pswitch%l_pgmlt) .and. (rain_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % ngmlt(i,j,k) = procs(rain_params%i_2m, i_gmlt%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % ngmlt(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
     IF (casdiags % l_pgsub) THEN
       IF (pswitch%l_pgsub) THEN
         DO k = k_start, k_end
@@ -2816,6 +3030,17 @@ contains
         END DO
       ELSE
         casdiags % pgsub(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_ngsub) THEN
+      IF ((pswitch%l_pgsub) .and. (graupel_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % ngsub(i,j,k) = -1.0 * procs(graupel_params%i_2m, i_gsub%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % ngsub(i,j,:) = ZERO_REAL_WP
       END IF
     END IF
 
@@ -2874,6 +3099,17 @@ contains
       END IF
     END IF
 
+    IF (casdiags % l_nsedr) THEN
+      IF ((pswitch%l_psedr) .and. (rain_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % nsedr(i,j,k) = procs(rain_params%i_2m,i_psedr%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % nsedr(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
     IF (casdiags % l_psedg) THEN
       IF (pswitch%l_psedg) THEN
         DO k = k_start, k_end
@@ -2907,6 +3143,17 @@ contains
       END IF
     END IF
 
+    IF (casdiags % l_nsedl) THEN
+      IF ((pswitch%l_psedl) .and. (cloud_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % nsedl(i,j,k) = procs(cloud_params%i_2m,i_psedl%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % nsedl(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
     IF (casdiags % l_pcond) THEN
       IF (pswitch%l_pcond) THEN
         DO k = k_start, k_end
@@ -2929,6 +3176,16 @@ contains
       END IF
     END IF
 
+   IF (casdiags % l_pihal) THEN
+      IF (pswitch%l_pihal) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % pihal(i,j,k) = procs(ice_params%i_1m,i_ihal%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % pihal(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
 
     IF (casdiags % l_nihal) THEN
       IF ((pswitch%l_pihal) .and. (ice_params%l_2m)) THEN
@@ -2949,6 +3206,138 @@ contains
         END DO
       ELSE
         casdiags % nhomr(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_praci_g) THEN
+      IF (pswitch%l_praci) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % praci_g(i,j,k) = procs(graupel_params%i_1m,i_raci%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % praci_g(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_praci_r) THEN
+      IF (pswitch%l_praci) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % praci_r(i,j,k) = procs(rain_params%i_1m,i_raci%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % praci_r(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_praci_i) THEN
+      IF (pswitch%l_praci) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % praci_i(i,j,k) = procs(ice_params%i_1m,i_raci%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % praci_i(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_nraci_g) THEN
+      IF ((pswitch%l_praci) .and. (graupel_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % nraci_g(i,j,k) = procs(graupel_params%i_2m,i_raci%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % nraci_g(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_nraci_r) THEN
+      IF ((pswitch%l_praci) .and. (rain_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % nraci_r(i,j,k) = procs(rain_params%i_2m,i_raci%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % nraci_r(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_nraci_i) THEN
+      IF ((pswitch%l_praci) .and. (ice_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % nraci_i(i,j,k) = procs(ice_params%i_2m,i_raci%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % nraci_i(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_pidps) THEN
+      IF ((pswitch%l_pidps) .and. (ice_params%l_1m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % pidps(i,j,k) = procs(ice_params%i_1m,i_idps%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % pidps(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_nidps) THEN
+      IF ((pswitch%l_pidps) .and. (ice_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % nidps(i,j,k) = procs(ice_params%i_2m,i_idps%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % nidps(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_pgaci) THEN
+      IF ((pswitch%l_pgaci) .and. (ice_params%l_1m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % pgaci(i,j,k) = procs(ice_params%i_1m,i_gaci%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % pgaci(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_ngaci) THEN
+      IF ((pswitch%l_pgaci) .and. (ice_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % ngaci(i,j,k) = procs(ice_params%i_2m,i_gaci%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % ngaci(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_niics_s) THEN
+      IF ((pswitch%l_piics) .and. (snow_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % niics_s(i,j,k) = procs(snow_params%i_2m,i_iics%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % niics_s(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_niics_i) THEN
+      IF ((pswitch%l_piics) .and. (ice_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % niics_i(i,j,k) = procs(ice_params%i_2m,i_iics%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % niics_i(i,j,:) = ZERO_REAL_WP
       END IF
     END IF
 
@@ -3031,6 +3420,17 @@ contains
           casdiags % psedl(i,j,k) = casdiags % psedl(i,j,k)+                   &
                   procs(cloud_params%i_1m,i_psedl%id,ixy_inner)%column_data(kc)
         END DO
+      END IF
+    END IF
+
+    IF (casdiags % l_nsedl) THEN
+      IF ((pswitch%l_psedl) .and. (cloud_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % nsedl(i,j,k) = procs(cloud_params%i_2m,i_psedl%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % nsedl(i,j,:) = ZERO_REAL_WP
       END IF
     END IF
 

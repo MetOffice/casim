@@ -16,7 +16,7 @@ module mphys_switches
        i_sdep, i_saci, i_raci, i_sacr, i_gacw, i_gacr, i_gaci, i_gacs, i_gdep, i_psedg, i_iagg, i_sagg, i_gagg, &
        i_gshd, i_ihal, i_smlt, i_gmlt, i_psedi, i_homr, i_homc, i_imlt, i_isub, i_ssub, i_gsub, i_sbrk, i_dssub, &
        i_dgsub, i_dsedi, i_dseds, i_dsedg, i_dimlt, i_dsmlt, i_dgmlt, i_diacw, i_dsacw, i_dgacw, i_dsacr, &
-       i_dgacr, i_draci, i_dhomc, i_dhomr, process_name
+       i_dgacr, i_draci, i_dhomc, i_dhomr, i_iics, i_idps, process_name
 
   implicit none
 
@@ -261,6 +261,9 @@ module mphys_switches
   logical :: l_sg             = .true.  ! run with snow and graupel
   logical :: l_g              = .true.  ! run with graupel
   logical :: l_halletmossop   = .true.
+  logical :: l_sip_icebreakup = .false.
+  logical :: l_sip_dropletshatter = .false.
+  logical :: l_no_pgacs_in_sumprocs = .false. ! If running ice breakup then no pgacs added in sumprocs
 
   logical :: l_harrington     = .false.  ! Use Jerry's method for ice autoconvertion
 
@@ -308,7 +311,7 @@ module mphys_switches
   logical, target :: l_psacr   = .true.  ! snow accreting rain
   logical, target :: l_pgacr   = .false.  ! graupel accreting rain
   logical, target :: l_pgacw   = .true.  ! graupel accreting cloud water
-  logical, target :: l_pgaci   = .true.  ! graupel accreting ice
+  logical, target :: l_pgaci   = .false.  ! graupel accreting ice
   logical, target :: l_pgacs   = .false.  ! graupel accreting snow
   logical, target :: l_piagg   = .false. ! aggregation of ice particles
   logical, target :: l_psagg   = .true.  ! aggregation of snow particles
@@ -316,6 +319,8 @@ module mphys_switches
   logical, target :: l_psbrk   = .true.  ! break up of snow flakes
   logical, target :: l_pgshd   = .true.  ! shedding of liquid from graupel
   logical, target :: l_pihal   = .true.  ! hallet mossop
+  logical, target :: l_piics   = .false.  ! ice-ice collision
+  logical, target :: l_pidps   = .false.  ! droplet shattering
   logical, target :: l_psmlt   = .true.  ! snow melting
   logical, target :: l_pgmlt   = .true.  ! graupel melting
   logical, target :: l_phomr   = .true.  ! homogeneous freezing of rain
@@ -362,6 +367,8 @@ module mphys_switches
      logical, pointer :: l_psbrk ! break up of snow flakes
      logical, pointer :: l_pgshd ! shedding of liquid from graupel
      logical, pointer :: l_pihal ! hallet mossop
+     logical, pointer :: l_piics ! ice-ice collision
+     logical, pointer :: l_pidps ! droplet shattering
      logical, pointer :: l_psmlt ! snow melting
      logical, pointer :: l_pgmlt ! graupel melting
      logical, pointer :: l_phomr ! homogeneous freezing of rain
@@ -474,6 +481,8 @@ module mphys_switches
   logical :: l_passive3m = .false. ! Don't use 3rd moment to determine distribution parameters
 
   logical :: l_limit_psd = .true. ! limit distribution parameters to prevent large mean particle sizes
+
+  logical :: l_nudge_to_cooper = .true. ! nudge the addition of ice number concentration back to the Cooper curve
 
   ! Some checks are made to ensure consistency, this will
   ! override them (but only to be used by Ben and Adrian!)
@@ -932,6 +941,8 @@ contains
         call allocp(i_gsub, iproc, idgproc, 'pgsub')
         call allocp(i_isub, iproc, idgproc, 'pisub')
         call allocp(i_imlt, iproc, idgproc, 'pimlt')
+        call allocp(i_iics, iproc, idgproc, 'piics')
+        call allocp(i_idps, iproc, idgproc, 'pidps')
       end if
       hydro_complexity%nprocesses=iproc
 
@@ -971,6 +982,19 @@ contains
         if (l_draci) call allocp(i_draci, iproc, idgproc, 'draci', l_onoff=l_on)
       end if
       aero_complexity%nprocesses = iproc
+
+      ! Set switches for having ice breakup and droplet shattering
+      if (l_sip_icebreakup) then
+        l_pgaci = .true.
+        l_pgacs = .true.
+        l_piics = .true.
+        l_no_pgacs_in_sumprocs = .true.
+      end if
+
+      if (l_sip_dropletshatter) then
+        l_phomr = .true.
+        l_pidps = .true.
+      end if
 
       !----------------------------------------------------
       ! Ensure we only do this at the start of the run
@@ -1157,6 +1181,8 @@ contains
       l_psagg = .false.
       l_psbrk = .false.
       l_pihal = .false.
+      l_piics = .false.
+      l_pidps = .false.
       l_psmlt = .false.
       l_pssub = .false.
 
@@ -1198,6 +1224,8 @@ contains
     pswitch%l_psbrk=>l_psbrk ! break up of snow flakes
     pswitch%l_pgshd=>l_pgshd ! shedding of liquid from graupel
     pswitch%l_pihal=>l_pihal ! hallet mossop
+    pswitch%l_piics=>l_piics ! ice-ice collision
+    pswitch%l_pidps=>l_pidps ! droplet shattering
     pswitch%l_psmlt=>l_psmlt ! snow melting
     pswitch%l_pgmlt=>l_pgmlt ! graupel melting
     pswitch%l_phomr=>l_phomr ! homogeneous freezing of rain
@@ -1245,6 +1273,8 @@ contains
       pswitch%l_psmlt=.false.
       pswitch%l_pseds=.false.
       pswitch%l_pihal=.false.
+      pswitch%l_piics=.false.
+      pswitch%l_pidps=.false.
       l_g=.false.
     end if
 
@@ -1259,9 +1289,16 @@ contains
       pswitch%l_pgshd=.false.
       ! this should not be switched off
       pswitch%l_phomr=.false.
+      pswitch%l_piics=.false.
+      pswitch%l_pidps=.false.
     end if
 
     if (.not. l_halletmossop) pswitch%l_pihal=.false.
+    if (.not. l_sip_icebreakup) then
+      pswitch%l_pgacs=.false.
+      pswitch%l_piics=.false.
+    end if
+    if (.not. l_sip_dropletshatter) pswitch%l_pidps=.false.
 
     if (.not. (pswitch%l_pidep .or. pswitch%l_psdep .or. pswitch%l_pgdep)) l_idep=.false.
     if (.not. (pswitch%l_pisub .or. pswitch%l_pssub .or. pswitch%l_pgsub)) l_isub=.false.

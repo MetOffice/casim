@@ -5,7 +5,7 @@ module ice_nucleation
   use mphys_switches, only: i_qv, i_ql, i_qi, i_ni, i_th , hydro_complexity, i_am4, i_am6, i_an2, l_2mi, l_2ms, l_2mg, &
        i_am8, i_am9, aerosol_option, i_nl, i_ns, i_ng, iopt_inuc, i_am7, i_an6, i_an12, l_process, l_passivenumbers, &
        l_passivenumbers_ice, active_number, active_ice, isol, iinsol, l_itotsg, contact_efficiency, immersion_efficiency, &
-       aero_index, l_prf_cfrac, iopt_act, i_cfl, i_cfi
+       aero_index, l_prf_cfrac, iopt_act, i_cfl, i_cfi, l_nudge_to_cooper
   use process_routines, only: process_rate, i_inuc, i_dnuc
   use mphys_parameters, only: nucleated_ice_mass, cloud_params, ice_params
   use mphys_constants, only: Ls, cp, pi, m3_to_cm3
@@ -205,7 +205,11 @@ contains
                    if (iopt_act .eq. 0) then !for fixed number concs adjust the rate
                                              !to nudge back to climatology- can be negative -
                                              !this just represents a nudging incr for cooper
-                      dN_imm =  (dN_imm-ice_number)*0.8 
+                      if (l_nudge_to_cooper) then 
+                        dN_imm =  (dN_imm-ice_number)*0.8 
+                      else
+                         dN_imm = MAX( dN_imm-ice_number, 0.0 )
+                      end if 
                    endif
                 endif
              case (2)

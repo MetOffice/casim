@@ -49,6 +49,8 @@ module process_routines
   type(process_name) :: i_gsub  = process_name(0, 38, 'pgsub', on=.false.)
   type(process_name) :: i_isub  = process_name(0, 39, 'pisub', on=.false.)
   type(process_name) :: i_imlt  = process_name(0, 40, 'pimlt', on=.false.)
+  type(process_name) :: i_iics  = process_name(0, 41, 'piics', on=.false.)
+  type(process_name) :: i_idps  = process_name(0, 42, 'pidps', on=.false.)
   ! aerosol processes
   type(process_name)  :: i_aact  = process_name(0, 101, 'aact', on=.false.)
   type(process_name)  :: i_aaut  = process_name(0, 102, 'aaut', on=.false.)

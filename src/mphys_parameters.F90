@@ -368,6 +368,11 @@ module mphys_parameters
   real(wp) :: dN_hallet_mossop=350.0e6 !< Number of ice splinters formed per kg of rimed liquid (/kg)
   real(wp) :: M0_hallet_mossop=1.0E-18 !< Mass of newly formed ice splinter (kg)
 
+  real(wp) :: coef_ice_breakup=280 !< Leading coefficient in ice-ice breakup
+
+  real(wp) :: dN_droplet_shatter=5 !< Number of ejected fragment number formed per droplet shattering
+  real(wp) :: P_droplet_shatter=0.20 !< Maximum probability of droplet shattering
+
   real(wp) :: DR_melt=0.001   !< Mean diameter of rain from melt (m)
 
   real(wp) :: T_hom_freeze=-38 !< Temperature threshold for homogeneous freezing (C)
