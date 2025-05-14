@@ -4,6 +4,7 @@ module which_mode_to_use
   use variable_precision, only: wp
   use mphys_switches, only: l_aeroproc_midway
   use lognormal_funcs, only: MNtoRm
+  use mphys_constants, only: pi
 
   implicit none
 
@@ -55,8 +56,8 @@ contains
     real(wp) :: r1, r2     ! r1 and r2 (possibly modified) 
     real(wp) :: r1_3, r2_3 ! r1**3 and r2**3
 
-    real(wp) :: FTPI ! 4/3*pi
-    real(wp) :: RFTPI ! 1./(4/3*pi)
+    real(wp) :: ftpi ! 4/3*pi
+    real(wp) :: rftpi ! 1./(4/3*pi)
 
     real(wp) :: r_thresh
 
@@ -87,8 +88,7 @@ contains
         r_thresh = r2
       end if
 
-
-      ftpi=3.14159*4./3.
+      ftpi = pi *4./3.
       rftpi=1./ftpi
 
       if (l_aeroproc_midway) then

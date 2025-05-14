@@ -1,5 +1,6 @@
 module shipway_constants
   use variable_precision, only: wp
+  use mphys_constants, only: pi
 
   implicit none
 
@@ -20,9 +21,6 @@ module shipway_constants
          ,Lv = 0.2501e7 &
          ,cp = 1005.    &
          ,ka = 0.243e-1 
-
-
-  real(wp), parameter :: pi=3.1415926535897931
 
   real(wp) :: alpha_c = 0.05 ! set do default value which we may be changed elsewhere
                          ! kinetic parameter, expressing probability

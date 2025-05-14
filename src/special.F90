@@ -1,5 +1,6 @@
 module special
   use variable_precision, only: wp
+  use mphys_constants, only: pi
   !  Use solvers, only: brent
 
   implicit none
@@ -8,9 +9,8 @@ module special
   character(len=*), parameter, private :: ModuleName='SPECIAL'
 
   real(wp), parameter :: euler=0.57721566
-  ! PI is set to the same value as that used in the UM 
-  ! (see conversions_mod in UM)
-  real(wp), parameter :: pi= 3.14159265358979323846
+
+  ! pi is set to the same value as that used in the UM 
 
   interface erfinv
      module procedure erfinv1
