@@ -93,6 +93,7 @@ USE distributions,        ONLY: dist_lambda, dist_mu, dist_n0
 USE mphys_parameters,     ONLY: cloud_params, rain_params, ice_params,   &
                                 snow_params, graupel_params
 
+USE casim_stph,           ONLY: l_rp2_casim, snow_a_x_rp, ice_a_x_rp
 USE mphys_switches,       ONLY: l_g, l_warm, l_cfrac_casim_diag_scheme, &
                                 i_cfl, i_cfr, i_cfi,       &
                                 i_cfs, i_cfg
@@ -168,6 +169,12 @@ CHARACTER(LEN=*), PARAMETER :: RoutineName='CASIM_REFLEC'
 !==============================================================================
 ! Start of calculations
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+! Apply RP scheme
+IF ( l_rp2_casim ) THEN
+  snow_params%a_x = snow_a_x_rp
+  ice_params%a_x = ice_a_x_rp
+END IF
 
 IF (l_cfrac_casim_diag_scheme .AND. l_reflec_warn ) THEN
   WRITE(std_msg, '(A)') 'Using radar reflectivity with cloud fraction scheme.' &

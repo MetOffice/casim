@@ -18,6 +18,7 @@ module activation
       Dv_mean, alpha_c, zetasa, Ru
   use qsat_funs, only: qsaturation,dqwsatdt
   use shipway_activation_mod, only: solve_nccn_household, solve_nccn_brent
+  use casim_stph, only: l_rp2_casim, fixed_cloud_number_rp
 
   implicit none
 
@@ -105,6 +106,11 @@ contains
     ! End of header, no more declarations beyond here
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+    ! Apply RP scheme
+    if ( l_rp2_casim ) then
+        fixed_cloud_number = fixed_cloud_number_rp
+    endif
 
     cf_thresh = cfliq_small ! should be a small number, shouldn't matter too much
     if (cfliq .gt. cfliq_small) then  !only doing liquid cloud fraction at the moment

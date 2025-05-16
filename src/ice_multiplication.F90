@@ -11,6 +11,7 @@ module ice_multiplication
   use mphys_switches, only: l_prf_cfrac, i_cfs, i_cfg, i_cfl, mpof, i_qg,      &
                             i_ng, i_cfi
   use mphys_constants, only: pi
+  use casim_stph, only: l_rp2_casim, mpof_casim_rp
 
   implicit none
 
@@ -77,6 +78,11 @@ contains
     ! End of header, no more declarations beyond here
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+    ! Apply RP scheme
+    if ( l_rp2_casim ) then
+        mpof = mpof_casim_rp
+    endif
 
     if (.not. ice_params%l_2m) then
       IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)

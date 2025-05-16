@@ -13,6 +13,7 @@ module accretion
   use sweepout_rate, only: sweepout
   use distributions, only: dist_lambda, dist_mu, dist_n0
 ! use m3_incs, only: m3_inc_type2
+  use casim_stph, only: l_rp2_casim, fixed_cloud_number_rp
 
   implicit none
 
@@ -77,6 +78,11 @@ contains
     ! End of header, no more declarations beyond here
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+    ! Apply RP scheme
+    if ( l_rp2_casim ) then
+        fixed_cloud_number = fixed_cloud_number_rp
+    endif
 
     do k = 1, ubound(qfields,1)
        if (l_prf_cfrac) then

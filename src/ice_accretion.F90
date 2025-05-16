@@ -18,6 +18,7 @@ use aerosol_routines, only: aerosol_active
 use distributions, only: dist_lambda, dist_mu, dist_n0
 use sweepout_rate, only: sweepout, binary_collection
 !  use sweepout_rate, only: binary_collection_1M2M, sweepout_1M2M
+  use casim_stph, only: l_rp2_casim, mpof_casim_rp
 
 implicit none
 private
@@ -109,6 +110,11 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 ! Initialise increments
 dmass_X = 0.0_wp
 dnumber_X = 0.0_wp
+
+! Apply RP scheme
+if ( l_rp2_casim ) then
+    mpof = mpof_casim_rp
+endif
 
 !setup cloud fractions
 do k = 1, nz

@@ -11,6 +11,7 @@ module autoconversion
   use process_routines, only: process_rate, i_praut, i_aaut
   use thresholds, only: ql_small, nl_small, qr_small, cfliq_small
 ! use m3_incs, only: m3_inc_type3
+  use casim_stph, only: l_rp2_casim, fixed_cloud_number_rp
 
   implicit none
 
@@ -56,6 +57,11 @@ contains
     ! End of header, no more declarations beyond here
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+    ! Apply RP scheme
+    if ( l_rp2_casim ) then
+        fixed_cloud_number = fixed_cloud_number_rp
+    end if
 
    do k = 1, ubound(qfields,1)
    if (l_prf_cfrac) then

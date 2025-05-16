@@ -62,6 +62,8 @@ module micro_main
   use casim_runtime, only: casim_time
   use casim_parent_mod, only: casim_parent, parent_monc
 
+  use casim_stph, only: l_rp2_casim, snow_a_x_rp, ice_a_x_rp
+
 ! #if DEF_MODEL==MODEL_KiD
 !   ! Kid modules
 !   use diagnostics, only: save_dg, i_dgtime, n_sub, n_subsed
@@ -966,6 +968,12 @@ contains
     ! End of header, no more declarations beyond here
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
+
+    ! Apply RP scheme
+    if ( l_rp2_casim ) then
+      snow_params%a_x = snow_a_x_rp
+      ice_params%a_x = ice_a_x_rp
+    end if
 
 ! Calculations for substeps do not need to stay inside inner loop
 ! So moving this part after those calculations
