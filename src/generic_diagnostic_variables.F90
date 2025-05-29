@@ -1206,6 +1206,28 @@ IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 ! Remember to deallocate all memory in the reverse order that it was
 ! allocated.
 
+
+!PRF water paths
+IF ( ALLOCATED ( casdiags % gwp ) ) THEN
+  DEALLOCATE ( casdiags % gwp )
+END IF
+
+IF ( ALLOCATED ( casdiags % swp ) ) THEN
+  DEALLOCATE ( casdiags % swp )
+END IF
+
+IF ( ALLOCATED ( casdiags % iwp ) ) THEN
+  DEALLOCATE ( casdiags % iwp )
+END IF
+
+IF ( ALLOCATED ( casdiags % rwp ) ) THEN
+  DEALLOCATE ( casdiags % rwp )
+END IF
+
+IF ( ALLOCATED ( casdiags % lwp ) ) THEN
+  DEALLOCATE ( casdiags % lwp )
+END IF
+
 IF ( ALLOCATED ( casdiags % mphys_pts ) ) THEN
   DEALLOCATE ( casdiags % mphys_pts )
 END IF
@@ -1224,6 +1246,174 @@ END IF
 
 IF ( ALLOCATED ( casdiags % rainfall_3d ) ) THEN
   DEALLOCATE ( casdiags % rainfall_3d )
+END IF
+
+IF ( ALLOCATED ( casdiags %  dqg )) THEN
+  DEALLOCATE ( casdiags % dqg )
+END IF
+
+IF ( ALLOCATED ( casdiags %  dqs )) THEN
+  DEALLOCATE ( casdiags % dqs )
+END IF
+
+IF ( ALLOCATED ( casdiags %  dqi )) THEN
+  DEALLOCATE ( casdiags % dqi )
+END IF
+
+IF ( ALLOCATED ( casdiags %  dqr )) THEN
+  DEALLOCATE ( casdiags % dqr )
+END IF
+
+IF ( ALLOCATED ( casdiags %  dqc )) THEN
+  DEALLOCATE ( casdiags % dqc )
+END IF
+
+IF (casdiags % l_dqv) THEN
+   IF ( ALLOCATED ( casdiags %  dqv_cond_evap )) THEN
+      DEALLOCATE ( casdiags % dqv_cond_evap )
+   END IF
+
+   IF ( ALLOCATED ( casdiags %  dqv_total )) THEN
+      DEALLOCATE ( casdiags % dqv_total )
+   END IF
+ENDIF
+
+IF (casdiags % l_dth) THEN
+   ! potential temp and mass tendencies
+   IF ( ALLOCATED ( casdiags %  dth_cond_evap )) THEN
+      DEALLOCATE ( casdiags % dth_cond_evap )
+   END IF
+   IF ( ALLOCATED ( casdiags %  dth_total )) THEN
+      DEALLOCATE ( casdiags % dth_total )
+   END IF
+ENDIF
+
+IF ( ALLOCATED ( casdiags % niics_i ) ) THEN
+  DEALLOCATE ( casdiags % niics_i )
+END IF
+
+IF ( ALLOCATED ( casdiags % niics_s ) ) THEN
+  DEALLOCATE ( casdiags % niics_s )
+END IF
+
+IF ( ALLOCATED ( casdiags % ngaci ) ) THEN
+  DEALLOCATE ( casdiags % ngaci )
+END IF
+
+IF ( ALLOCATED ( casdiags % pgaci ) ) THEN
+  DEALLOCATE ( casdiags % pgaci )
+END IF
+
+IF ( ALLOCATED ( casdiags % nidps ) ) THEN
+  DEALLOCATE ( casdiags % nidps )
+END IF
+
+IF ( ALLOCATED ( casdiags % pidps ) ) THEN
+  DEALLOCATE ( casdiags % pidps )
+END IF
+
+IF ( ALLOCATED ( casdiags % nraci_i ) ) THEN
+  DEALLOCATE ( casdiags % nraci_i )
+END IF
+
+IF ( ALLOCATED ( casdiags % nraci_r ) ) THEN
+  DEALLOCATE ( casdiags % nraci_r )
+END IF
+
+IF ( ALLOCATED ( casdiags % nraci_g ) ) THEN
+  DEALLOCATE ( casdiags % nraci_g )
+END IF
+
+IF ( ALLOCATED ( casdiags % praci_i ) ) THEN
+  DEALLOCATE ( casdiags % praci_i )
+END IF
+
+IF ( ALLOCATED ( casdiags % praci_r ) ) THEN
+  DEALLOCATE ( casdiags % praci_r )
+END IF
+
+IF ( ALLOCATED ( casdiags % praci_g ) ) THEN
+  DEALLOCATE ( casdiags % praci_g )
+END IF
+
+IF ( ALLOCATED ( casdiags % pihal ) ) THEN
+  DEALLOCATE ( casdiags % pihal )
+END IF
+
+IF ( ALLOCATED ( casdiags % ngmlt ) ) THEN
+  DEALLOCATE ( casdiags % ngmlt )
+END IF
+
+IF ( ALLOCATED ( casdiags % ngacw ) ) THEN
+  DEALLOCATE ( casdiags % ngacw )
+END IF
+
+IF ( ALLOCATED ( casdiags % nsmlt ) ) THEN
+  DEALLOCATE ( casdiags % nsmlt )
+END IF
+
+IF ( ALLOCATED ( casdiags % nimlt ) ) THEN
+  DEALLOCATE ( casdiags % nimlt )
+END IF
+
+IF ( ALLOCATED ( casdiags % nsacr ) ) THEN
+  DEALLOCATE ( casdiags % nsacr )
+END IF
+
+IF ( ALLOCATED ( casdiags % nsacw ) ) THEN
+  DEALLOCATE ( casdiags % nsacw )
+END IF
+
+IF ( ALLOCATED ( casdiags % niacw ) ) THEN
+  DEALLOCATE ( casdiags % niacw )
+END IF
+
+IF ( ALLOCATED ( casdiags % ngsub ) ) THEN
+  DEALLOCATE ( casdiags % ngsub )
+END IF
+
+IF ( ALLOCATED ( casdiags % ngacs ) ) THEN
+  DEALLOCATE ( casdiags % ngacs )
+END IF
+
+IF ( ALLOCATED ( casdiags % nsaci ) ) THEN
+  DEALLOCATE ( casdiags % nsaci )
+END IF
+
+IF ( ALLOCATED ( casdiags % nsaut ) ) THEN
+  DEALLOCATE ( casdiags % nsaut )
+END IF
+
+IF ( ALLOCATED ( casdiags % nssub ) ) THEN
+  DEALLOCATE ( casdiags % nssub )
+END IF
+
+IF ( ALLOCATED ( casdiags % nisub ) ) THEN
+  DEALLOCATE ( casdiags % nisub )
+END IF
+
+IF ( ALLOCATED ( casdiags % nrevp ) ) THEN
+  DEALLOCATE ( casdiags % nrevp )
+END IF
+
+IF ( ALLOCATED ( casdiags % nsedr ) ) THEN
+  DEALLOCATE ( casdiags % nsedr )
+END IF
+
+IF ( ALLOCATED ( casdiags % nracr ) ) THEN
+  DEALLOCATE ( casdiags % nracr )
+END IF
+
+IF ( ALLOCATED ( casdiags % nracw ) ) THEN
+  DEALLOCATE ( casdiags % nracw )
+END IF
+
+IF ( ALLOCATED ( casdiags % nsedl ) ) THEN
+  DEALLOCATE ( casdiags % nsedl )
+END IF
+
+IF ( ALLOCATED ( casdiags % nraut ) ) THEN
+  DEALLOCATE ( casdiags % nraut )
 END IF
 
 IF ( ALLOCATED ( casdiags % nihal ) ) THEN
@@ -1405,72 +1595,14 @@ IF ( ALLOCATED ( casdiags %  SurfaceRainR )) THEN
    DEALLOCATE ( casdiags % SurfaceRainR )
 END IF
 
+IF ( ALLOCATED ( casdiags %  SurfaceCloudR )) THEN
+   DEALLOCATE ( casdiags % SurfaceCloudR )
+END IF
+
 IF ( ALLOCATED ( casdiags %  precip )) THEN
    DEALLOCATE ( casdiags % precip )
 END IF
-
-IF (casdiags % l_dth) THEN
-   ! potential temp and mass tendencies
-   IF ( ALLOCATED ( casdiags %  dth_total )) THEN
-      DEALLOCATE ( casdiags % dth_total )
-   END IF
-
-   IF ( ALLOCATED ( casdiags %  dth_cond_evap )) THEN
-      DEALLOCATE ( casdiags % dth_cond_evap )
-   END IF
-ENDIF
-
-IF (casdiags % l_dqv) THEN
-   IF ( ALLOCATED ( casdiags %  dqv_total )) THEN
-      DEALLOCATE ( casdiags % dqv_total )
-   END IF
-
-   IF ( ALLOCATED ( casdiags %  dqv_cond_evap )) THEN
-      DEALLOCATE ( casdiags % dqv_cond_evap )
-   END IF
-ENDIF
-
-IF ( ALLOCATED ( casdiags %  dqc )) THEN
-  DEALLOCATE ( casdiags % dqc )
-END IF
-
-IF ( ALLOCATED ( casdiags %  dqr )) THEN
-  DEALLOCATE ( casdiags % dqr )
-END IF
-
-IF ( ALLOCATED ( casdiags %  dqi )) THEN
-  DEALLOCATE ( casdiags % dqi )
-END IF
-
-IF ( ALLOCATED ( casdiags %  dqs )) THEN
-  DEALLOCATE ( casdiags % dqs )
-END IF
-
-IF ( ALLOCATED ( casdiags %  dqg )) THEN
-  DEALLOCATE ( casdiags % dqg )
-END IF
-
-
-!PRF water paths
-IF ( ALLOCATED ( casdiags % lwp ) ) THEN
-  DEALLOCATE ( casdiags % lwp )
-END IF
-IF ( ALLOCATED ( casdiags % rwp ) ) THEN
-  DEALLOCATE ( casdiags % rwp )
-END IF
-IF ( ALLOCATED ( casdiags % iwp ) ) THEN
-  DEALLOCATE ( casdiags % iwp )
-END IF
-IF ( ALLOCATED ( casdiags % swp ) ) THEN
-  DEALLOCATE ( casdiags % swp )
-END IF
-IF ( ALLOCATED ( casdiags % gwp ) ) THEN
-  DEALLOCATE ( casdiags % gwp )
-END IF
-
 !!
-
-
 
 ! Set to False all switches which affect groups of more than one diagnostic
 casdiags % l_process_rates = .FALSE.
