@@ -12,8 +12,11 @@ module which_mode_to_use
 
   character(len=*), parameter, private :: ModuleName='WHICH_MODE_TO_USE'
 
-  integer :: imethod = 1 ! method to use
-  integer, parameter :: iukca_method = 2 ! method to use if UKCA is used
+  integer, parameter :: imethod = 2 ! method to use
+  integer, parameter :: iold_method = 1
+  integer, parameter :: isimple_method = 2 ! simple method
+  real(wp), parameter :: r_thresh_fixed = 0.5e-6 ![m] for simple method
+  !set threshold to arithmetically half way between accum and coarse sizes
 
   real(wp) :: max_accumulation_mean_radius = 0.25e-6
   real(wp) :: min_coarse_mean_radius = 1.0e-6
@@ -74,9 +77,7 @@ contains
     dm2=0.0
     dn1=0.0
     dn2=0.0
-! Don't think there is a need for a separate UKCA method. Which_mode_to_use
-! can either partition between UKCA accumulation and coarse, or tracer
-! accumulation and coarse
+
     if (dm*dn > 0.0) then 
       ! dm and dn should be positive and of the same sign
       r1=min(max_accumulation_mean_radius, r1_in)
@@ -100,7 +101,7 @@ contains
 
       select case(imethod)
       case default
-        if (rm > r_thresh) then
+        if (rm .ge. r_thresh) then
           dm1=0.0
           dn1=0.0
           dm2=dm
@@ -123,6 +124,18 @@ contains
           end if
 
           dm1=dm-dm2
+        end if
+      case(isimple_method)
+        if (rm .ge. r_thresh_fixed) then
+          dm1=0.0
+          dn1=0.0
+          dm2=dm
+          dn2=dn
+        else
+          dm1=dm
+          dn1=dn
+          dm2=0.0
+          dn2=0.0
         end if
       end select
     end if

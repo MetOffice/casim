@@ -68,10 +68,10 @@ module mphys_switches
 ! it is less or more than halfway between the sizes of accum and coarse modes
 ! This is True (Dan Grosvenor Bug) in the package branch
 ! Turn to false to turn off Dan's bug fix
-  logical :: l_aeroproc_midway =.true.
+  logical :: l_aeroproc_midway =.FALSE.
 
   logical :: l_aeroproc_no_coarse =.false.
-  logical :: l_bypass_which_mode = .true. ! DPG - bypass which_mode_to_use and
+  logical :: l_bypass_which_mode = .FALSE. ! DPG - bypass which_mode_to_use and
                                           !put all evaporated aeroosl in either
                                           !accum or coarse mode
 !DPG - option of where to transfer aerosol from evap; 1=accum mode (default),
