@@ -16,11 +16,11 @@ module micro_main
   use mphys_switches, only: hydro_complexity, aero_complexity, i_qv, i_ql, i_nl, i_qr, i_nr, i_m3r, i_th, i_qi, &
        i_qs, i_qg, i_ni, i_ns, i_ng, i_m3s, i_m3g, i_am1, i_an1, i_am2, i_an2, i_am3, i_an3, i_am4, i_am5, i_am6, &
        i_an6, i_am7, i_am8 , i_am9, i_am10, i_an10, i_an11, i_an12, i_ak1, i_ak2, i_ak3, &
-       aerosol_option, l_warm, &
+       aerosol_option, l_warm, l_passivenumbers, l_passivenumbers_ice, &
        l_sed, l_idep, aero_index, nq_l, nq_r, nq_i, nq_s, nq_g, &
        l_sg, l_g, l_process, max_sed_length, max_step_length, l_harrington, l_passive, ntotala, ntotalq, &
-       l_onlycollect, pswitch, l_isub, l_pos1, l_pos2, l_pos3, l_pos4, l_no_pgacs_in_sumprocs, &
-       l_pos5, l_pos6, i_hstart, l_tidy_negonly,  &
+       l_onlycollect, pswitch, aswitch, l_isub, l_pos1, l_pos2, l_pos3, l_pos4, l_no_pgacs_in_sumprocs, &
+       l_pos5, l_pos6, i_hstart, l_tidy_negonly, l_separate_rain,  &
        iopt_act, iopt_shipway_act, l_prf_cfrac, l_kfsm, l_gamma_online, l_subseds_maxv, &
        i_cfl, i_cfr, i_cfi, i_cfs, i_cfg, l_reisner_graupel_embryo
 ! use mphys_switches, only: l_rain,
@@ -800,42 +800,42 @@ contains
                     casdiags % dqs(i,j,k) = tend(kc,i_qs,ixy_inner)
                     casdiags % dqg(i,j,k) = tend(kc,i_qg,ixy_inner)
                  endif
-              enddo
+              END DO
            endif
 
            if ( casdiags % l_lwp ) then
               waterpath=0.0
               DO k = k_start, k_end
                  waterpath = waterpath + (rho(k,i,j)*dz(k,i,j) * qfields(k,i_ql,ixy_inner) )
-              enddo
+              END DO
               casdiags % lwp(i,j)=waterpath
            endif
            if ( casdiags % l_rwp ) then
               waterpath=0.0
               DO k = k_start, k_end
                  waterpath = waterpath + (rho(k,i,j)*dz(k,i,j) * qfields(k,i_qr,ixy_inner) )
-              enddo
+              END DO
               casdiags % rwp(i,j)=waterpath
            endif
            if ( casdiags % l_iwp ) then
               waterpath=0.0
               DO k = k_start, k_end
                  waterpath = waterpath + (rho(k,i,j)*dz(k,i,j) * qfields(k,i_qi,ixy_inner) )
-              enddo
+              END DO
               casdiags % iwp(i,j)=waterpath
            endif
            if ( casdiags % l_swp ) then
               waterpath=0.0
               DO k = k_start, k_end
                  waterpath = waterpath + (rho(k,i,j)*dz(k,i,j) * qfields(k,i_qs,ixy_inner) )
-              enddo
+              END DO
               casdiags % swp(i,j)=waterpath
            endif
            if ( casdiags % l_gwp ) then
               waterpath=0.0
               DO k = k_start, k_end
                  waterpath = waterpath + (rho(k,i,j)*dz(k,i,j) * qfields(k,i_qg,ixy_inner) )
-              enddo
+              END DO
               casdiags % gwp(i,j)=waterpath
            endif
        !end do ! i
@@ -2497,8 +2497,8 @@ contains
     do iqx=1, ubound(tend,2)
        do k=lbound(tend,1), ubound(tend,1)
           qfields(k,iqx)=qfields_in(k,iqx)+tend(k,iqx)
-       enddo
-    enddo
+       END DO
+    END DO
 
      if (.not. present(l_aerosol) .and. l_fix) then
       !quick lem fixes  - this code should never be used ?
@@ -3349,6 +3349,628 @@ contains
       END IF
     END IF
 
+    !-----------------------------------------------------
+    !  aerosol stash
+    !-----------------------------------------------------
+
+    IF (casdiags % l_aact_am1) THEN
+      IF (aswitch%l_aact) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % aact_am1(i,j,k) = aerosol_procs(i_am1, i_aact%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % aact_am1(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 601
+
+    IF (casdiags % l_aact_an1) THEN
+      IF (aswitch%l_aact) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % aact_an1(i,j,k) = aerosol_procs(i_an1, i_aact%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % aact_an1(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 602
+
+    IF (casdiags % l_aact_am2) THEN
+      IF (aswitch%l_aact) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % aact_am2(i,j,k) = aerosol_procs(i_am2, i_aact%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % aact_am2(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 603
+
+    IF (casdiags % l_aact_an2) THEN
+      IF (aswitch%l_aact) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % aact_an2(i,j,k) = aerosol_procs(i_an2, i_aact%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % aact_an2(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 604
+
+    IF (casdiags % l_aact_am3) THEN
+      IF (aswitch%l_aact) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % aact_am3(i,j,k) = aerosol_procs(i_am3, i_aact%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % aact_am3(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 605
+
+    IF (casdiags % l_aact_an3) THEN
+      IF (aswitch%l_aact) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % aact_an3(i,j,k) = aerosol_procs(i_an3, i_aact%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % aact_an3(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 606
+
+    IF (casdiags % l_aact_am9) THEN
+      IF (aswitch%l_aact) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % aact_am9(i,j,k) = aerosol_procs(i_am9, i_aact%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % aact_am9(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 607
+
+    IF (casdiags % l_aact_an6) THEN
+      IF (aswitch%l_aact) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % aact_an6(i,j,k) = aerosol_procs(i_an6, i_aact%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % aact_an6(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 608
+
+    IF (casdiags % l_aaut) THEN
+      IF ((aswitch%l_aaut) .and. (l_separate_rain)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % aaut(i,j,k) = aerosol_procs(i_am5, i_aaut%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % aaut(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 609
+
+    IF (casdiags % l_aacw) THEN
+      IF ((aswitch%l_aacw) .and. (l_separate_rain)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % aacw(i,j,k) = aerosol_procs(i_am5, i_aacw%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % aacw(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 610
+
+    IF (casdiags % l_arevp_am2) THEN
+      IF (aswitch%l_arevp) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % arevp_am2(i,j,k) = aerosol_procs(i_am2, i_arevp%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % arevp_am2(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 614
+
+    IF (casdiags % l_arevp_an2) THEN
+      IF (aswitch%l_arevp) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % arevp_an2(i,j,k) = aerosol_procs(i_an2, i_arevp%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % arevp_an2(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 615
+
+    IF (casdiags % l_arevp_am3) THEN
+      IF (aswitch%l_arevp) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % arevp_am3(i,j,k) = aerosol_procs(i_am3, i_arevp%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % arevp_am3(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 616
+
+    IF (casdiags % l_arevp_an3) THEN
+      IF (aswitch%l_arevp) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % arevp_an3(i,j,k) = aerosol_procs(i_an3, i_arevp%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % arevp_an3(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 617
+
+    IF (casdiags % l_arevp_am4) THEN
+      IF (aswitch%l_arevp) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % arevp_am4(i,j,k) = aerosol_procs(i_am4, i_arevp%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % arevp_am4(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 618
+
+    IF (casdiags % l_arevp_am5) THEN
+      IF ((aswitch%l_arevp) .and. (l_separate_rain)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % arevp_am5(i,j,k) = aerosol_procs(i_am5, i_arevp%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % arevp_am5(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 619
+
+    IF (casdiags % l_arevp_am6) THEN
+      IF (aswitch%l_arevp) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % arevp_am6(i,j,k) = aerosol_procs(i_am6, i_arevp%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % arevp_am6(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 620
+
+    IF (casdiags % l_arevp_an6) THEN
+      IF (aswitch%l_arevp) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % arevp_an6(i,j,k) = aerosol_procs(i_an6, i_arevp%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % arevp_an6(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 621
+
+    IF (casdiags % l_dnuc_am8) THEN
+      IF (aswitch%l_dnuc) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dnuc_am8(i,j,k) = aerosol_procs(i_am8, i_dnuc%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dnuc_am8(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 625
+
+    IF (casdiags % l_dnuc_am6) THEN
+      IF (aswitch%l_dnuc) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dnuc_am6(i,j,k) = aerosol_procs(i_am6, i_dnuc%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dnuc_am6(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 626
+
+    IF (casdiags % l_dnuc_am9) THEN
+      IF (aswitch%l_dnuc) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dnuc_am9(i,j,k) = aerosol_procs(i_am9, i_dnuc%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dnuc_am9(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 627
+
+    IF (casdiags % l_dnuc_an6) THEN
+      IF (aswitch%l_dnuc) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dnuc_an6(i,j,k) = aerosol_procs(i_an6, i_dnuc%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dnuc_an6(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 628
+
+    IF (casdiags % l_dsub_am2) THEN
+      IF (aswitch%l_dsub) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dsub_am2(i,j,k) = aerosol_procs(i_am2, i_dsub%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dsub_am2(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 629
+
+    IF (casdiags % l_dsub_an2) THEN
+      IF (aswitch%l_dsub) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dsub_an2(i,j,k) = aerosol_procs(i_an2, i_dsub%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dsub_an2(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 630
+
+    IF (casdiags % l_dsub_am6) THEN
+      IF (aswitch%l_dsub) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dsub_am6(i,j,k) = aerosol_procs(i_am6, i_dsub%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dsub_am6(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 631
+
+    IF (casdiags % l_dsub_an6) THEN
+      IF (aswitch%l_dsub) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dsub_an6(i,j,k) = aerosol_procs(i_an6, i_dsub%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dsub_an6(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 632
+
+    IF (casdiags % l_dssub_am2) THEN
+      IF (aswitch%l_dssub) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dssub_am2(i,j,k) = aerosol_procs(i_am2, i_dssub%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dssub_am2(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 645
+
+    IF (casdiags % l_dssub_an2) THEN
+      IF (aswitch%l_dssub) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dssub_an2(i,j,k) = aerosol_procs(i_an2, i_dssub%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dssub_an2(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 646
+
+    IF (casdiags % l_dssub_am6) THEN
+      IF (aswitch%l_dssub) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dssub_am6(i,j,k) = aerosol_procs(i_am6, i_dssub%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dssub_am6(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 647
+
+    IF (casdiags % l_dssub_an6) THEN
+      IF (aswitch%l_dssub) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dssub_an6(i,j,k) = aerosol_procs(i_an6, i_dssub%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dssub_an6(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 648
+
+    IF (casdiags % l_dgsub_am2) THEN
+      IF (aswitch%l_dgsub) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dgsub_am2(i,j,k) = aerosol_procs(i_am2, i_dgsub%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dgsub_am2(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 649
+
+    IF (casdiags % l_dgsub_an2) THEN
+      IF (aswitch%l_dgsub) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dgsub_an2(i,j,k) = aerosol_procs(i_an2, i_dgsub%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dgsub_an2(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 650
+
+    IF (casdiags % l_dgsub_am6) THEN
+      IF (aswitch%l_dgsub) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dgsub_am6(i,j,k) = aerosol_procs(i_am6, i_dgsub%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dgsub_am6(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 651
+
+    IF (casdiags % l_dgsub_an6) THEN
+      IF (aswitch%l_dgsub) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dgsub_an6(i,j,k) = aerosol_procs(i_an6, i_dgsub%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dgsub_an6(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 652
+
+    IF (casdiags % l_dhomc_am8) THEN
+      IF (aswitch%l_dhomc) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dhomc_am8(i,j,k) = aerosol_procs(i_am8, i_dhomc%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dhomc_am8(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 653
+
+    IF (casdiags % l_dhomc_am7) THEN
+      IF (aswitch%l_dhomc) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dhomc_am7(i,j,k) = aerosol_procs(i_am7, i_dhomc%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dhomc_am7(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 654
+
+    IF (casdiags % l_dhomr_am8) THEN
+      IF (aswitch%l_dhomr) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dhomr_am8(i,j,k) = aerosol_procs(i_am8, i_dhomr%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dhomr_am8(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 655
+
+    IF (casdiags % l_dhomr_am7) THEN
+      IF (aswitch%l_dhomr) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dhomr_am7(i,j,k) = aerosol_procs(i_am7, i_dhomr%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dhomr_am7(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 656
+
+    IF (casdiags % l_dimlt_am4) THEN
+      IF (aswitch%l_dimlt) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dimlt_am4(i,j,k) = aerosol_procs(i_am4, i_dimlt%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dimlt_am4(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 657
+
+    IF (casdiags % l_dimlt_am9) THEN
+      IF (aswitch%l_dimlt) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dimlt_am9(i,j,k) = aerosol_procs(i_am9, i_dimlt%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dimlt_am9(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 658
+
+    IF (casdiags % l_dsmlt_am4) THEN
+      IF (aswitch%l_dsmlt) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dsmlt_am4(i,j,k) = aerosol_procs(i_am4, i_dsmlt%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dsmlt_am4(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 659
+
+    IF (casdiags % l_dsmlt_am9) THEN
+      IF (aswitch%l_dsmlt) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dsmlt_am9(i,j,k) = aerosol_procs(i_am9, i_dsmlt%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dsmlt_am9(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 660
+
+    IF (casdiags % l_dgmlt_am4) THEN
+      IF (aswitch%l_dgmlt) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dgmlt_am4(i,j,k) = aerosol_procs(i_am4, i_dgmlt%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dgmlt_am4(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 661
+
+    IF (casdiags % l_dgmlt_am9) THEN
+      IF (aswitch%l_dgmlt) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dgmlt_am9(i,j,k) = aerosol_procs(i_am9, i_dgmlt%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dgmlt_am9(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 662
+
+    IF (casdiags % l_diacw_am8) THEN
+      IF (aswitch%l_diacw) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % diacw_am8(i,j,k) = aerosol_procs(i_am8, i_diacw%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % diacw_am8(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 663
+
+    IF (casdiags % l_diacw_am7) THEN
+      IF (aswitch%l_diacw) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % diacw_am7(i,j,k) = aerosol_procs(i_am7, i_diacw%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % diacw_am7(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 664
+
+    IF (casdiags % l_dsacw_am8) THEN
+      IF (aswitch%l_dsacw) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dsacw_am8(i,j,k) = aerosol_procs(i_am8, i_dsacw%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dsacw_am8(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 665
+
+    IF (casdiags % l_dsacw_am7) THEN
+      IF (aswitch%l_dsacw) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dsacw_am7(i,j,k) = aerosol_procs(i_am7, i_dsacw%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dsacw_am7(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 666
+
+    IF (casdiags % l_dgacw_am8) THEN
+      IF (aswitch%l_dgacw) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dgacw_am8(i,j,k) = aerosol_procs(i_am8, i_dgacw%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dgacw_am8(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 667
+
+    IF (casdiags % l_dgacw_am7) THEN
+      IF (aswitch%l_dgacw) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dgacw_am7(i,j,k) = aerosol_procs(i_am7, i_dgacw%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dgacw_am7(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 668
+
+    IF (casdiags % l_dsacr_am8) THEN
+      IF (aswitch%l_dsacr) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dsacr_am8(i,j,k) = aerosol_procs(i_am8, i_dsacr%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dsacr_am8(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 669
+
+    IF (casdiags % l_dsacr_am7) THEN
+      IF (aswitch%l_dsacr) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dsacr_am7(i,j,k) = aerosol_procs(i_am7, i_dsacr%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dsacr_am7(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 670
+
+    IF (casdiags % l_dgacr_am8) THEN
+      IF (aswitch%l_dgacr) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dgacr_am8(i,j,k) = aerosol_procs(i_am8, i_dgacr%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dgacr_am8(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 671
+
+    IF (casdiags % l_dgacr_am7) THEN
+      IF (aswitch%l_dgacr) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dgacr_am7(i,j,k) = aerosol_procs(i_am7, i_dgacr%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dgacr_am7(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 672
+
+    IF (casdiags % l_draci_am8) THEN
+      IF (aswitch%l_draci) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % draci_am8(i,j,k) = aerosol_procs(i_am8, i_draci%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % draci_am8(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 673
+
+    IF (casdiags % l_draci_am7) THEN
+      IF (aswitch%l_draci) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % draci_am7(i,j,k) = aerosol_procs(i_am7, i_draci%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % draci_am7(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 674
+
+    !---------------------------------------------------------------
+
     else !ncall > 0
 
     IF (casdiags % l_psedi) THEN
@@ -3441,6 +4063,240 @@ contains
         casdiags % nsedl(i,j,:) = ZERO_REAL_WP
       END IF
     END IF
+
+    !---------------------------------------------
+    ! aerosol stash
+    !---------------------------------------------
+
+    IF (casdiags % l_asedr_am) THEN
+      IF (aswitch%l_asedr) THEN
+        IF (l_separate_rain) THEN
+          DO k = k_start, k_end
+            kc = k - k_start + 1
+            casdiags % asedr_am(i,j,k) = aerosol_procs(i_am5, i_asedr%id, ixy_inner)%column_data(kc)
+          END DO
+        ELSE
+          DO k = k_start, k_end
+            kc = k - k_start + 1
+            casdiags % asedr_am(i,j,k) = aerosol_procs(i_am4, i_asedr%id, ixy_inner)%column_data(kc)
+          END DO
+        ENDIF ! separate rain aerosol
+      ELSE
+        casdiags % asedr_am(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 611
+
+    IF (casdiags % l_asedr_an11) THEN
+      IF ((aswitch%l_asedr) .and. (l_passivenumbers)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % asedr_an11(i,j,k) = aerosol_procs(i_an11, i_asedr%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % asedr_an11(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 612
+
+    IF (casdiags % l_asedr_an12) THEN
+      IF ((aswitch%l_asedr) .and. (l_passivenumbers_ice)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % asedr_an12(i,j,k) = aerosol_procs(i_an12, i_asedr%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % asedr_an12(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 613
+
+
+    IF (casdiags % l_asedl_am4) THEN
+      IF (aswitch%l_asedl) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % asedl_am4(i,j,k) = aerosol_procs(i_am4, i_asedl%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % asedl_am4(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 622
+
+    IF (casdiags % l_asedl_an11) THEN
+      IF ((aswitch%l_asedl) .and. (l_passivenumbers)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % asedl_an11(i,j,k) = aerosol_procs(i_an11, i_asedl%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % asedl_an11(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 623
+
+    IF (casdiags % l_asedl_an12) THEN
+      IF ((aswitch%l_asedl) .and. (l_passivenumbers_ice)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % asedl_an12(i,j,k) = aerosol_procs(i_an12, i_asedl%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % asedl_an12(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 624
+
+    IF (casdiags % l_dsedi_am7) THEN
+      IF (aswitch%l_dsedi) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dsedi_am7(i,j,k) = aerosol_procs(i_am7, i_dsedi%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dsedi_am7(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 633
+
+    IF (casdiags % l_dsedi_am8) THEN
+      IF (aswitch%l_dsedi) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dsedi_am8(i,j,k) = aerosol_procs(i_am8, i_dsedi%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dsedi_am8(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 634
+
+    IF (casdiags % l_dsedi_an11) THEN
+      IF ((aswitch%l_dsedi) .and. (l_passivenumbers)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dsedi_an11(i,j,k) = aerosol_procs(i_an11, i_dsedi%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dsedi_an11(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 635
+
+    IF (casdiags % l_dsedi_an12) THEN
+      IF ((aswitch%l_dsedi) .and. (l_passivenumbers_ice)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dsedi_an12(i,j,k) = aerosol_procs(i_an12, i_dsedi%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dsedi_an12(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 636
+
+    IF (casdiags % l_dseds_am7) THEN
+      IF (aswitch%l_dseds) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dseds_am7(i,j,k) = aerosol_procs(i_am7, i_dseds%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dseds_am7(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 637
+
+    IF (casdiags % l_dseds_am8) THEN
+      IF (aswitch%l_dseds) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dseds_am8(i,j,k) = aerosol_procs(i_am8, i_dseds%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dseds_am8(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 638
+
+    IF (casdiags % l_dseds_an11) THEN
+      IF ((aswitch%l_dseds) .and. (l_passivenumbers)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dseds_an11(i,j,k) = aerosol_procs(i_an11, i_dseds%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dseds_an11(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 639
+
+    IF ((casdiags % l_dseds_an12) .and. (l_passivenumbers_ice)) THEN
+      IF (aswitch%l_dseds) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dseds_an12(i,j,k) = aerosol_procs(i_an12, i_dseds%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dseds_an12(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 640
+
+    IF (casdiags % l_dsedg_am7) THEN
+      IF (aswitch%l_dsedg) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dsedg_am7(i,j,k) = aerosol_procs(i_am7, i_dsedg%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dsedg_am7(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 641
+
+    IF (casdiags % l_dsedg_am8) THEN
+      IF (aswitch%l_dsedg) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dsedg_am8(i,j,k) = aerosol_procs(i_am8, i_dsedg%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dsedg_am8(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 642
+
+    IF (casdiags % l_dsedg_an11) THEN
+      IF ((aswitch%l_dsedg) .and. (l_passivenumbers)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dsedg_an11(i,j,k) = aerosol_procs(i_an11, i_dsedg%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dsedg_an11(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 643
+
+    IF ((casdiags % l_dsedg_an12) .and. (l_passivenumbers_ice)) THEN
+      IF (aswitch%l_dsedg) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % dsedg_an12(i,j,k) = aerosol_procs(i_an12, i_dsedg%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % dsedg_an12(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 644
+
+    IF (casdiags % l_asedl_am9) THEN
+      IF (aswitch%l_asedl) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % asedl_am9(i,j,k) = aerosol_procs(i_am9, i_asedl%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % asedl_am9(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 675
+
+    IF (casdiags % l_asedr_am9) THEN
+      IF (aswitch%l_asedr) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % asedr_am9(i,j,k) = aerosol_procs(i_am9, i_asedr%id, ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % asedr_am9(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF ! stash 676
+
+    !-----------------------------------------------
 
     end if ! ncall
 

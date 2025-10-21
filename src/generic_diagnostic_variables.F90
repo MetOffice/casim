@@ -190,6 +190,108 @@ TYPE diaglist
   LOGICAL :: l_graupfall_3d   = .FALSE.
   LOGICAL :: l_mphys_pts      = .FALSE.
 
+  !-----------------------------------
+  ! aerosol STASH test
+  !-----------------------------------
+  ! Aerosol codes
+  !  am1     Aitken Sol Mass
+  !  an1     Aitken Sol Number
+  !  am2     Accum Sol Mass
+  !  an2     Accum Sol Number
+  !  am3     Coarse Sol Mass
+  !  an3     Coarse Sol Number
+  !  am4     Act Sol Liq in casim
+  !  am5     Act Sol Rain in casim  <-this is not currently available
+  !  am6     Coarse Dust Mass
+  !  an6     Coarse Dust Number
+  !  am7     Act Insol Ice in casim
+  !  am8     Act Sol Ice in casim
+  !  am9     Act Inso lLiq in casim
+  !  am10    Accum Dust Mass
+  !  an10    Accum Dust Number
+  !  an11    Act Sol Number in casim
+  !  an12    Act Insol Number in casim <- dust in hydrometeors ice and liquid
+  !  ak1     Aitken Sol Bk  <-for ukca coupling
+  !  ak2     Accum Sol Bk   <-for ukca coupling
+  !  ak3     Coarse Sol Bk  <-for ukca coupling
+  !-----------------------------------
+  LOGICAL :: l_aact_am1       = .FALSE. !601
+  LOGICAL :: l_aact_an1       = .FALSE. !602
+  LOGICAL :: l_aact_am2       = .FALSE. !603
+  LOGICAL :: l_aact_an2       = .FALSE. !604
+  LOGICAL :: l_aact_am3       = .FALSE. !605
+  LOGICAL :: l_aact_an3       = .FALSE. !606
+  LOGICAL :: l_aact_am9       = .FALSE. !607
+  LOGICAL :: l_aact_an6       = .FALSE. !608
+  LOGICAL :: l_aaut           = .FALSE. !609
+  LOGICAL :: l_aacw           = .FALSE. !610
+  LOGICAL :: l_asedr_am       = .FALSE. !611
+  LOGICAL :: l_asedr_an11     = .FALSE. !612
+  LOGICAL :: l_asedr_an12     = .FALSE. !613
+  LOGICAL :: l_arevp_am2      = .FALSE. !614
+  LOGICAL :: l_arevp_an2      = .FALSE. !615
+  LOGICAL :: l_arevp_am3      = .FALSE. !616
+  LOGICAL :: l_arevp_an3      = .FALSE. !617
+  LOGICAL :: l_arevp_am4      = .FALSE. !618
+  LOGICAL :: l_arevp_am5      = .FALSE. !619
+  LOGICAL :: l_arevp_am6      = .FALSE. !620
+  LOGICAL :: l_arevp_an6      = .FALSE. !621
+  LOGICAL :: l_asedl_am4      = .FALSE. !622
+  LOGICAL :: l_asedl_an11     = .FALSE. !623
+  LOGICAL :: l_asedl_an12     = .FALSE. !624
+  LOGICAL :: l_dnuc_am8       = .FALSE. !625
+  LOGICAL :: l_dnuc_am6       = .FALSE. !626
+  LOGICAL :: l_dnuc_am9       = .FALSE. !627
+  LOGICAL :: l_dnuc_an6       = .FALSE. !628
+  LOGICAL :: l_dsub_am2       = .FALSE. !629
+  LOGICAL :: l_dsub_an2       = .FALSE. !630
+  LOGICAL :: l_dsub_am6       = .FALSE. !631
+  LOGICAL :: l_dsub_an6       = .FALSE. !632
+  LOGICAL :: l_dsedi_am7      = .FALSE. !633
+  LOGICAL :: l_dsedi_am8      = .FALSE. !634
+  LOGICAL :: l_dsedi_an11     = .FALSE. !635
+  LOGICAL :: l_dsedi_an12     = .FALSE. !636
+  LOGICAL :: l_dseds_am7      = .FALSE. !637
+  LOGICAL :: l_dseds_am8      = .FALSE. !638
+  LOGICAL :: l_dseds_an11     = .FALSE. !639
+  LOGICAL :: l_dseds_an12     = .FALSE. !640
+  LOGICAL :: l_dsedg_am7      = .FALSE. !641
+  LOGICAL :: l_dsedg_am8      = .FALSE. !642
+  LOGICAL :: l_dsedg_an11     = .FALSE. !643
+  LOGICAL :: l_dsedg_an12     = .FALSE. !644
+  LOGICAL :: l_dssub_am2      = .FALSE. !645
+  LOGICAL :: l_dssub_an2      = .FALSE. !646
+  LOGICAL :: l_dssub_am6      = .FALSE. !647
+  LOGICAL :: l_dssub_an6      = .FALSE. !648
+  LOGICAL :: l_dgsub_am2      = .FALSE. !649
+  LOGICAL :: l_dgsub_an2      = .FALSE. !650
+  LOGICAL :: l_dgsub_am6      = .FALSE. !651
+  LOGICAL :: l_dgsub_an6      = .FALSE. !652
+  LOGICAL :: l_dhomc_am8      = .FALSE. !653
+  LOGICAL :: l_dhomc_am7      = .FALSE. !654
+  LOGICAL :: l_dhomr_am8      = .FALSE. !655
+  LOGICAL :: l_dhomr_am7      = .FALSE. !656
+  LOGICAL :: l_dimlt_am4      = .FALSE. !657
+  LOGICAL :: l_dimlt_am9      = .FALSE. !658
+  LOGICAL :: l_dsmlt_am4      = .FALSE. !659
+  LOGICAL :: l_dsmlt_am9      = .FALSE. !660
+  LOGICAL :: l_dgmlt_am4      = .FALSE. !661
+  LOGICAL :: l_dgmlt_am9      = .FALSE. !662
+  LOGICAL :: l_diacw_am8      = .FALSE. !663
+  LOGICAL :: l_diacw_am7      = .FALSE. !664
+  LOGICAL :: l_dsacw_am8      = .FALSE. !665
+  LOGICAL :: l_dsacw_am7      = .FALSE. !666
+  LOGICAL :: l_dgacw_am8      = .FALSE. !667
+  LOGICAL :: l_dgacw_am7      = .FALSE. !668
+  LOGICAL :: l_dsacr_am8      = .FALSE. !669
+  LOGICAL :: l_dsacr_am7      = .FALSE. !670
+  LOGICAL :: l_dgacr_am8      = .FALSE. !671
+  LOGICAL :: l_dgacr_am7      = .FALSE. !672
+  LOGICAL :: l_draci_am8      = .FALSE. !673
+  LOGICAL :: l_draci_am7      = .FALSE. !674
+  LOGICAL :: l_asedl_am9      = .FALSE. !675
+  LOGICAL :: l_asedr_am9      = .FALSE. !676
+
 
 !PRF water path
   LOGICAL :: l_lwp          = .FALSE.
@@ -320,6 +422,86 @@ TYPE diaglist
   REAL, ALLOCATABLE :: ngaci(:,:,:)   
   REAL, ALLOCATABLE :: niics_s(:,:,:) 
   REAL, ALLOCATABLE :: niics_i(:,:,:) 
+
+  !-------------------------------------------
+  ! aerosol
+  !-------------------------------------------
+  REAL, ALLOCATABLE :: aact_am1(:,:,:)   !601
+  REAL, ALLOCATABLE :: aact_an1(:,:,:)   !602
+  REAL, ALLOCATABLE :: aact_am2(:,:,:)   !603
+  REAL, ALLOCATABLE :: aact_an2(:,:,:)   !604
+  REAL, ALLOCATABLE :: aact_am3(:,:,:)   !605
+  REAL, ALLOCATABLE :: aact_an3(:,:,:)   !606
+  REAL, ALLOCATABLE :: aact_am9(:,:,:)   !607
+  REAL, ALLOCATABLE :: aact_an6(:,:,:)   !608
+  REAL, ALLOCATABLE :: aaut(:,:,:)       !609
+  REAL, ALLOCATABLE :: aacw(:,:,:)       !610
+  REAL, ALLOCATABLE :: asedr_am(:,:,:)   !611
+  REAL, ALLOCATABLE :: asedr_an11(:,:,:) !612
+  REAL, ALLOCATABLE :: asedr_an12(:,:,:) !613
+  REAL, ALLOCATABLE :: arevp_am2(:,:,:)  !614
+  REAL, ALLOCATABLE :: arevp_an2(:,:,:)  !615
+  REAL, ALLOCATABLE :: arevp_am3(:,:,:)  !616
+  REAL, ALLOCATABLE :: arevp_an3(:,:,:)  !617
+  REAL, ALLOCATABLE :: arevp_am4(:,:,:)  !618
+  REAL, ALLOCATABLE :: arevp_am5(:,:,:)  !619
+  REAL, ALLOCATABLE :: arevp_am6(:,:,:)  !620
+  REAL, ALLOCATABLE :: arevp_an6(:,:,:)  !621
+  REAL, ALLOCATABLE :: asedl_am4(:,:,:)  !622
+  REAL, ALLOCATABLE :: asedl_an11(:,:,:) !623
+  REAL, ALLOCATABLE :: asedl_an12(:,:,:) !624
+  REAL, ALLOCATABLE :: dnuc_am8(:,:,:)   !625
+  REAL, ALLOCATABLE :: dnuc_am6(:,:,:)   !626
+  REAL, ALLOCATABLE :: dnuc_am9(:,:,:)   !627
+  REAL, ALLOCATABLE :: dnuc_an6(:,:,:)   !628
+  REAL, ALLOCATABLE :: dsub_am2(:,:,:)   !629
+  REAL, ALLOCATABLE :: dsub_an2(:,:,:)   !630
+  REAL, ALLOCATABLE :: dsub_am6(:,:,:)   !631
+  REAL, ALLOCATABLE :: dsub_an6(:,:,:)   !632
+  REAL, ALLOCATABLE :: dsedi_am7(:,:,:)  !633
+  REAL, ALLOCATABLE :: dsedi_am8(:,:,:)  !634
+  REAL, ALLOCATABLE :: dsedi_an11(:,:,:) !635
+  REAL, ALLOCATABLE :: dsedi_an12(:,:,:) !636
+  REAL, ALLOCATABLE :: dseds_am7(:,:,:)  !637
+  REAL, ALLOCATABLE :: dseds_am8(:,:,:)  !638
+  REAL, ALLOCATABLE :: dseds_an11(:,:,:) !639
+  REAL, ALLOCATABLE :: dseds_an12(:,:,:) !640
+  REAL, ALLOCATABLE :: dsedg_am7(:,:,:)  !641
+  REAL, ALLOCATABLE :: dsedg_am8(:,:,:)  !642
+  REAL, ALLOCATABLE :: dsedg_an11(:,:,:) !643
+  REAL, ALLOCATABLE :: dsedg_an12(:,:,:) !644
+  REAL, ALLOCATABLE :: dssub_am2(:,:,:)  !645
+  REAL, ALLOCATABLE :: dssub_an2(:,:,:)  !646
+  REAL, ALLOCATABLE :: dssub_am6(:,:,:)  !647
+  REAL, ALLOCATABLE :: dssub_an6(:,:,:)  !648
+  REAL, ALLOCATABLE :: dgsub_am2(:,:,:)  !649
+  REAL, ALLOCATABLE :: dgsub_an2(:,:,:)  !650
+  REAL, ALLOCATABLE :: dgsub_am6(:,:,:)  !651
+  REAL, ALLOCATABLE :: dgsub_an6(:,:,:)  !652
+  REAL, ALLOCATABLE :: dhomc_am8(:,:,:)  !653
+  REAL, ALLOCATABLE :: dhomc_am7(:,:,:)  !654
+  REAL, ALLOCATABLE :: dhomr_am8(:,:,:)  !655
+  REAL, ALLOCATABLE :: dhomr_am7(:,:,:)  !656
+  REAL, ALLOCATABLE :: dimlt_am4(:,:,:)  !657
+  REAL, ALLOCATABLE :: dimlt_am9(:,:,:)  !658
+  REAL, ALLOCATABLE :: dsmlt_am4(:,:,:)  !659
+  REAL, ALLOCATABLE :: dsmlt_am9(:,:,:)  !660
+  REAL, ALLOCATABLE :: dgmlt_am4(:,:,:)  !661
+  REAL, ALLOCATABLE :: dgmlt_am9(:,:,:)  !662
+  REAL, ALLOCATABLE :: diacw_am8(:,:,:)  !663
+  REAL, ALLOCATABLE :: diacw_am7(:,:,:)  !664
+  REAL, ALLOCATABLE :: dsacw_am8(:,:,:)  !665
+  REAL, ALLOCATABLE :: dsacw_am7(:,:,:)  !666
+  REAL, ALLOCATABLE :: dgacw_am8(:,:,:)  !667
+  REAL, ALLOCATABLE :: dgacw_am7(:,:,:)  !668
+  REAL, ALLOCATABLE :: dsacr_am8(:,:,:)  !669
+  REAL, ALLOCATABLE :: dsacr_am7(:,:,:)  !670
+  REAL, ALLOCATABLE :: dgacr_am8(:,:,:)  !671
+  REAL, ALLOCATABLE :: dgacr_am7(:,:,:)  !672
+  REAL, ALLOCATABLE :: draci_am8(:,:,:)  !673
+  REAL, ALLOCATABLE :: draci_am7(:,:,:)  !674
+  REAL, ALLOCATABLE :: asedl_am9(:,:,:)  !675
+  REAL, ALLOCATABLE :: asedr_am9(:,:,:)  !676
 
   !---------------------------------
   ! 3D variables logical for
@@ -1021,6 +1203,544 @@ IF (casdiags % l_niics_i) THEN
   casdiags % l_process_rates = .TRUE.
 END IF
 
+!-----------------------------------------------------
+! aerosol testing
+!-----------------------------------------------------
+
+!601
+IF (casdiags % l_aact_am1) THEN
+  ALLOCATE ( casdiags % aact_am1(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % aact_am1(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!602
+IF (casdiags % l_aact_an1) THEN
+  ALLOCATE ( casdiags % aact_an1(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % aact_an1(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!603
+IF (casdiags % l_aact_am2) THEN
+  ALLOCATE ( casdiags % aact_am2(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % aact_am2(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!604
+IF (casdiags % l_aact_an2) THEN
+  ALLOCATE ( casdiags % aact_an2(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % aact_an2(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!605
+IF (casdiags % l_aact_am3) THEN
+  ALLOCATE ( casdiags % aact_am3(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % aact_am3(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!606
+IF (casdiags % l_aact_an3) THEN
+  ALLOCATE ( casdiags % aact_an3(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % aact_an3(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!607
+IF (casdiags % l_aact_am9) THEN
+  ALLOCATE ( casdiags % aact_am9(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % aact_am9(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!608
+IF (casdiags % l_aact_an6) THEN
+  ALLOCATE ( casdiags % aact_an6(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % aact_an6(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!609
+IF (casdiags % l_aaut) THEN
+  ALLOCATE ( casdiags % aaut(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % aaut(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!610
+IF (casdiags % l_aacw) THEN
+  ALLOCATE ( casdiags % aacw(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % aacw(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!611
+IF (casdiags % l_asedr_am) THEN
+  ALLOCATE ( casdiags % asedr_am(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % asedr_am(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!612
+IF (casdiags % l_asedr_an11) THEN
+  ALLOCATE ( casdiags % asedr_an11(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % asedr_an11(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!613
+IF (casdiags % l_asedr_an12) THEN
+  ALLOCATE ( casdiags % asedr_an12(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % asedr_an12(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!614
+IF (casdiags % l_arevp_am2) THEN
+  ALLOCATE ( casdiags % arevp_am2(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % arevp_am2(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!615
+IF (casdiags % l_arevp_an2) THEN
+  ALLOCATE ( casdiags % arevp_an2(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % arevp_an2(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!616
+IF (casdiags % l_arevp_am3) THEN
+  ALLOCATE ( casdiags % arevp_am3(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % arevp_am3(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!617
+IF (casdiags % l_arevp_an3) THEN
+  ALLOCATE ( casdiags % arevp_an3(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % arevp_an3(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!618
+IF (casdiags % l_arevp_am4) THEN
+  ALLOCATE ( casdiags % arevp_am4(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % arevp_am4(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!619
+IF (casdiags % l_arevp_am5) THEN
+  ALLOCATE ( casdiags % arevp_am5(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % arevp_am5(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!620
+IF (casdiags % l_arevp_am6) THEN
+  ALLOCATE ( casdiags % arevp_am6(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % arevp_am6(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!621
+IF (casdiags % l_arevp_an6) THEN
+  ALLOCATE ( casdiags % arevp_an6(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % arevp_an6(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!622
+IF (casdiags % l_asedl_am4) THEN
+  ALLOCATE ( casdiags % asedl_am4(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % asedl_am4(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!623
+IF (casdiags % l_asedl_an11) THEN
+  ALLOCATE ( casdiags % asedl_an11(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % asedl_an11(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!624
+IF (casdiags % l_asedl_an12) THEN
+  ALLOCATE ( casdiags % asedl_an12(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % asedl_an12(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!625
+IF (casdiags % l_dnuc_am8) THEN
+  ALLOCATE ( casdiags % dnuc_am8(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dnuc_am8(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!626
+IF (casdiags % l_dnuc_am6) THEN
+  ALLOCATE ( casdiags % dnuc_am6(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dnuc_am6(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!627
+IF (casdiags % l_dnuc_am9) THEN
+  ALLOCATE ( casdiags % dnuc_am9(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dnuc_am9(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!628
+IF (casdiags % l_dnuc_an6) THEN
+  ALLOCATE ( casdiags % dnuc_an6(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dnuc_an6(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!629
+IF (casdiags % l_dsub_am2) THEN
+  ALLOCATE ( casdiags % dsub_am2(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dsub_am2(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!630
+IF (casdiags % l_dsub_an2) THEN
+  ALLOCATE ( casdiags % dsub_an2(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dsub_an2(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!631
+IF (casdiags % l_dsub_am6) THEN
+  ALLOCATE ( casdiags % dsub_am6(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dsub_am6(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!632
+IF (casdiags % l_dsub_an6) THEN
+  ALLOCATE ( casdiags % dsub_an6(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dsub_an6(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!633
+IF (casdiags % l_dsedi_am7) THEN
+  ALLOCATE ( casdiags % dsedi_am7(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dsedi_am7(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!634
+IF (casdiags % l_dsedi_am8) THEN
+  ALLOCATE ( casdiags % dsedi_am8(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dsedi_am8(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!635
+IF (casdiags % l_dsedi_an11) THEN
+  ALLOCATE ( casdiags % dsedi_an11(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dsedi_an11(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!636
+IF (casdiags % l_dsedi_an12) THEN
+  ALLOCATE ( casdiags % dsedi_an12(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dsedi_an12(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!637
+IF (casdiags % l_dseds_am7) THEN
+  ALLOCATE ( casdiags % dseds_am7(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dseds_am7(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!638
+IF (casdiags % l_dseds_am8) THEN
+  ALLOCATE ( casdiags % dseds_am8(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dseds_am8(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!639
+IF (casdiags % l_dseds_an11) THEN
+  ALLOCATE ( casdiags % dseds_an11(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dseds_an11(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!640
+IF (casdiags % l_dseds_an12) THEN
+  ALLOCATE ( casdiags % dseds_an12(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dseds_an12(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!641
+IF (casdiags % l_dsedg_am7) THEN
+  ALLOCATE ( casdiags % dsedg_am7(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dsedg_am7(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!642
+IF (casdiags % l_dsedg_am8) THEN
+  ALLOCATE ( casdiags % dsedg_am8(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dsedg_am8(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!643
+IF (casdiags % l_dsedg_an11) THEN
+  ALLOCATE ( casdiags % dsedg_an11(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dsedg_an11(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!644
+IF (casdiags % l_dsedg_an12) THEN
+  ALLOCATE ( casdiags % dsedg_an12(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dsedg_an12(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!645
+IF (casdiags % l_dssub_am2) THEN
+  ALLOCATE ( casdiags % dssub_am2(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dssub_am2(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!646
+IF (casdiags % l_dssub_an2) THEN
+  ALLOCATE ( casdiags % dssub_an2(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dssub_an2(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!647
+IF (casdiags % l_dssub_am6) THEN
+  ALLOCATE ( casdiags % dssub_am6(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dssub_am6(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!648
+IF (casdiags % l_dssub_an6) THEN
+  ALLOCATE ( casdiags % dssub_an6(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dssub_an6(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!649
+IF (casdiags % l_dgsub_am2) THEN
+  ALLOCATE ( casdiags % dgsub_am2(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dgsub_am2(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!650
+IF (casdiags % l_dgsub_an2) THEN
+  ALLOCATE ( casdiags % dgsub_an2(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dgsub_an2(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!651
+IF (casdiags % l_dgsub_am6) THEN
+  ALLOCATE ( casdiags % dgsub_am6(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dgsub_am6(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!652
+IF (casdiags % l_dgsub_an6) THEN
+  ALLOCATE ( casdiags % dgsub_an6(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dgsub_an6(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!653
+IF (casdiags % l_dhomc_am8) THEN
+  ALLOCATE ( casdiags % dhomc_am8(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dhomc_am8(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!654
+IF (casdiags % l_dhomc_am7) THEN
+  ALLOCATE ( casdiags % dhomc_am7(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dhomc_am7(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!655
+IF (casdiags % l_dhomr_am8) THEN
+  ALLOCATE ( casdiags % dhomr_am8(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dhomr_am8(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!656
+IF (casdiags % l_dhomr_am7) THEN
+  ALLOCATE ( casdiags % dhomr_am7(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dhomr_am7(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!657
+IF (casdiags % l_dimlt_am4) THEN
+  ALLOCATE ( casdiags % dimlt_am4(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dimlt_am4(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!658
+IF (casdiags % l_dimlt_am9) THEN
+  ALLOCATE ( casdiags % dimlt_am9(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dimlt_am9(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!659
+IF (casdiags % l_dsmlt_am4) THEN
+  ALLOCATE ( casdiags % dsmlt_am4(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dsmlt_am4(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!660
+IF (casdiags % l_dsmlt_am9) THEN
+  ALLOCATE ( casdiags % dsmlt_am9(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dsmlt_am9(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!661
+IF (casdiags % l_dgmlt_am4) THEN
+  ALLOCATE ( casdiags % dgmlt_am4(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dgmlt_am4(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!662
+IF (casdiags % l_dgmlt_am9) THEN
+  ALLOCATE ( casdiags % dgmlt_am9(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dgmlt_am9(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!663
+IF (casdiags % l_diacw_am8) THEN
+  ALLOCATE ( casdiags % diacw_am8(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % diacw_am8(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!664
+IF (casdiags % l_diacw_am7) THEN
+  ALLOCATE ( casdiags % diacw_am7(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % diacw_am7(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!665
+IF (casdiags % l_dsacw_am8) THEN
+  ALLOCATE ( casdiags % dsacw_am8(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dsacw_am8(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!666
+IF (casdiags % l_dsacw_am7) THEN
+  ALLOCATE ( casdiags % dsacw_am7(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dsacw_am7(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!667
+IF (casdiags % l_dgacw_am8) THEN
+  ALLOCATE ( casdiags % dgacw_am8(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dgacw_am8(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!668
+IF (casdiags % l_dgacw_am7) THEN
+  ALLOCATE ( casdiags % dgacw_am7(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dgacw_am7(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!669
+IF (casdiags % l_dsacr_am8) THEN
+  ALLOCATE ( casdiags % dsacr_am8(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dsacr_am8(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!670
+IF (casdiags % l_dsacr_am7) THEN
+  ALLOCATE ( casdiags % dsacr_am7(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dsacr_am7(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!671
+IF (casdiags % l_dgacr_am8) THEN
+  ALLOCATE ( casdiags % dgacr_am8(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dgacr_am8(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!672
+IF (casdiags % l_dgacr_am7) THEN
+  ALLOCATE ( casdiags % dgacr_am7(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % dgacr_am7(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!673
+IF (casdiags % l_draci_am8) THEN
+  ALLOCATE ( casdiags % draci_am8(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % draci_am8(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!674
+IF (casdiags % l_draci_am7) THEN
+  ALLOCATE ( casdiags % draci_am7(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % draci_am7(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!675
+IF (casdiags % l_asedl_am9) THEN
+  ALLOCATE ( casdiags % asedl_am9(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % asedl_am9(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+!676
+IF (casdiags % l_asedr_am9) THEN
+  ALLOCATE ( casdiags % asedr_am9(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % asedr_am9(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+! --------------------------------------
+
 ! potential temp and mass tendencies
 IF (casdiags % l_dth) THEN
   ALLOCATE ( casdiags % dth_total(i_start:i_end, j_start:j_end, k_start:k_end) )
@@ -1288,133 +2008,445 @@ IF (casdiags % l_dth) THEN
    END IF
 ENDIF
 
+
+
+!-----------------------------------------
+! aerosol diagnostics
+!-----------------------------------------
+
+IF ( ALLOCATED ( casdiags % asedr_am9 ) ) THEN
+  DEALLOCATE ( casdiags % asedr_am9)
+END IF !676
+
+IF ( ALLOCATED ( casdiags % asedl_am9 ) ) THEN
+  DEALLOCATE ( casdiags % asedl_am9)
+END IF !675
+
+IF ( ALLOCATED ( casdiags % draci_am7 ) ) THEN
+  DEALLOCATE ( casdiags % draci_am7 )
+END IF !674
+
+IF ( ALLOCATED ( casdiags % draci_am8 ) ) THEN
+  DEALLOCATE ( casdiags % draci_am8 )
+END IF !673
+
+IF ( ALLOCATED ( casdiags % dgacr_am7 ) ) THEN
+  DEALLOCATE ( casdiags % dgacr_am7 )
+END IF !672
+
+IF ( ALLOCATED ( casdiags % dgacr_am8 ) ) THEN
+  DEALLOCATE ( casdiags % dgacr_am8 )
+END IF !671
+
+IF ( ALLOCATED ( casdiags % dsacr_am7 ) ) THEN
+  DEALLOCATE ( casdiags % dsacr_am7 )
+END IF !670
+
+IF ( ALLOCATED ( casdiags % dsacr_am8 ) ) THEN
+  DEALLOCATE ( casdiags % dsacr_am8 )
+END IF !669
+
+IF ( ALLOCATED ( casdiags % dgacw_am7 ) ) THEN
+  DEALLOCATE ( casdiags % dgacw_am7 )
+END IF !668
+
+IF ( ALLOCATED ( casdiags % dgacw_am8 ) ) THEN
+  DEALLOCATE ( casdiags % dgacw_am8 )
+END IF !667
+
+IF ( ALLOCATED ( casdiags % dsacw_am7 ) ) THEN
+  DEALLOCATE ( casdiags % dsacw_am7 )
+END IF !666
+
+IF ( ALLOCATED ( casdiags % dsacw_am8 ) ) THEN
+  DEALLOCATE ( casdiags % dsacw_am8 )
+END IF !665
+
+IF ( ALLOCATED ( casdiags % diacw_am7 ) ) THEN
+  DEALLOCATE ( casdiags % diacw_am7 )
+END IF !664
+
+IF ( ALLOCATED ( casdiags % diacw_am8 ) ) THEN
+  DEALLOCATE ( casdiags % diacw_am8 )
+END IF !663
+
+IF ( ALLOCATED ( casdiags % dgmlt_am9 ) ) THEN
+  DEALLOCATE ( casdiags % dgmlt_am9 )
+END IF !662
+
+IF ( ALLOCATED ( casdiags % dgmlt_am4 ) ) THEN
+  DEALLOCATE ( casdiags % dgmlt_am4 )
+END IF !661
+
+IF ( ALLOCATED ( casdiags % dsmlt_am9 ) ) THEN
+  DEALLOCATE ( casdiags % dsmlt_am9 )
+END IF !660
+
+IF ( ALLOCATED ( casdiags % dsmlt_am4 ) ) THEN
+  DEALLOCATE ( casdiags % dsmlt_am4 )
+END IF !659
+
+IF ( ALLOCATED ( casdiags % dimlt_am9 ) ) THEN
+  DEALLOCATE ( casdiags % dimlt_am9 )
+END IF !658
+
+IF ( ALLOCATED ( casdiags % dimlt_am4 ) ) THEN
+  DEALLOCATE ( casdiags % dimlt_am4 )
+END IF !657
+
+IF ( ALLOCATED ( casdiags % dhomr_am7 ) ) THEN
+  DEALLOCATE ( casdiags % dhomr_am7 )
+END IF !656
+
+IF ( ALLOCATED ( casdiags % dhomr_am8 ) ) THEN
+  DEALLOCATE ( casdiags % dhomr_am8 )
+END IF !655
+
+IF ( ALLOCATED ( casdiags % dhomc_am7 ) ) THEN
+  DEALLOCATE ( casdiags % dhomc_am7 )
+END IF !654
+
+IF ( ALLOCATED ( casdiags % dhomc_am8 ) ) THEN
+  DEALLOCATE ( casdiags % dhomc_am8 )
+END IF !653
+
+IF ( ALLOCATED ( casdiags % dgsub_an6 ) ) THEN
+  DEALLOCATE ( casdiags % dgsub_an6 )
+END IF !652
+
+IF ( ALLOCATED ( casdiags % dgsub_am6 ) ) THEN
+  DEALLOCATE ( casdiags % dgsub_am6 )
+END IF !651
+
+IF ( ALLOCATED ( casdiags % dgsub_an2 ) ) THEN
+  DEALLOCATE ( casdiags % dgsub_an2 )
+END IF !650
+
+IF ( ALLOCATED ( casdiags % dgsub_am2 ) ) THEN
+  DEALLOCATE ( casdiags % dgsub_am2 )
+END IF !649
+
+IF ( ALLOCATED ( casdiags % dssub_an6 ) ) THEN
+  DEALLOCATE ( casdiags % dssub_an6 )
+END IF !648
+
+IF ( ALLOCATED ( casdiags % dssub_am6 ) ) THEN
+  DEALLOCATE ( casdiags % dssub_am6 )
+END IF !647
+
+IF ( ALLOCATED ( casdiags % dssub_an2 ) ) THEN
+  DEALLOCATE ( casdiags % dssub_an2 )
+END IF !646
+
+IF ( ALLOCATED ( casdiags % dssub_am2 ) ) THEN
+  DEALLOCATE ( casdiags % dssub_am2 )
+END IF !645
+
+IF ( ALLOCATED ( casdiags % dsedg_an12 ) ) THEN
+  DEALLOCATE ( casdiags % dsedg_an12 )
+END IF !644
+
+IF ( ALLOCATED ( casdiags % dsedg_an11 ) ) THEN
+  DEALLOCATE ( casdiags % dsedg_an11 )
+END IF !643
+
+IF ( ALLOCATED ( casdiags % dsedg_am8 ) ) THEN
+  DEALLOCATE ( casdiags % dsedg_am8 )
+END IF !642
+
+IF ( ALLOCATED ( casdiags % dsedg_am7 ) ) THEN
+  DEALLOCATE ( casdiags % dsedg_am7 )
+END IF !641
+
+IF ( ALLOCATED ( casdiags % dseds_an12 ) ) THEN
+  DEALLOCATE ( casdiags % dseds_an12 )
+END IF !640
+
+IF ( ALLOCATED ( casdiags % dseds_an11 ) ) THEN
+  DEALLOCATE ( casdiags % dseds_an11 )
+END IF !639
+
+IF ( ALLOCATED ( casdiags % dseds_am8 ) ) THEN
+  DEALLOCATE ( casdiags % dseds_am8 )
+END IF !638
+
+IF ( ALLOCATED ( casdiags % dseds_am7 ) ) THEN
+  DEALLOCATE ( casdiags % dseds_am7 )
+END IF !637
+
+IF ( ALLOCATED ( casdiags % dsedi_an12 ) ) THEN
+  DEALLOCATE ( casdiags % dsedi_an12 )
+END IF !636
+
+IF ( ALLOCATED ( casdiags % dsedi_an11 ) ) THEN
+  DEALLOCATE ( casdiags % dsedi_an11 )
+END IF !635
+
+IF ( ALLOCATED ( casdiags % dsedi_am8 ) ) THEN
+  DEALLOCATE ( casdiags % dsedi_am8 )
+END IF !634
+
+IF ( ALLOCATED ( casdiags % dsedi_am7 ) ) THEN
+  DEALLOCATE ( casdiags % dsedi_am7 )
+END IF !633
+
+IF ( ALLOCATED ( casdiags % dsub_an6 ) ) THEN
+  DEALLOCATE ( casdiags % dsub_an6 )
+END IF !632
+
+IF ( ALLOCATED ( casdiags % dsub_am6 ) ) THEN
+  DEALLOCATE ( casdiags % dsub_am6 )
+END IF !631
+
+IF ( ALLOCATED ( casdiags % dsub_an2 ) ) THEN
+  DEALLOCATE ( casdiags % dsub_an2 )
+END IF !630
+
+IF ( ALLOCATED ( casdiags % dsub_am2 ) ) THEN
+  DEALLOCATE ( casdiags % dsub_am2 )
+END IF !629
+
+IF ( ALLOCATED ( casdiags % dnuc_an6 ) ) THEN
+  DEALLOCATE ( casdiags % dnuc_an6 )
+END IF !628
+
+IF ( ALLOCATED ( casdiags % dnuc_am9 ) ) THEN
+  DEALLOCATE ( casdiags % dnuc_am9 )
+END IF !627
+
+IF ( ALLOCATED ( casdiags % dnuc_am6 ) ) THEN
+  DEALLOCATE ( casdiags % dnuc_am6 )
+END IF !626
+
+IF ( ALLOCATED ( casdiags % dnuc_am8 ) ) THEN
+  DEALLOCATE ( casdiags % dnuc_am8 )
+END IF !625
+
+IF ( ALLOCATED ( casdiags % asedl_an12 ) ) THEN
+  DEALLOCATE ( casdiags % asedl_an12 )
+END IF !624
+
+IF ( ALLOCATED ( casdiags % asedl_an11 ) ) THEN
+  DEALLOCATE ( casdiags % asedl_an11 )
+END IF !623
+
+IF ( ALLOCATED ( casdiags % asedl_am4 ) ) THEN
+  DEALLOCATE ( casdiags % asedl_am4 )
+END IF !622
+
+IF ( ALLOCATED ( casdiags % arevp_an6 ) ) THEN
+  DEALLOCATE ( casdiags % arevp_an6 )
+END IF !621
+
+IF ( ALLOCATED ( casdiags % arevp_am6 ) ) THEN
+  DEALLOCATE ( casdiags % arevp_am6 )
+END IF !620
+
+IF ( ALLOCATED ( casdiags % arevp_am5 ) ) THEN
+  DEALLOCATE ( casdiags % arevp_am5 )
+END IF !619
+
+IF ( ALLOCATED ( casdiags % arevp_am4 ) ) THEN
+  DEALLOCATE ( casdiags % arevp_am4 )
+END IF !618
+
+IF ( ALLOCATED ( casdiags % arevp_an3 ) ) THEN
+  DEALLOCATE ( casdiags % arevp_an3 )
+END IF !617
+
+IF ( ALLOCATED ( casdiags % arevp_am3 ) ) THEN
+  DEALLOCATE ( casdiags % arevp_am3 )
+END IF !616
+
+IF ( ALLOCATED ( casdiags % arevp_an2 ) ) THEN
+  DEALLOCATE ( casdiags % arevp_an2 )
+END IF !615
+
+IF ( ALLOCATED ( casdiags % arevp_am2 ) ) THEN
+  DEALLOCATE ( casdiags % arevp_am2 )
+END IF !614
+
+IF ( ALLOCATED ( casdiags % asedr_an12 ) ) THEN
+  DEALLOCATE ( casdiags % asedr_an12 )
+END IF !613
+
+IF ( ALLOCATED ( casdiags % asedr_an11 ) ) THEN
+  DEALLOCATE ( casdiags % asedr_an11 )
+END IF !612
+
+IF ( ALLOCATED ( casdiags % asedr_am ) ) THEN
+  DEALLOCATE ( casdiags % asedr_am )
+END IF !611
+
+IF ( ALLOCATED ( casdiags % aacw ) ) THEN
+  DEALLOCATE ( casdiags % aacw )
+END IF !610
+
+IF ( ALLOCATED ( casdiags % aaut ) ) THEN
+  DEALLOCATE ( casdiags % aaut )
+END IF !609
+
+IF ( ALLOCATED ( casdiags % aact_an6 ) ) THEN
+  DEALLOCATE ( casdiags % aact_an6 )
+END IF !608
+
+IF ( ALLOCATED ( casdiags % aact_am9 ) ) THEN
+  DEALLOCATE ( casdiags % aact_am9 )
+END IF !607
+
+IF ( ALLOCATED ( casdiags % aact_an3 ) ) THEN
+  DEALLOCATE ( casdiags % aact_an3 )
+END IF !606
+
+IF ( ALLOCATED ( casdiags % aact_am3 ) ) THEN
+  DEALLOCATE ( casdiags % aact_am3 )
+END IF !605
+
+IF ( ALLOCATED ( casdiags % aact_an2 ) ) THEN
+  DEALLOCATE ( casdiags % aact_an2 )
+END IF !604
+
+IF ( ALLOCATED ( casdiags % aact_am2 ) ) THEN
+  DEALLOCATE ( casdiags % aact_am2 )
+END IF !603
+
+IF ( ALLOCATED ( casdiags % aact_an1 ) ) THEN
+  DEALLOCATE ( casdiags % aact_an1 )
+END IF !602
+
+IF ( ALLOCATED ( casdiags % aact_am1 ) ) THEN
+  DEALLOCATE ( casdiags % aact_am1 )
+END IF !601
+
 IF ( ALLOCATED ( casdiags % niics_i ) ) THEN
   DEALLOCATE ( casdiags % niics_i )
-END IF
+END IF ! 531
 
 IF ( ALLOCATED ( casdiags % niics_s ) ) THEN
   DEALLOCATE ( casdiags % niics_s )
-END IF
+END IF ! 530
 
 IF ( ALLOCATED ( casdiags % ngaci ) ) THEN
   DEALLOCATE ( casdiags % ngaci )
-END IF
+END IF ! 529
 
 IF ( ALLOCATED ( casdiags % pgaci ) ) THEN
   DEALLOCATE ( casdiags % pgaci )
-END IF
+END IF ! 528
 
 IF ( ALLOCATED ( casdiags % nidps ) ) THEN
   DEALLOCATE ( casdiags % nidps )
-END IF
+END IF ! 527
 
 IF ( ALLOCATED ( casdiags % pidps ) ) THEN
   DEALLOCATE ( casdiags % pidps )
-END IF
+END IF ! 526
 
 IF ( ALLOCATED ( casdiags % nraci_i ) ) THEN
   DEALLOCATE ( casdiags % nraci_i )
-END IF
+END IF ! 525
 
 IF ( ALLOCATED ( casdiags % nraci_r ) ) THEN
   DEALLOCATE ( casdiags % nraci_r )
-END IF
+END IF ! 524
 
 IF ( ALLOCATED ( casdiags % nraci_g ) ) THEN
   DEALLOCATE ( casdiags % nraci_g )
-END IF
+END IF ! 523
 
 IF ( ALLOCATED ( casdiags % praci_i ) ) THEN
   DEALLOCATE ( casdiags % praci_i )
-END IF
+END IF ! 522
 
 IF ( ALLOCATED ( casdiags % praci_r ) ) THEN
   DEALLOCATE ( casdiags % praci_r )
-END IF
+END IF ! 521
 
 IF ( ALLOCATED ( casdiags % praci_g ) ) THEN
   DEALLOCATE ( casdiags % praci_g )
-END IF
+END IF ! 520
 
 IF ( ALLOCATED ( casdiags % pihal ) ) THEN
   DEALLOCATE ( casdiags % pihal )
-END IF
+END IF ! 519
 
 IF ( ALLOCATED ( casdiags % ngmlt ) ) THEN
   DEALLOCATE ( casdiags % ngmlt )
-END IF
+END IF ! 518
 
 IF ( ALLOCATED ( casdiags % ngacw ) ) THEN
   DEALLOCATE ( casdiags % ngacw )
-END IF
+END IF ! 517
 
 IF ( ALLOCATED ( casdiags % nsmlt ) ) THEN
   DEALLOCATE ( casdiags % nsmlt )
-END IF
+END IF ! 516
 
 IF ( ALLOCATED ( casdiags % nimlt ) ) THEN
   DEALLOCATE ( casdiags % nimlt )
-END IF
+END IF ! 515
 
 IF ( ALLOCATED ( casdiags % nsacr ) ) THEN
   DEALLOCATE ( casdiags % nsacr )
-END IF
+END IF ! 514
 
 IF ( ALLOCATED ( casdiags % nsacw ) ) THEN
   DEALLOCATE ( casdiags % nsacw )
-END IF
+END IF ! 513
 
 IF ( ALLOCATED ( casdiags % niacw ) ) THEN
   DEALLOCATE ( casdiags % niacw )
-END IF
+END IF ! 512
 
 IF ( ALLOCATED ( casdiags % ngsub ) ) THEN
   DEALLOCATE ( casdiags % ngsub )
-END IF
+END IF ! 511
 
 IF ( ALLOCATED ( casdiags % ngacs ) ) THEN
   DEALLOCATE ( casdiags % ngacs )
-END IF
+END IF ! 510
 
 IF ( ALLOCATED ( casdiags % nsaci ) ) THEN
   DEALLOCATE ( casdiags % nsaci )
-END IF
+END IF ! 509
 
 IF ( ALLOCATED ( casdiags % nsaut ) ) THEN
   DEALLOCATE ( casdiags % nsaut )
-END IF
+END IF ! 508
 
 IF ( ALLOCATED ( casdiags % nssub ) ) THEN
   DEALLOCATE ( casdiags % nssub )
-END IF
+END IF ! 507
 
 IF ( ALLOCATED ( casdiags % nisub ) ) THEN
   DEALLOCATE ( casdiags % nisub )
-END IF
+END IF ! 506
 
 IF ( ALLOCATED ( casdiags % nrevp ) ) THEN
   DEALLOCATE ( casdiags % nrevp )
-END IF
+END IF ! 505
 
 IF ( ALLOCATED ( casdiags % nsedr ) ) THEN
   DEALLOCATE ( casdiags % nsedr )
-END IF
+END IF ! 504
 
 IF ( ALLOCATED ( casdiags % nracr ) ) THEN
   DEALLOCATE ( casdiags % nracr )
-END IF
+END IF ! 503
 
 IF ( ALLOCATED ( casdiags % nracw ) ) THEN
   DEALLOCATE ( casdiags % nracw )
-END IF
+END IF ! 502
 
 IF ( ALLOCATED ( casdiags % nsedl ) ) THEN
   DEALLOCATE ( casdiags % nsedl )
-END IF
+END IF ! 501
 
 IF ( ALLOCATED ( casdiags % nraut ) ) THEN
   DEALLOCATE ( casdiags % nraut )
-END IF
+END IF ! 500
+
+!-----------------------------------------
 
 IF ( ALLOCATED ( casdiags % nihal ) ) THEN
   DEALLOCATE ( casdiags % nihal )

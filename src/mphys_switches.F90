@@ -413,37 +413,73 @@ module mphys_switches
   ! 3: passive processing of ice only: l_process=l_passivenumbers_ice=.true., l_passivenumbers=.false.
 
   ! aerosol process switches
-  logical :: l_aacc=.true.
-  logical :: l_ased=.true.
-  logical :: l_dsaut=.true.
-  logical :: l_aact = .true.   ! activation
-  logical :: l_aaut = .true.   ! autoconversion
-  logical :: l_aacw = .true.   ! accretion cloud by rain
-  logical :: l_aevp = .true.   ! evaporation of cloudd
-  logical :: l_asedr = .true.  ! sedimentation of rain
-  logical :: l_arevp = .true.  ! evaporation of rain
-  logical :: l_asedl = .true.  ! sedimentation of cloud
-  logical :: l_atidy = .true.  ! tidy process 1
-  logical :: l_atidy2 = .true. ! tidy process 2
-  logical :: l_dnuc = .true.   ! ice nucleation
-  logical :: l_dsub = .true.   ! sublimation of ice
-  logical :: l_dsedi = .true.  ! sedimentation of ice
-  logical :: l_dseds = .true.  ! sedimentation of snow
-  logical :: l_dsedg = .true.  ! sedimentation of graupel
-  logical :: l_dssub = .true.  ! sublimation of snow
-  logical :: l_dgsub = .true.  ! sublimation of graupel
-  logical :: l_dhomc = .true.  ! homogeneous freezing of cloud
-  logical :: l_dhomr = .true.  ! homogeneous freezing of rain
-  logical :: l_dimlt = .true.  ! melting of ice
-  logical :: l_dsmlt = .true.  ! melting of snow
-  logical :: l_dgmlt = .true.  ! melting of graupel
-  logical :: l_diacw = .true.  ! riming: ice collects cloud
-  logical :: l_dsacw = .true.  ! riming: snow collects cloud
-  logical :: l_dgacw = .true.  ! riming: graupel collects cloud
-  logical :: l_dsacr = .true.  ! riming: snow collects rain
-  logical :: l_dgacr = .true.  ! riming: graupel collects rain
-  logical :: l_draci = .true.  ! riming: rain collects ice
+  logical, target :: l_aacc=.true.
+  logical, target :: l_ased=.true.
+  logical, target :: l_dsaut=.true.
+  logical, target :: l_aact = .true.   ! activation
+  logical, target :: l_aaut = .true.   ! autoconversion
+  logical, target :: l_aacw = .true.   ! accretion cloud by rain
+  logical, target :: l_aevp = .true.   ! evaporation of cloudd
+  logical, target :: l_asedr = .true.  ! sedimentation of rain
+  logical, target :: l_arevp = .true.  ! evaporation of rain
+  logical, target :: l_asedl = .true.  ! sedimentation of cloud
+  logical, target :: l_atidy = .true.  ! tidy process 1
+  logical, target :: l_atidy2 = .true. ! tidy process 2
+  logical, target :: l_dnuc = .true.   ! ice nucleation
+  logical, target :: l_dsub = .true.   ! sublimation of ice
+  logical, target :: l_dsedi = .true.  ! sedimentation of ice
+  logical, target :: l_dseds = .true.  ! sedimentation of snow
+  logical, target :: l_dsedg = .true.  ! sedimentation of graupel
+  logical, target :: l_dssub = .true.  ! sublimation of snow
+  logical, target :: l_dgsub = .true.  ! sublimation of graupel
+  logical, target :: l_dhomc = .true.  ! homogeneous freezing of cloud
+  logical, target :: l_dhomr = .true.  ! homogeneous freezing of rain
+  logical, target :: l_dimlt = .true.  ! melting of ice
+  logical, target :: l_dsmlt = .true.  ! melting of snow
+  logical, target :: l_dgmlt = .true.  ! melting of graupel
+  logical, target :: l_diacw = .true.  ! riming: ice collects cloud
+  logical, target :: l_dsacw = .true.  ! riming: snow collects cloud
+  logical, target :: l_dgacw = .true.  ! riming: graupel collects cloud
+  logical, target :: l_dsacr = .true.  ! riming: snow collects rain
+  logical, target :: l_dgacr = .true.  ! riming: graupel collects rain
+  logical, target :: l_draci = .true.  ! riming: rain collects ice
 
+
+  type :: aerosol_switch
+    logical, pointer :: l_aacc
+    logical, pointer :: l_ased
+    logical, pointer :: l_dsaut
+    logical, pointer :: l_aact    ! activation
+    logical, pointer :: l_aaut    ! autoconversion
+    logical, pointer :: l_aacw    ! accretion cloud by rain
+    logical, pointer :: l_aevp    ! evaporation of cloudd
+    logical, pointer :: l_asedr   ! sedimentation of rain
+    logical, pointer :: l_arevp   ! evaporation of rain
+    logical, pointer :: l_asedl   ! sedimentation of cloud
+    logical, pointer :: l_atidy   ! tidy process 1
+    logical, pointer :: l_atidy2  ! tidy process 2
+    logical, pointer :: l_dnuc    ! ice nucleation
+    logical, pointer :: l_dsub    ! sublimation of ice
+    logical, pointer :: l_dsedi   ! sedimentation of ice
+    logical, pointer :: l_dseds   ! sedimentation of snow
+    logical, pointer :: l_dsedg   ! sedimentation of graupel
+    logical, pointer :: l_dssub   ! sublimation of snow
+    logical, pointer :: l_dgsub   ! sublimation of graupel
+    logical, pointer :: l_dhomc   ! homogeneous freezing of cloud
+    logical, pointer :: l_dhomr   ! homogeneous freezing of rain
+    logical, pointer :: l_dimlt   ! melting of ice
+    logical, pointer :: l_dsmlt   ! melting of snow
+    logical, pointer :: l_dgmlt   ! melting of graupel
+    logical, pointer :: l_diacw   ! riming: ice collects cloud
+    logical, pointer :: l_dsacw   ! riming: snow collects cloud
+    logical, pointer :: l_dgacw   ! riming: graupel collects cloud
+   logical, pointer :: l_dsacr   ! riming: snow collects rain
+    logical, pointer :: l_dgacr   ! riming: graupel collects rain
+    logical, pointer :: l_draci   ! riming: rain collects ice
+ end type aerosol_switch
+
+  type(aerosol_switch), save, target :: aswitch
+ 
   logical :: l_raci_g = .true. ! Allow rain collecting ice to go to graupel if rain mass is significant
   ! Goes to snow otherwise
 
@@ -1236,6 +1272,37 @@ contains
     pswitch%l_pimlt=>l_pimlt ! ice melting
     pswitch%l_tidy =>l_ptidy ! Tidying
     pswitch%l_tidy2=>l_ptidy2 ! Tidying
+
+    aswitch%l_aacc=>l_aacc
+    aswitch%l_ased=>l_ased
+    aswitch%l_dsaut=>l_dsaut
+    aswitch%l_aact=>l_aact    ! activation
+    aswitch%l_aaut=>l_aaut    ! autoconversion
+    aswitch%l_aacw=>l_aacw    ! accretion cloud by rain
+    aswitch%l_aevp=>l_aevp    ! evaporation of cloudd
+    aswitch%l_asedr=>l_asedr   ! sedimentation of rain
+    aswitch%l_arevp=>l_arevp   ! evaporation of rain
+    aswitch%l_asedl=>l_asedl   ! sedimentation of cloud
+    aswitch%l_atidy=>l_atidy   ! tidy process 1
+    aswitch%l_atidy2=>l_atidy2  ! tidy process 2
+    aswitch%l_dnuc=>l_dnuc    ! ice nucleation
+    aswitch%l_dsub=>l_dsub    ! sublimation of ice
+    aswitch%l_dsedi=>l_dsedi   ! sedimentation of ice
+    aswitch%l_dseds=>l_dseds   ! sedimentation of snow
+    aswitch%l_dsedg=>l_dsedg   ! sedimentation of graupel
+    aswitch%l_dssub=>l_dssub   ! sublimation of snow
+    aswitch%l_dgsub=>l_dgsub   ! sublimation of graupel
+    aswitch%l_dhomc=>l_dhomc   ! homogeneous freezing of cloud
+    aswitch%l_dhomr=>l_dhomr   ! homogeneous freezing of rain
+    aswitch%l_dimlt=>l_dimlt   ! melting of ice
+    aswitch%l_dsmlt=>l_dsmlt   ! melting of snow
+    aswitch%l_dgmlt=>l_dgmlt   ! melting of graupel
+    aswitch%l_diacw=>l_diacw   ! riming: ice collects cloud
+    aswitch%l_dsacw=>l_dsacw   ! riming: snow collects cloud
+    aswitch%l_dgacw=>l_dgacw   ! riming: graupel collects cloud
+    aswitch%l_dsacr=>l_dsacr   ! riming: snow collects rain
+    aswitch%l_dgacr=>l_dgacr   ! riming: graupel collects rain
+    aswitch%l_draci=>l_draci   ! riming: rain collects ice
 
     if (.not. l_rain) then
       pswitch%l_praut=.false.
