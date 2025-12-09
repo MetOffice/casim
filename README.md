@@ -15,7 +15,7 @@ space for all contributors.
 ### Contributors Licence Agreement
 
 Please see the
-[Momentum Contributors Licence Agreement](/MetOffice/Momentum/blob/main/CLA.md)
+[Momentum Contributors Licence Agreement](https://github.com/MetOffice/Momentum/blob/main/CLA.md)
 
 Agreement of the CLA can be shown by adding yourself to the CONTRIBUTORS file
 alongside this one, and is a requirement for contributing to this project.
@@ -23,7 +23,7 @@ alongside this one, and is a requirement for contributing to this project.
 ### Code of Conduct
 
 Please be aware of and follow the
-[Momentum Code of Coduct](/MetOffice/Momentum/blob/main/docs/CODE_OF_CONDUCT.md)
+[Momentum Code of Coduct](https://github.com/MetOffice/Momentum/blob/main/docs/CODE_OF_CONDUCT.md)
 
 ### Working Practices
 
