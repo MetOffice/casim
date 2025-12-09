@@ -33,7 +33,7 @@ Please follow the Simulation Systems
 [Working Practices.](https://metoffice.github.io/simulation-systems/index.html)
 
 Questions are encouraged in the Simulation Systems
-[Discussions.](/MetOffice/simulation-systems/discussions)
+[Discussions.](https://github.com/MetOffice/simulation-systems/discussions)
 
 Please be aware of and follow the Simulation Systems
 [AI Policy.](https://metoffice.github.io/simulation-systems/FurtherDetails/ai.html)
