@@ -1,5 +1,7 @@
 # CASIM
 
+[![Checks](https://github.com/MetOffice/casim/actions/workflows/lint-fortran.yaml/badge.svg)](https://github.com/MetOffice/casim/actions/workflows/lint-fortran.yaml)
+
 The Cloud and AeroSol Interacting Microphysics (CASIM), a component of MONC (the
 Met Office - NERC Cloud Model).
 
