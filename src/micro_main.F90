@@ -1519,24 +1519,29 @@ contains
               qfields(:,:,ixy_inner), procs(:,:,ixy_inner), cloud_params,      &
               (/i_praut, i_pracw, i_iacw, i_sacw, i_gacw, i_homc, i_inuc/),    &
               aeroprocs=aerosol_procs(:,:,ixy_inner),                          &
-              iprocs_dependent=(/i_aaut, i_aacw/))
+              iprocs_dependent=(/i_aaut, i_aacw, i_diacw, i_dsacw, i_dgacw,    &
+                                 i_dhomc, i_dnuc/))
 
             if (l_pos2) call ensure_positive(nz, step_length,                  &
               qfields(:,:,ixy_inner), procs(:,:,ixy_inner), ice_params,        &
               (/i_raci, i_saci, i_gaci, i_saut, i_isub, i_imlt/),              &
-              (/i_ihal, i_idps, i_iics, i_gshd, i_inuc, i_homc, i_iacw, i_idep/))
+              (/i_ihal, i_idps, i_iics, i_gshd, i_inuc, i_homc, i_iacw, i_idep/), &
+              aeroprocs=aerosol_procs(:,:,ixy_inner),                          &
+              iprocs_dependent=(/i_draci, i_dsub, i_dimlt/))
 
             if (l_pos3) call ensure_positive(nz, step_length,                  &
               qfields(:,:,ixy_inner), procs(:,:,ixy_inner), rain_params,       &
               (/i_prevp, i_sacr, i_gacr, i_homr/),                             &
               (/i_praut, i_pracw, i_raci, i_gshd, i_smlt, i_gmlt/),            &
               aeroprocs=aerosol_procs(:,:,ixy_inner),                          &
-              iprocs_dependent=(/i_arevp/))
+              iprocs_dependent=(/i_arevp, i_dsacr, i_dgacr, i_dhomr/))
 
             if (l_pos4) call ensure_positive(nz, step_length,                  &
               qfields(:,:,ixy_inner), procs(:,:,ixy_inner), snow_params,       &
               (/i_gacs, i_smlt, i_sacr, i_ssub /),                             &
-              (/i_sdep, i_sacw, i_saut, i_saci, i_raci, i_gshd, i_ihal, i_iics/)) 
+              (/i_sdep, i_sacw, i_saut, i_saci, i_raci, i_gshd, i_ihal, i_iics/), &
+              aeroprocs=aerosol_procs(:,:,ixy_inner),                          &
+              iprocs_dependent=(/i_dsmlt, i_dsacr, i_dssub/))
          else
             if (pswitch%l_praut .and. pswitch%l_pracw) then
                 if (l_pos5) call ensure_positive(nz, step_length,              &
@@ -1924,10 +1929,11 @@ contains
 
                   if (l_process) then
                      if (l_warm) then
-                        call ensure_positive_aerosol(nz, step_length,          &
-                             aerofields(:,:,ixy_inner),                        &
-                             aerosol_procs(:,:,ixy_inner),                     &
-                             (/i_asedr, i_asedl/) )
+! No need to call ensure positive aerosol. Limiter added to sedimentation
+!                        call ensure_positive_aerosol(nz, step_length,          &
+!                             aerofields(:,:,ixy_inner),                        &
+!                             aerosol_procs(:,:,ixy_inner),                     &
+!                             (/i_asedr, i_asedl/) )
                         call sum_aprocs(sed_length, nz,                        &
                              aerosol_procs(:,:,ixy_inner),                     &
                              aerosol_tend(:,:,ixy_inner), (/i_asedr, i_asedl/))
@@ -1935,10 +1941,11 @@ contains
                              aerofields(:,:,ixy_inner),                        &
                              aerosol_tend(:,:,ixy_inner), l_aerosol=.true.)
                     else ! not l_warm - includes ice procs
-                        call ensure_positive_aerosol(nz, step_length,          &
-                             aerofields(:,:,ixy_inner),                        &
-                             aerosol_procs(:,:,ixy_inner),                     &
-                             (/i_asedr, i_asedl,i_dsedi, i_dseds, i_dsedg/) )
+! No need to call ensure positive aerosol. Limiter added to sedimentation
+!                        call ensure_positive_aerosol(nz, step_length,          &
+!                             aerofields(:,:,ixy_inner),                        &
+!                             aerosol_procs(:,:,ixy_inner),                     &
+!                             (/i_asedr, i_asedl,i_dsedi, i_dseds, i_dsedg/) )
                         call sum_aprocs(sed_length, nz,                        &
                              aerosol_procs(:,:,ixy_inner),                     &
                              aerosol_tend(:,:,ixy_inner),                      &

@@ -204,12 +204,15 @@ contains
           if (dmass < 0.0 .and. l_process) then ! Only process aerosol if sublimating
             if (iaproc%id==i_dsub%id) then
               dmad=dnumber*dustact(k)%mact1_mean*dustact(k)%nratio1
+              dmad=max(dmad,-dustact(k)%mact1/dt)
               dnumber_d=dnumber*dustact(k)%nratio1
             else if (iaproc%id==i_dssub%id) then
               dmad=dnumber*dustact(k)%mact2_mean*dustact(k)%nratio2
+              dmad=max(dmad,-dustact(k)%mact2/dt)
               dnumber_d=dnumber*dustact(k)%nratio2
             else if (iaproc%id==i_dgsub%id) then
               dmad=dnumber*dustact(k)%mact3_mean*dustact(k)%nratio3
+              dmad=max(dmad,-dustact(k)%mact3/dt)
               dnumber_d=dnumber*dustact(k)%nratio3
             end if
 
@@ -230,15 +233,15 @@ contains
 
             if (iaproc%id==i_dsub%id) then
               dmac=dnumber*aeroice(k)%mact1_mean*aeroice(k)%nratio1
-              dmac=min(dmac,aeroice(k)%mact1/dt)
+              dmac=max(dmac,-aeroice(k)%mact1/dt)
               dnumber_a=dnumber*aeroice(k)%nratio1
             else if (iaproc%id==i_dssub%id) then
               dmac=dnumber*aeroice(k)%mact2_mean*aeroice(k)%nratio2
-              dmac=min(dmac,aeroice(k)%mact2/dt)
+              dmac=max(dmac,-aeroice(k)%mact2/dt)
               dnumber_a=dnumber*aeroice(k)%nratio2
             else if (iaproc%id==i_dgsub%id) then
               dmac=dnumber*aeroice(k)%mact3_mean*aeroice(k)%nratio3
-              dmac=min(dmac,aeroice(k)%mact3/dt)
+              dmac=max(dmac,-aeroice(k)%mact3/dt)
               dnumber_a=dnumber*aeroice(k)%nratio3
             end if
 

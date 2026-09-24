@@ -203,7 +203,7 @@ contains
     ! This agrees well with the version in Ghan et al
     alpha = 9.8*(LvT/(eps*cp*T)-1.0)/(T*Rd)*(1-ent_fraction)
 
-    smax_cloud= alpha*w*tau
+    smax_cloud= MIN(0.10, alpha*w*tau) !limit to 10%
 
     kwdqsdz = w*5.3e5*15*dqsdt*0.006 ! constant*w*time-threshold*dqsat/dT*dT/dz
 
@@ -261,14 +261,12 @@ contains
 
         activated_arg = sum(dnccn_all(:))
 
+        dactive = zero_real_wp
+        dmass_d = zero_real_wp
+
         if (Smax_act > smax_act_min .and. .not. l_warm) then
 
-          if (iopt_inuc < 4) then
-            ! For lower-order ice nucleation options, need to initialise
-            ! dactive and dmass_d
-            dactive = zero_real_wp
-            dmass_d = zero_real_wp
-          else
+          if (iopt_inuc > 3) then
             ! For higher-order ice nucleation schemes, dactive and dmass_d
             ! can be based on dustphys
             dactive = 0.01*dustphys%N(1)

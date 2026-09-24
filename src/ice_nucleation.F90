@@ -387,9 +387,11 @@ contains
                    
                    ! Frozen soluble aerosol
                    dmac=dnumber*aeroact(k)%mact1_mean*aeroact(k)%nratio1
+                   dmac=min(dmac,aeroact(k)%mact1/dt)
                    
                    ! Dust already in the liquid phase
                    dmadl=dN_imm*dustliq(k)%mact1_mean*dustliq(k)%nratio1
+                   dmadl=min(dmadl,dustliq(k)%mact1/dt)
                    
                    aerosol_procs(i_am8, i_dnuc%id)%column_data(k)=dmac
                    aerosol_procs(i_am4, i_dnuc%id)%column_data(k)=-dmac

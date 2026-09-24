@@ -2,7 +2,8 @@ module mphys_tidy
   use variable_precision, only: wp
   use process_routines, only: process_rate,  process_name
   use aerosol_routines, only: aerosol_active
-  use thresholds, only: thresh_tidy, thresh_atidy
+  use thresholds, only: thresh_tidy, thresh_atidy,&
+      aeromass_small, aeronumber_small
   use passive_fields, only: exner, pressure
   use mphys_switches, only:                       &
        i_qv, i_ql, i_nl, i_qr, i_nr, i_m3r, i_th, &
@@ -14,6 +15,8 @@ module mphys_tidy
        i_an2, i_am2, i_am4, i_am5, l_warm,        &
        i_an6, i_am6, i_am7, i_am8, i_am9,         &
        i_an11, i_an12,                            &
+       i_an1,i_am1, i_an2, i_am2, i_an3, i_am3,   &
+       i_am6, i_an6, i_am10, i_an10,              &
        l_process, ntotalq, ntotala,               &
        i_qstart, i_nstart, i_m3start,             &
        l_separate_rain, l_tidy_conserve_E, l_tidy_conserve_q, &
@@ -208,12 +211,16 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-    l_qsig(0)=.false.
-    l_qsneg(0)=.false.
+    l_qsig(:)=.false.
+    l_qsneg(:)=.false. !should this be l_qsneg(:)
     
     do k = 1, nz
     nr_reset=.false.
+    qr_reset=.false.
     m3r_reset=.false.
+    nl_reset=.false.
+    ql_reset=.false.
+    ni_reset=.false.
     qi_reset=.false.
     qs_reset=.false.
     ns_reset=.false.
@@ -829,30 +836,35 @@ contains
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
     do k=1, ubound(qfields,1)
-      if ((qfields(k, i_ql)+qfields(k,i_qr) <=0.0 .and. aerofields(k,i_am4)>0.0) .or. aerofields(k,i_am4) < 0.0) then
 
+      if ((qfields(k, i_ql)+qfields(k,i_qr) <=0.0 .and. aerofields(k,i_am4)>0.0) .or. aerofields(k,i_am4) < 0.0) then
+        aerofields(k,i_am2)=aerofields(k,i_am2)+aerofields(k,i_am4)
         aerofields(k,i_am4)=0.0
       end if
       if (i_am9 > 0)then
         if ((qfields(k, i_ql)+qfields(k,i_qr) <=0.0 .and. aerofields(k,i_am9)>0.0) .or. aerofields(k,i_am9) < 0.0) then
+          aerofields(k,i_am6)=aerofields(k,i_am6)+aerofields(k,i_am9)
           aerofields(k,i_am9)=0.0
         end if
       end if
 
       if (i_am5 > 0) then
         if (((qfields(k,i_qr) <=0.0 .and. aerofields(k,i_am5)>0.0) .or. aerofields(k,i_am5) < 0.0)) then
+          aerofields(k,i_am2)=aerofields(k,i_am2)+aerofields(k,i_am5)
           aerofields(k,i_am5)=0.0
         end if
       end if
       if (i_am7 > 0) then
         if (((qfields(k,i_qi) + qfields(k,i_qs) + qfields(k,i_qg) <=0.0 .and. aerofields(k,i_am7)>0.0) &
              .or. aerofields(k,i_am7) < 0.0)) then
+          aerofields(k,i_am6)=aerofields(k,i_am6)+aerofields(k,i_am7)
           aerofields(k,i_am7)=0.0
         end if
       end if
       if (i_am8 > 0) then
         if (((qfields(k,i_qi) + qfields(k,i_qs) + qfields(k,i_qg) <=0.0 .and. aerofields(k,i_am8)>0.0) &
              .or. aerofields(k,i_am8) < 0.0)) then
+          aerofields(k,i_am2)=aerofields(k,i_am2)+aerofields(k,i_am8)
           aerofields(k,i_am8)=0.0
         end if
       end if
@@ -865,11 +877,89 @@ contains
       end if
       if (i_an11 > 0) then
         if (((qfields(k, i_ql) + qfields(k,i_qr) + qfields(k,i_qi) + qfields(k,i_qs) + qfields(k,i_qg) &
-                                                                 <=0.0 .and. aerofields(k,i_an12)>0.0) &
+                                                                 <=0.0 .and. aerofields(k,i_an11)>0.0) &
                                                             .or. aerofields(k,i_an11) < 0.0)) then
           aerofields(k,i_an11)=0.0
         end if
       end if
+
+
+
+!        aerofields(:, i_am1)=a1(ks:ke,i,j)      AitkenSolMass         
+!        aerofields(:, i_an1)=a2(ks:ke,i,j)       AitkenSolNumber         
+!        aerofields(:, i_am2)=a3(ks:ke,i,j)      AccumSolMass         
+!        aerofields(:, i_an2)=a4(ks:ke,i,j)       AccumSolNumber
+!        aerofields(:, i_am3)=a5(ks:ke,i,j)      CoarseSolMass
+!        aerofields(:, i_an3)=a6(ks:ke,i,j)       CoarseSolNumber
+!        aerofields(:, i_am4)=a7(ks:ke,i,j)      ActSolLiq_casim
+!        aerofields(:, i_am5)=a8(ks:ke,i,j)      ActSolRain_casim              <-this is not currently available
+!        aerofields(:, i_am6)=a9(ks:ke,i,j)      CoarseDustMass
+!        aerofields(:, i_an6)=a10(ks:ke,i,j)     CoarseDustNumber
+
+       IF (i_am1 > 0) then
+         if (aerofields(k, i_am1) < aeromass_small) then
+           aerofields(k, i_am1)=0.0
+           aerofields(k, i_an1)=0.0
+         end if
+       END IF
+       IF (i_am2 > 0) then
+         if (aerofields(k, i_am2) < aeromass_small) then
+           aerofields(k, i_am4)=aerofields(k, i_am4)+aerofields(k, i_am2)
+           aerofields(k, i_am2)=0.0
+           aerofields(k, i_an2)=0.0
+         end if
+       END IF
+       IF (i_am3 > 0) then
+         if (aerofields(k, i_am3) < aeromass_small) then
+           aerofields(k, i_am3)=0.0
+           aerofields(k, i_an3)=0.0
+         end if
+       END IF
+       IF (i_am6 > 0) then
+         if (aerofields(k, i_am6) < aeromass_small) then
+           aerofields(k, i_am6)=0.0
+           aerofields(k, i_an6)=0.0
+         end if
+       END IF
+       IF (i_an10 > 0) then
+         if (aerofields(k, i_am10) < aeromass_small) then
+           aerofields(k, i_am10)=0.0
+           aerofields(k, i_an10)=0.0
+         end if
+       END IF
+       
+       IF (i_am1 > 0) then
+         if (aerofields(k, i_an1) < aeronumber_small) then
+           aerofields(k, i_am1)=0.0
+           aerofields(k, i_an1)=0.0
+         end if
+       END IF
+       IF (i_am2 > 0) then
+         if (aerofields(k, i_an2) < aeronumber_small) then
+           aerofields(k, i_am4)=aerofields(k, i_am4)+aerofields(k, i_am2)
+           aerofields(k, i_am2)=0.0
+           aerofields(k, i_an2)=0.0
+         end if
+       END IF
+       IF (i_am3 > 0) then
+         if (aerofields(k, i_an3) < aeronumber_small) then
+           aerofields(k, i_am3)=0.0
+           aerofields(k, i_an3)=0.0
+         end if
+       END IF
+       IF (i_am6 > 0) then
+         if (aerofields(k, i_an6) < aeronumber_small) then
+           aerofields(k, i_am6)=0.0
+           aerofields(k, i_an6)=0.0
+         end if
+       END IF
+       IF (i_am10 > 0) then
+         if (aerofields(k, i_an10) < aeronumber_small) then
+           aerofields(k, i_am10)=0.0
+           aerofields(k, i_an10)=0.0
+         end if
+       END IF
+       
 
     end do
 
@@ -1201,6 +1291,9 @@ contains
 
     integer :: iq, iproc, id, k
     real(wp) :: ratio, delta_scalable
+    real(wp) :: drain
+    real(wp) :: ratio_field(ntotala)
+    
 
     INTEGER(KIND=jpim), PARAMETER :: zhook_in  = 0
     INTEGER(KIND=jpim), PARAMETER :: zhook_out = 1
@@ -1234,6 +1327,7 @@ contains
         end if
       end do
     end do
+
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
   end subroutine ensure_positive_aerosol

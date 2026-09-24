@@ -12,7 +12,7 @@ module which_mode_to_use
 
   character(len=*), parameter, private :: ModuleName='WHICH_MODE_TO_USE'
 
-  integer, parameter :: imethod = 2 ! method to use
+  integer, parameter :: imethod = 1 ! method to use
   integer, parameter :: iold_method = 1
   integer, parameter :: isimple_method = 2 ! simple method
   real(wp), parameter :: r_thresh_fixed = 0.5e-6 ![m] for simple method
@@ -80,7 +80,11 @@ contains
 
     if (dm*dn > 0.0) then 
       ! dm and dn should be positive and of the same sign
-      r1=min(max_accumulation_mean_radius, r1_in)
+      IF ( r1_in > 0.0 ) THEN
+        r1=min(max_accumulation_mean_radius, r1_in)
+      ELSE
+        r1 = max_accumulation_mean_radius
+      END IF
       r2=max(min_coarse_mean_radius, r2_in)
 
       if (l_aeroproc_midway) then

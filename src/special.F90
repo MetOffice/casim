@@ -240,7 +240,7 @@ contains
     !--------------------------------------------------------------------------
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-    casim_erfc=erfg(x,c)
+    casim_erfc=erfc(x) !erfg(x,c) ! bug in erfg for c=1 and x<1e-10
 
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 

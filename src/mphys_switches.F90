@@ -96,7 +96,7 @@ module mphys_switches
   ! ONLY for ARG. 0: don't activate in-cloud, 1: activate in-cloud as per
   ! ARG default. 2: use smaller smax out of ARG smax and the smax calculated
   ! from existing cloud droplets
-  integer :: activate_in_cloud=2
+  integer :: activate_in_cloud=1!2
 
   ! standard hydrometeor indices
   integer :: i_qv  = 0 ! water vapour
