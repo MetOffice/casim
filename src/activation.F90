@@ -262,7 +262,6 @@ contains
         activated_arg = sum(dnccn_all(:))
 
         dactive = zero_real_wp
-        dmass_d = zero_real_wp
         if (Smax_act > smax_act_min .and. .not. l_warm) then
 
           if (iopt_inuc > 3) then
@@ -272,9 +271,6 @@ contains
 
             if ( dustphys%N(1) > ni_tidy ) then
               dmass_d = dactive * dustphys%M(1) / dustphys%N(1)
-            else
-              ! Prevent divide by zero generating nonsense.
-              dmass_d = zero_real_wp
             end if ! dustphys%N(1) > ni_tidy
 
           end if ! iopt_inuc
