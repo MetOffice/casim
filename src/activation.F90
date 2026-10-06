@@ -261,23 +261,16 @@ contains
 
         activated_arg = sum(dnccn_all(:))
 
+        dactive = zero_real_wp
         if (Smax_act > smax_act_min .and. .not. l_warm) then
 
-          if (iopt_inuc < 4) then
-            ! For lower-order ice nucleation options, need to initialise
-            ! dactive and dmass_d
-            dactive = zero_real_wp
-            dmass_d = zero_real_wp
-          else
+          if (iopt_inuc > 3) then
             ! For higher-order ice nucleation schemes, dactive and dmass_d
             ! can be based on dustphys
             dactive = 0.01*dustphys%N(1)
 
             if ( dustphys%N(1) > ni_tidy ) then
               dmass_d = dactive * dustphys%M(1) / dustphys%N(1)
-            else
-              ! Prevent divide by zero generating nonsense.
-              dmass_d = zero_real_wp
             end if ! dustphys%N(1) > ni_tidy
 
           end if ! iopt_inuc
