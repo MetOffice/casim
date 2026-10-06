@@ -149,10 +149,6 @@ contains
     integer :: k
     real(wp) :: frac
 
-    ierr = 3
-    k_ml = -1
-    z_ml = -999.0_wp
-
     if (t(1) >= T0) then
       do k = nz-1, 1, -1
 
