@@ -1929,11 +1929,6 @@ contains
 
                   if (l_process) then
                      if (l_warm) then
-! No need to call ensure positive aerosol. Limiter added to sedimentation
-!                        call ensure_positive_aerosol(nz, step_length,          &
-!                             aerofields(:,:,ixy_inner),                        &
-!                             aerosol_procs(:,:,ixy_inner),                     &
-!                             (/i_asedr, i_asedl/) )
                         call sum_aprocs(sed_length, nz,                        &
                              aerosol_procs(:,:,ixy_inner),                     &
                              aerosol_tend(:,:,ixy_inner), (/i_asedr, i_asedl/))
@@ -1941,11 +1936,6 @@ contains
                              aerofields(:,:,ixy_inner),                        &
                              aerosol_tend(:,:,ixy_inner), l_aerosol=.true.)
                     else ! not l_warm - includes ice procs
-! No need to call ensure positive aerosol. Limiter added to sedimentation
-!                        call ensure_positive_aerosol(nz, step_length,          &
-!                             aerofields(:,:,ixy_inner),                        &
-!                             aerosol_procs(:,:,ixy_inner),                     &
-!                             (/i_asedr, i_asedl,i_dsedi, i_dseds, i_dsedg/) )
                         call sum_aprocs(sed_length, nz,                        &
                              aerosol_procs(:,:,ixy_inner),                     &
                              aerosol_tend(:,:,ixy_inner),                      &

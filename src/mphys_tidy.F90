@@ -883,19 +883,6 @@ contains
         end if
       end if
 
-
-
-!        aerofields(:, i_am1)=a1(ks:ke,i,j)      AitkenSolMass         
-!        aerofields(:, i_an1)=a2(ks:ke,i,j)       AitkenSolNumber         
-!        aerofields(:, i_am2)=a3(ks:ke,i,j)      AccumSolMass         
-!        aerofields(:, i_an2)=a4(ks:ke,i,j)       AccumSolNumber
-!        aerofields(:, i_am3)=a5(ks:ke,i,j)      CoarseSolMass
-!        aerofields(:, i_an3)=a6(ks:ke,i,j)       CoarseSolNumber
-!        aerofields(:, i_am4)=a7(ks:ke,i,j)      ActSolLiq_casim
-!        aerofields(:, i_am5)=a8(ks:ke,i,j)      ActSolRain_casim              <-this is not currently available
-!        aerofields(:, i_am6)=a9(ks:ke,i,j)      CoarseDustMass
-!        aerofields(:, i_an6)=a10(ks:ke,i,j)     CoarseDustNumber
-
        IF (i_am1 > 0) then
          if (aerofields(k, i_am1) < aeromass_small) then
            aerofields(k, i_am1)=0.0
