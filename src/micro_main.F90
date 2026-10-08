@@ -419,6 +419,8 @@ contains
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
+    
+    use hail_diagnostic_fast_mod, ONLY: diagnose_hail_fast
 
     implicit none
 
@@ -504,6 +506,10 @@ contains
     real(wp) :: precip_g1d(nz, nxy_inner)
 
     real(wp) :: waterpath
+    
+    real(wp) :: D_crit, D0_thresh, D_max_sfc, precip_rate_hail
+    real(wp) :: hail_flag   ! .true. if any hail reaches the surface
+    integer  :: ierr        ! 0=ok, 1=no graupel, 2=no melting level
 
     real(wp) :: dbz_tot_c(nz), dbz_g_c(nz), dbz_i_c(nz), &
                 dbz_s_c(nz),   dbz_l_c(nz), dbz_r_c(nz)
@@ -783,6 +789,22 @@ contains
               casdiags % dbz_r(i,j,   k_start:k_end) = dbz_r_c(:)
 
            end if ! casdiags % l_radar
+           
+           
+           if ( casdiags % l_hail ) then
+             
+             call diagnose_hail_fast( ixy_inner, nz, nq,                       &
+                                 qfields(:,:,ixy_inner),                       &
+                                 D_max_sfc, precip_rate_hail, hail_flag, ierr )
+             
+                                  
+             casdiags % hail_d_max_sfc(i,j)=D_max_sfc
+             casdiags % hail_flag_sfc(i,j)=hail_flag
+             casdiags % hail_precip_rate(i,j)=precip_rate_hail
+             
+             
+           
+           end if ! casdiags % l_hail
 
            if ( casdiags % l_tendency_dg ) then
               DO k = k_start, k_end

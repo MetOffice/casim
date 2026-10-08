@@ -323,6 +323,12 @@ TYPE diaglist
   LOGICAL :: l_dqs          = .FALSE.
   LOGICAL :: l_dqg          = .FALSE.
 
+  !---------------------------------
+  ! hail diagnostics
+  !---------------------------------
+  LOGICAL :: l_hail         = .FALSE.
+  
+  
   
   !--------------------------------
   ! 2D variable arrays
@@ -353,6 +359,10 @@ TYPE diaglist
   REAL, ALLOCATABLE :: dbz_s(:,:,:)
   REAL, ALLOCATABLE :: dbz_l(:,:,:)
   REAL, ALLOCATABLE :: dbz_r(:,:,:)
+
+  REAL, ALLOCATABLE :: hail_d_max_sfc(:,:)
+  REAL, ALLOCATABLE :: hail_flag_sfc(:,:)
+  REAL, ALLOCATABLE :: hail_precip_rate(:,:)
 
   ! Process rate diagnostics
   REAL, ALLOCATABLE :: phomc(:,:,:)
@@ -630,6 +640,19 @@ IF ( casdiags % l_radar ) THEN
 !$OMP END PARALLEL DO
 
 END IF ! casdiags % l_radar
+
+IF ( casdiags % l_hail ) THEN
+
+   ALLOCATE ( casdiags % hail_d_max_sfc(i_start:i_end, j_start:j_end) )
+   ALLOCATE ( casdiags % hail_flag_sfc(i_start:i_end, j_start:j_end) )
+   ALLOCATE ( casdiags % hail_precip_rate(i_start:i_end, j_start:j_end) )
+
+   casdiags % hail_d_max_sfc(:,:) = zero_real_wp
+   casdiags % hail_flag_sfc(:,:) = zero_real_wp
+   casdiags % hail_precip_rate(:,:) = zero_real_wp
+
+
+END IF ! casdiags % l_hail
 
 IF (casdiags % l_phomc) THEN
   ALLOCATE ( casdiags % phomc(i_start:i_end, j_start:j_end, k_start:k_end) )
@@ -2589,6 +2612,20 @@ IF ( ALLOCATED ( casdiags % phomc ) ) THEN
   DEALLOCATE ( casdiags % phomc )
 END IF
 
+IF (casdiags % l_hail) THEN
+
+   IF ( ALLOCATED ( casdiags % hail_precip_rate ) ) THEN
+      DEALLOCATE( casdiags % hail_precip_rate )
+   END IF
+   IF ( ALLOCATED ( casdiags % hail_flag_sfc ) ) THEN
+      DEALLOCATE( casdiags % hail_flag_sfc )
+   END IF
+   IF ( ALLOCATED ( casdiags % hail_d_max_sfc ) ) THEN
+      DEALLOCATE( casdiags % hail_d_max_sfc )
+   END IF
+
+ENDIF
+
 IF (casdiags % l_radar) THEN
    IF ( ALLOCATED ( casdiags % dbz_r ) ) THEN
       DEALLOCATE( casdiags % dbz_r )
@@ -2640,6 +2677,7 @@ END IF
 casdiags % l_process_rates = .FALSE.
 casdiags % l_tendency_dg   = .FALSE.
 casdiags % l_radar         = .FALSE.
+casdiags % l_hail          = .FALSE.
 
 IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
