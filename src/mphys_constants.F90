@@ -4,6 +4,8 @@ module mphys_constants
   implicit none
 
   real, parameter :: rhow = 997.0
+  real(wp), parameter :: rhoi = 910.0_wp  ! density of solid ice (kg m-3)
+  real(wp), parameter :: ttr = 273.15_wp  ! melting point of ice (K)
 
   real :: rho0 = 1.22 ! reference density
 

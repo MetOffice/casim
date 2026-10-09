@@ -27,7 +27,11 @@ module special
   real(wp) :: gammalookup_xmin, gammalookup_xmax, gammalookup_dx
   logical :: l_gammalookup_set=.false.
   
-  public pi, Gammafunc, casim_erfc, erfinv
+  ! Used by gamma_p / inverse_gamma_p
+  integer, parameter :: max_terms = 1000   ! cap on series / continued fraction
+  real(wp), parameter :: rel_tol = 1.0e-14_wp
+
+  public pi, Gammafunc, casim_erfc, erfinv, gamma_p, inverse_gamma_p
 contains
   ! NB The following should provide sufficient range
   ! and density of points for linear interpolation
@@ -374,5 +378,145 @@ contains
     IF (lhook) CALL dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
   end function erfinv3
+
+  !-----------------------------------------------------------------------
+  ! Regularised lower incomplete gamma function and its inverse, used to
+  ! truncate the gamma size distributions in the Phillips et al. secondary
+  ! ice production collision integrals (ice_multiplication).
+  ! References: NIST DLMF (https://dlmf.nist.gov/) 3.10, 8.2, 8.7, 8.9;
+  ! Abramowitz and Stegun (1964) 26.2.23 and 26.4.17.
+  !-----------------------------------------------------------------------
+  !> Regularised lower incomplete gamma function P(a,x), a > 0, x >= 0.
+  !> For x < a+1 the power series DLMF 8.7.1 is summed directly; otherwise
+  !> P = 1 - Q with Q(a,x) from the continued fraction DLMF 8.9.2,
+  !> evaluated with the modified Lentz algorithm (DLMF 3.10).
+  function gamma_p(a, x) result(p)
+
+    implicit none
+
+    real(wp), intent(in) :: a, x
+    real(wp) :: p
+
+    real(wp), parameter :: tiny_value = 1.0e-300_wp
+    real(wp) :: log_prefactor, term, series, denom
+    real(wp) :: b_n, a_n, c, d, delta, fraction
+    integer :: n
+
+    if (x <= 0.0_wp .or. a <= 0.0_wp) then
+      p = 0.0_wp
+      return
+    end if
+
+    log_prefactor = a*log(x) - x - log_gamma(a)
+
+    if (x < a + 1.0_wp) then
+      ! P(a,x) = x^a e^-x / Gamma(a+1) * sum_n x^n / ((a+1)...(a+n))
+      term = 1.0_wp/a
+      series = term
+      denom = a
+      do n = 1, max_terms
+        denom = denom + 1.0_wp
+        term = term*x/denom
+        series = series + term
+        if (abs(term) < rel_tol*abs(series)) exit
+      end do
+      p = min(1.0_wp, series*exp(log_prefactor))
+    else
+      ! Q(a,x) = x^a e^-x / Gamma(a) * 1/(x+1-a- 1(1-a)/(x+3-a- 2(2-a)/(...)))
+      b_n = x + 1.0_wp - a
+      c = 1.0_wp/tiny_value
+      d = 1.0_wp/b_n
+      fraction = d
+      do n = 1, max_terms
+        a_n = -real(n, wp)*(real(n, wp) - a)
+        b_n = b_n + 2.0_wp
+        d = b_n + a_n*d
+        if (abs(d) < tiny_value) d = tiny_value
+        c = b_n + a_n/c
+        if (abs(c) < tiny_value) c = tiny_value
+        d = 1.0_wp/d
+        delta = c*d
+        fraction = fraction*delta
+        if (abs(delta - 1.0_wp) < rel_tol) exit
+      end do
+      p = max(0.0_wp, 1.0_wp - fraction*exp(log_prefactor))
+    end if
+
+  end function gamma_p
+
+  !> Inverse of P(a,x) in x: returns x such that P(a,x) = prob,
+  !> for a > 0 and 0 < prob < 1.  The starting value is the Wilson-Hilferty
+  !> approximation (A&S 26.4.17) with the normal quantile from A&S 26.2.23;
+  !> the root is then bracketed and refined by Newton's method, falling
+  !> back to bisection whenever a Newton step would leave the bracket.
+  function inverse_gamma_p(prob, a) result(x)
+
+    implicit none
+
+    real(wp), intent(in) :: prob, a
+    real(wp) :: x
+
+    integer, parameter :: max_iter = 200
+    real(wp) :: q, t, z, x_low, x_high, residual, density, x_new
+    integer :: iter
+
+    if (prob <= 0.0_wp .or. a <= 0.0_wp) then
+      x = 0.0_wp
+      return
+    end if
+
+    ! Standard normal quantile z with Phi(z) = prob
+    q = min(prob, 1.0_wp - prob)
+    q = max(q, 1.0e-300_wp)
+    t = sqrt(-2.0_wp*log(q))
+    z = t - (2.515517_wp + t*(0.802853_wp + t*0.010328_wp)) /                  &
+            (1.0_wp + t*(1.432788_wp + t*(0.189269_wp + t*0.001308_wp)))
+    if (prob < 0.5_wp) z = -z
+
+    ! Wilson-Hilferty starting value
+    x = a*(1.0_wp - 1.0_wp/(9.0_wp*a) + z/(3.0_wp*sqrt(a)))**3
+    if (x <= 0.0_wp) x = 0.5_wp*a
+
+    ! Bracket the root
+    x_low = 0.0_wp
+    x_high = max(x, a, 1.0_wp)
+    do iter = 1, max_iter
+      if (gamma_p(a, x_high) >= prob) exit
+      x_low = x_high
+      x_high = 2.0_wp*x_high
+    end do
+    if (prob >= 1.0_wp) then
+      x = x_high
+      return
+    end if
+    x = min(max(x, x_low), x_high)
+
+    ! Safeguarded Newton iteration
+    do iter = 1, max_iter
+      residual = gamma_p(a, x) - prob
+      if (residual > 0.0_wp) then
+        x_high = x
+      else
+        x_low = x
+      end if
+
+      density = 0.0_wp
+      if (x > 0.0_wp) density = exp((a - 1.0_wp)*log(x) - x - log_gamma(a))
+
+      if (density > 0.0_wp) then
+        x_new = x - residual/density
+      else
+        x_new = 0.5_wp*(x_low + x_high)
+      end if
+      if (x_new <= x_low .or. x_new >= x_high) x_new = 0.5_wp*(x_low + x_high)
+
+      if (abs(x_new - x) <= 1.0e-12_wp*max(x_new, 1.0e-30_wp)) then
+        x = x_new
+        exit
+      end if
+      x = x_new
+    end do
+
+  end function inverse_gamma_p
 
 end module special

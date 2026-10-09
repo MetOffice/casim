@@ -184,6 +184,9 @@ TYPE diaglist
   LOGICAL :: l_ngaci          = .FALSE.
   LOGICAL :: l_niics_s        = .FALSE.
   LOGICAL :: l_niics_i        = .FALSE. 
+  LOGICAL :: l_nimo1          = .FALSE. ! Phillips Mode 1 ice number source
+  LOGICAL :: l_nimo2          = .FALSE. ! Phillips Mode 2 ice number source
+  LOGICAL :: l_niicb          = .FALSE. ! Phillips collisional breakup ice number source
   LOGICAL :: l_rainfall_3d    = .FALSE.
   LOGICAL :: l_snowfall_3d    = .FALSE.
   LOGICAL :: l_snowonly_3d    = .FALSE.
@@ -432,6 +435,9 @@ TYPE diaglist
   REAL, ALLOCATABLE :: ngaci(:,:,:)   
   REAL, ALLOCATABLE :: niics_s(:,:,:) 
   REAL, ALLOCATABLE :: niics_i(:,:,:) 
+  REAL, ALLOCATABLE :: nimo1(:,:,:)
+  REAL, ALLOCATABLE :: nimo2(:,:,:)
+  REAL, ALLOCATABLE :: niicb(:,:,:)
 
   !-------------------------------------------
   ! aerosol
@@ -1223,6 +1229,24 @@ END IF
 IF (casdiags % l_niics_i) THEN
   ALLOCATE ( casdiags % niics_i(i_start:i_end, j_start:j_end, k_start:k_end) )
   casdiags % niics_i(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+IF (casdiags % l_nimo1) THEN
+  ALLOCATE ( casdiags % nimo1(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % nimo1(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+IF (casdiags % l_nimo2) THEN
+  ALLOCATE ( casdiags % nimo2(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % nimo2(:,:,:) = zero_real_wp
+  casdiags % l_process_rates = .TRUE.
+END IF
+
+IF (casdiags % l_niicb) THEN
+  ALLOCATE ( casdiags % niicb(i_start:i_end, j_start:j_end, k_start:k_end) )
+  casdiags % niicb(:,:,:) = zero_real_wp
   casdiags % l_process_rates = .TRUE.
 END IF
 
@@ -2340,6 +2364,18 @@ END IF !602
 IF ( ALLOCATED ( casdiags % aact_am1 ) ) THEN
   DEALLOCATE ( casdiags % aact_am1 )
 END IF !601
+
+IF ( ALLOCATED ( casdiags % niicb ) ) THEN
+  DEALLOCATE ( casdiags % niicb )
+END IF
+
+IF ( ALLOCATED ( casdiags % nimo2 ) ) THEN
+  DEALLOCATE ( casdiags % nimo2 )
+END IF
+
+IF ( ALLOCATED ( casdiags % nimo1 ) ) THEN
+  DEALLOCATE ( casdiags % nimo1 )
+END IF
 
 IF ( ALLOCATED ( casdiags % niics_i ) ) THEN
   DEALLOCATE ( casdiags % niics_i )

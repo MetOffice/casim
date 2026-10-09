@@ -10,13 +10,15 @@ module mphys_switches
        ns_tidy, m3s_tidy, qg_tidy, ng_tidy, m3g_tidy, thresh_sig, qs_sig, ql_sig, qr_sig, qi_sig, qg_sig, &
        thresh_large, qs_large, ql_large, qr_large, qi_large, qg_large, ns_large, nl_large, nr_large, ni_large, &
        ng_large, thresh_atidy, aeromass_small, aeronumber_small
+  use mphys_die, only: throw_mphys_error, incorrect_opt, std_msg
   use process_routines, only: i_cond, i_praut, &
        i_pracw, i_pracr, i_prevp, i_psedr, i_psedl, i_aact, i_aaut, i_aacw, i_aevp, i_asedr, i_asedl, i_arevp, &
        i_tidy, i_tidy2, i_atidy, i_atidy2, i_inuc, i_idep, i_dnuc, i_dsub, i_saut, i_iacw, i_sacw, i_pseds, &
        i_sdep, i_saci, i_raci, i_sacr, i_gacw, i_gacr, i_gaci, i_gacs, i_gdep, i_psedg, i_iagg, i_sagg, i_gagg, &
        i_gshd, i_ihal, i_smlt, i_gmlt, i_psedi, i_homr, i_homc, i_imlt, i_isub, i_ssub, i_gsub, i_sbrk, i_dssub, &
        i_dgsub, i_dsedi, i_dseds, i_dsedg, i_dimlt, i_dsmlt, i_dgmlt, i_diacw, i_dsacw, i_dgacw, i_dsacr, &
-       i_dgacr, i_draci, i_dhomc, i_dhomr, i_iics, i_idps, process_name
+       i_dgacr, i_draci, i_dhomc, i_dhomr, i_iics, i_idps, i_imo1, i_imo2, &
+       i_iicb_i, i_iicb_s, i_iicb_g, process_name
 
   implicit none
 
@@ -263,6 +265,12 @@ module mphys_switches
   logical :: l_halletmossop   = .true.
   logical :: l_sip_icebreakup = .false.
   logical :: l_sip_dropletshatter = .false.
+  ! Phillips et al. (2017, 2018) secondary ice production.  Alternatives to
+  ! l_sip_dropletshatter and l_sip_icebreakup respectively; see
+  ! ice_multiplication for details.
+  logical :: l_sip_phillips_mode1   = .false. ! Mode 1: freezing-drop fragmentation
+  logical :: l_sip_phillips_mode2   = .false. ! Mode 2: drop-ice splashing
+  logical :: l_sip_phillips_breakup = .false. ! Ice-ice collisional breakup
   logical :: l_no_pgacs_in_sumprocs = .false. ! If running ice breakup then no pgacs added in sumprocs
 
   logical :: l_harrington     = .false.  ! Use Jerry's method for ice autoconvertion
@@ -321,6 +329,9 @@ module mphys_switches
   logical, target :: l_pihal   = .true.  ! hallet mossop
   logical, target :: l_piics   = .false.  ! ice-ice collision
   logical, target :: l_pidps   = .false.  ! droplet shattering
+  logical, target :: l_pimo1   = .false.  ! Phillips Mode 1 fragmentation
+  logical, target :: l_pimo2   = .false.  ! Phillips Mode 2 fragmentation
+  logical, target :: l_piicb   = .false.  ! Phillips ice-ice collisional breakup
   logical, target :: l_psmlt   = .true.  ! snow melting
   logical, target :: l_pgmlt   = .true.  ! graupel melting
   logical, target :: l_phomr   = .true.  ! homogeneous freezing of rain
@@ -369,6 +380,9 @@ module mphys_switches
      logical, pointer :: l_pihal ! hallet mossop
      logical, pointer :: l_piics ! ice-ice collision
      logical, pointer :: l_pidps ! droplet shattering
+     logical, pointer :: l_pimo1 ! Phillips Mode 1 fragmentation
+     logical, pointer :: l_pimo2 ! Phillips Mode 2 fragmentation
+     logical, pointer :: l_piicb ! Phillips ice-ice collisional breakup
      logical, pointer :: l_psmlt ! snow melting
      logical, pointer :: l_pgmlt ! graupel melting
      logical, pointer :: l_phomr ! homogeneous freezing of rain
@@ -979,6 +993,11 @@ contains
         call allocp(i_imlt, iproc, idgproc, 'pimlt')
         call allocp(i_iics, iproc, idgproc, 'piics')
         call allocp(i_idps, iproc, idgproc, 'pidps')
+        call allocp(i_imo1, iproc, idgproc, 'pimo1')
+        call allocp(i_imo2, iproc, idgproc, 'pimo2')
+        call allocp(i_iicb_i, iproc, idgproc, 'piicbi')
+        call allocp(i_iicb_s, iproc, idgproc, 'piicbs')
+        call allocp(i_iicb_g, iproc, idgproc, 'piicbg')
       end if
       hydro_complexity%nprocesses=iproc
 
@@ -1030,6 +1049,27 @@ contains
       if (l_sip_dropletshatter) then
         l_phomr = .true.
         l_pidps = .true.
+      end if
+
+      ! Phillips et al. secondary ice production
+      if (l_sip_phillips_mode1) then
+        l_phomr = .true.  ! Mode 1 uses the rain freezing rate
+        l_pimo1 = .true.
+      end if
+      if (l_sip_phillips_mode2) l_pimo2 = .true.
+      if (l_sip_phillips_breakup) l_piicb = .true.
+
+      ! The Phillips schemes replace, rather than add to, the simpler
+      ! droplet shattering and ice-ice collision schemes.
+      if (l_sip_dropletshatter .and. l_sip_phillips_mode1) then
+        write(std_msg, '(A)') 'l_sip_dropletshatter and l_sip_phillips_mode1 '// &
+             'both represent freezing-drop fragmentation: choose one'
+        call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, std_msg)
+      end if
+      if (l_sip_icebreakup .and. l_sip_phillips_breakup) then
+        write(std_msg, '(A)') 'l_sip_icebreakup and l_sip_phillips_breakup '// &
+             'both represent ice-ice collisional breakup: choose one'
+        call throw_mphys_error(incorrect_opt, ModuleName//':'//RoutineName, std_msg)
       end if
 
       !----------------------------------------------------
@@ -1219,6 +1259,9 @@ contains
       l_pihal = .false.
       l_piics = .false.
       l_pidps = .false.
+      l_pimo1 = .false.
+      l_pimo2 = .false.
+      l_piicb = .false.
       l_psmlt = .false.
       l_pssub = .false.
 
@@ -1262,6 +1305,9 @@ contains
     pswitch%l_pihal=>l_pihal ! hallet mossop
     pswitch%l_piics=>l_piics ! ice-ice collision
     pswitch%l_pidps=>l_pidps ! droplet shattering
+    pswitch%l_pimo1=>l_pimo1 ! Phillips Mode 1 fragmentation
+    pswitch%l_pimo2=>l_pimo2 ! Phillips Mode 2 fragmentation
+    pswitch%l_piicb=>l_piicb ! Phillips ice-ice collisional breakup
     pswitch%l_psmlt=>l_psmlt ! snow melting
     pswitch%l_pgmlt=>l_pgmlt ! graupel melting
     pswitch%l_phomr=>l_phomr ! homogeneous freezing of rain
@@ -1342,6 +1388,9 @@ contains
       pswitch%l_pihal=.false.
       pswitch%l_piics=.false.
       pswitch%l_pidps=.false.
+      pswitch%l_pimo1=.false.
+      pswitch%l_pimo2=.false.
+      pswitch%l_piicb=.false.
       l_g=.false.
     end if
 
@@ -1358,6 +1407,9 @@ contains
       pswitch%l_phomr=.false.
       pswitch%l_piics=.false.
       pswitch%l_pidps=.false.
+      pswitch%l_pimo1=.false.
+      pswitch%l_pimo2=.false.
+      pswitch%l_piicb=.false.
     end if
 
     if (.not. l_halletmossop) pswitch%l_pihal=.false.
@@ -1366,6 +1418,9 @@ contains
       pswitch%l_piics=.false.
     end if
     if (.not. l_sip_dropletshatter) pswitch%l_pidps=.false.
+    if (.not. l_sip_phillips_mode1) pswitch%l_pimo1=.false.
+    if (.not. l_sip_phillips_mode2) pswitch%l_pimo2=.false.
+    if (.not. l_sip_phillips_breakup) pswitch%l_piicb=.false.
 
     if (.not. (pswitch%l_pidep .or. pswitch%l_psdep .or. pswitch%l_pgdep)) l_idep=.false.
     if (.not. (pswitch%l_pisub .or. pswitch%l_pssub .or. pswitch%l_pgsub)) l_isub=.false.
