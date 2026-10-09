@@ -18,7 +18,6 @@ module ice_multiplication
   use casim_stph, only: l_rp2_casim, mpof_casim_rp
   use special, only: GammaFunc
   use distributions, only: dist_lambda, dist_mu, dist_n0
-  use sip_numerics, only: gl_quad_1d, gl_quad_2d
 
   implicit none
 
@@ -39,6 +38,43 @@ module ice_multiplication
   real(wp), parameter :: oneoversix = 1.0_wp/6.0_wp
   real(wp), parameter :: oneoverthree = 1.0_wp/3.0_wp
   real(wp), parameter :: oneovernine = 1.0_wp/9.0_wp
+
+  ! 10-point Gauss-Legendre quadrature used for the collision integrals
+  ! (DLMF 3.5).
+  ! Positive abscissae and weights of the 10-point Gauss-Legendre rule on
+  ! [-1,1] (the rule is symmetric about zero).
+  integer, parameter, private :: n_half = 5
+  real(wp), parameter, private :: gl_node(n_half) = (/                                  &
+       0.14887433898163122_wp, 0.43339539412924720_wp, 0.67940956829902440_wp, &
+       0.86506336668898450_wp, 0.97390652851717170_wp /)
+  real(wp), parameter, private :: gl_weight(n_half) = (/                                &
+       0.29552422471475280_wp, 0.26926671930999650_wp, 0.21908636251598200_wp, &
+       0.14945134915058040_wp, 0.06667134430868814_wp /)
+
+  abstract interface
+    !> Integrand of one variable, evaluated at a vector of abscissae
+    function integrand_1d(x) result(f)
+      import :: wp
+      real(wp), intent(in) :: x(:)
+      real(wp) :: f(size(x))
+    end function integrand_1d
+
+    !> Integrand of two variables: scalar outer coordinate x and a vector
+    !> of inner abscissae y
+    function integrand_2d(x, y) result(f)
+      import :: wp
+      real(wp), intent(in) :: x
+      real(wp), intent(in) :: y(:)
+      real(wp) :: f(size(y))
+    end function integrand_2d
+
+    !> Inner integration limit as a function of the outer coordinate
+    function limit_function(x) result(y)
+      import :: wp
+      real(wp), intent(in) :: x
+      real(wp) :: y
+    end function limit_function
+  end interface
 
   ! Collisional-breakup pair identifiers.  CB_XY means category X is the
   ! fragmenting particle and Y its collision partner.
@@ -1812,5 +1848,76 @@ end subroutine sip_phillips_breakup
         real(wp) :: limit2_mode2
         limit2_mode2=miupper
     end function limit2_mode2
+
+  !-----------------------------------------------------------------------
+  ! Quadrature for the Phillips et al. collision integrals
+  !-----------------------------------------------------------------------
+  !> Integral of f(x) from a to b with the 10-point Gauss-Legendre rule.
+  function gl_quad_1d(f, a, b) result(total)
+
+    implicit none
+
+    procedure(integrand_1d) :: f
+    real(wp), intent(in) :: a, b
+    real(wp) :: total
+
+    real(wp) :: centre, half_width
+    real(wp) :: abscissa(2*n_half), weight(2*n_half)
+
+    centre = 0.5_wp*(a + b)
+    half_width = 0.5_wp*(b - a)
+
+    abscissa(1:n_half) = centre - half_width*gl_node
+    abscissa(n_half+1:2*n_half) = centre + half_width*gl_node
+    weight(1:n_half) = gl_weight
+    weight(n_half+1:2*n_half) = gl_weight
+
+    total = half_width*sum(weight*f(abscissa))
+
+  end function gl_quad_1d
+
+  !> Integral over x from a to b, and over y from y_low(x) to y_high(x),
+  !> of f(x,y), using the 10-point Gauss-Legendre rule in each direction.
+  !> The outer coordinate is passed to the integrand explicitly, so the
+  !> routine holds no module state and is safe to call from OpenMP threads.
+  function gl_quad_2d(f, y_low, y_high, a, b) result(total)
+
+    implicit none
+
+    procedure(integrand_2d) :: f
+    procedure(limit_function) :: y_low, y_high
+    real(wp), intent(in) :: a, b
+    real(wp) :: total
+
+    real(wp) :: centre, half_width, x_outer, inner
+    real(wp) :: y_centre, y_half_width
+    real(wp) :: y_abscissa(2*n_half), weight(2*n_half)
+    integer :: i
+
+    weight(1:n_half) = gl_weight
+    weight(n_half+1:2*n_half) = gl_weight
+
+    centre = 0.5_wp*(a + b)
+    half_width = 0.5_wp*(b - a)
+
+    total = 0.0_wp
+    do i = 1, 2*n_half
+      if (i <= n_half) then
+        x_outer = centre - half_width*gl_node(i)
+      else
+        x_outer = centre + half_width*gl_node(i-n_half)
+      end if
+
+      y_centre = 0.5_wp*(y_high(x_outer) + y_low(x_outer))
+      y_half_width = 0.5_wp*(y_high(x_outer) - y_low(x_outer))
+      y_abscissa(1:n_half) = y_centre - y_half_width*gl_node
+      y_abscissa(n_half+1:2*n_half) = y_centre + y_half_width*gl_node
+
+      inner = y_half_width*sum(weight*f(x_outer, y_abscissa))
+      total = total + weight(i)*inner
+    end do
+    total = half_width*total
+
+  end function gl_quad_2d
 
 end module ice_multiplication

@@ -294,8 +294,7 @@ contains
     
     !use mphys_parameters, only: cloud_params, rain_params, ice_params, snow_params, &
     !     graupel_params
-    use special, only: Gammafunc
-    use sip_numerics, only: inverse_gamma_p
+    use special, only: Gammafunc, inverse_gamma_p
     use mphys_parameters, only: probthresh, pthreshr, pthreshi, pthreshs,      &
                                 pthreshg, gam1r, gam2r
 
