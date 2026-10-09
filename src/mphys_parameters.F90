@@ -373,6 +373,15 @@ module mphys_parameters
   real(wp) :: dN_droplet_shatter=5 !< Number of ejected fragment number formed per droplet shattering
   real(wp) :: P_droplet_shatter=0.20 !< Maximum probability of droplet shattering
 
+  ! Phillips et al. secondary ice production (ice_multiplication).
+  ! Collision integrals over a gamma size distribution are truncated at the
+  ! diameter below which a fraction probthresh of the particles lie,
+  ! D = pthresh/lambda, where pthresh is the inverse regularised incomplete
+  ! gamma function of probthresh (set in gamma_initialize).
+  real(wp), parameter :: probthresh=0.9999_wp
+  real(wp) :: pthreshr, pthreshi, pthreshs, pthreshg
+  real(wp) :: gam1r, gam2r  !< Gamma(1+mu_r) and Gamma(1+mu_r+d_r) for rain
+
   real(wp) :: DR_melt=0.001   !< Mean diameter of rain from melt (m)
 
   real(wp) :: T_hom_freeze=-38 !< Temperature threshold for homogeneous freezing (C)

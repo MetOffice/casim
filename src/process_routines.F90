@@ -51,6 +51,13 @@ module process_routines
   type(process_name) :: i_imlt  = process_name(0, 40, 'pimlt', on=.false.)
   type(process_name) :: i_iics  = process_name(0, 41, 'piics', on=.false.)
   type(process_name) :: i_idps  = process_name(0, 42, 'pidps', on=.false.)
+  ! Phillips et al. secondary ice production (see ice_multiplication)
+  type(process_name) :: i_imo1   = process_name(0, 43, 'pimo1', on=.false.)
+  type(process_name) :: i_imo2   = process_name(0, 44, 'pimo2', on=.false.)
+  ! Collisional breakup, split by the category donating the fragment mass
+  type(process_name) :: i_iicb_i = process_name(0, 45, 'piicbi', on=.false.)
+  type(process_name) :: i_iicb_s = process_name(0, 46, 'piicbs', on=.false.)
+  type(process_name) :: i_iicb_g = process_name(0, 47, 'piicbg', on=.false.)
   ! aerosol processes
   type(process_name)  :: i_aact  = process_name(0, 101, 'aact', on=.false.)
   type(process_name)  :: i_aaut  = process_name(0, 102, 'aaut', on=.false.)

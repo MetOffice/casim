@@ -9,7 +9,8 @@ module micro_main
        i_sdep, i_saci, i_raci, i_sacr, i_gacw, i_gacr, i_gaci, i_gacs, i_gdep, i_psedg, i_sagg, &
        i_gshd, i_ihal, i_smlt, i_gmlt, i_psedi, i_homr, i_homc, i_imlt, i_isub, i_ssub, i_gsub, i_sbrk, i_dssub, &
        i_dgsub, i_dsedi, i_dseds, i_dsedg, i_dimlt, i_dsmlt, i_dgmlt, i_diacw, i_dsacw, i_dgacw, i_dsacr, &
-       i_dgacr, i_draci, i_dhomr, i_dhomc, i_idps, i_iics
+       i_dgacr, i_draci, i_dhomr, i_dhomc, i_idps, i_iics, i_imo1, i_imo2,      &
+       i_iicb_i, i_iicb_s, i_iicb_g
   use sum_process, only: sum_procs, sum_aprocs, tend_temp, aerosol_tend_temp
   use aerosol_routines, only: examine_aerosol, aerosol_phys, aerosol_chem, aerosol_active, allocate_aerosol, &
        deallocate_aerosol
@@ -39,7 +40,9 @@ module micro_main
   use ice_accretion, only: iacc
   use breakup, only: ice_breakup
   use snow_autoconversion, only: saut
-  use ice_multiplication, only: hallet_mossop, droplet_shattering, ice_collision
+  use ice_multiplication, only: hallet_mossop, droplet_shattering, ice_collision, &
+                                sip_phillips_mode1, sip_phillips_mode2,          &
+                                sip_phillips_breakup
   use graupel_wetgrowth, only: wetgrowth
   use graupel_embryo, only: graupel_embryos
   use ice_melting, only: melting
@@ -148,6 +151,60 @@ module micro_main
   public aerophys, aeroact, aerochem, dustact, dustphys, dustchem, aeroice, dustliq
 !PRF
 contains
+
+  !---------------------------------------------------------------------------
+  !> Limit one Phillips collisional-breakup donor group (process cb_id, donor
+  !> species donor_iq) against the donor mass left after every OTHER
+  !> microphysical tendency; the breakup process itself is excluded from
+  !> q_available.  If limiting is needed, the same factor is applied to every
+  !> hydrometeor tendency of that process, preserving the coupling between
+  !> donor mass loss, ice mass gain and ice number production.
+  !---------------------------------------------------------------------------
+  subroutine limit_cb_donor(nz_local, dt_local, q_local, p_local, donor_iq, cb_id)
+
+    implicit none
+
+    integer, intent(in) :: nz_local, donor_iq, cb_id
+    real(wp), intent(in) :: dt_local
+    real(wp), intent(in) :: q_local(:,:)
+    type(process_rate), intent(inout) :: p_local(:,:)
+
+    integer :: k_local, ip_local, iq_local
+    real(wp) :: q_available, cb_sink, ratio
+
+    if (dt_local <= 0.0_wp .or. donor_iq <= 0) return
+
+    do k_local = 1, nz_local
+
+      q_available = q_local(k_local, donor_iq)
+
+      do ip_local = lbound(p_local, 2), ubound(p_local, 2)
+        if (ip_local /= cb_id) then
+          q_available = q_available + dt_local *                               &
+               p_local(donor_iq, ip_local)%column_data(k_local)
+        end if
+      end do
+
+      cb_sink = p_local(donor_iq, cb_id)%column_data(k_local)
+
+      if (cb_sink < 0.0_wp) then
+        if (q_available <= 0.0_wp) then
+          ratio = 0.0_wp
+        else
+          ratio = min(1.0_wp, q_available/(-dt_local*cb_sink))
+        end if
+
+        if (ratio < 1.0_wp) then
+          do iq_local = lbound(p_local, 1), ubound(p_local, 1)
+            p_local(iq_local, cb_id)%column_data(k_local) =                    &
+                 p_local(iq_local, cb_id)%column_data(k_local)*ratio
+          end do
+        end if
+      end if
+
+    end do
+
+  end subroutine limit_cb_donor
 
   subroutine initialise_micromain(il, iu, jl, ju, kl, ku,                 &
        is_in, ie_in, js_in, je_in, ks_in, ke_in, l_tendency)
@@ -1464,6 +1521,27 @@ contains
                   procs(:,:,ixy_inner))
           end if
 
+          !------------------------------------------------------
+          ! Phillips et al. secondary ice production
+          !------------------------------------------------------
+          if (pswitch%l_pimo1 .and. .not. l_kfsm) then
+             call sip_phillips_mode1(ixy_inner, step_length, nz,                &
+                  cffields(:,:,ixy_inner), qfields(:,:,ixy_inner),              &
+                  procs(:,:,ixy_inner))
+          end if
+
+          if (pswitch%l_pimo2 .and. .not. l_kfsm) then
+             call sip_phillips_mode2(ixy_inner, step_length, nz,                &
+                  cffields(:,:,ixy_inner), qfields(:,:,ixy_inner),              &
+                  procs(:,:,ixy_inner))
+          end if
+
+          if (pswitch%l_piicb .and. .not. l_kfsm) then
+             call sip_phillips_breakup(ixy_inner, step_length, nz,              &
+                  cffields(:,:,ixy_inner), qfields(:,:,ixy_inner),              &
+                  procs(:,:,ixy_inner))
+          end if
+
              !------------------------------------------------------
              ! Deposition/sublimation of ice/snow/graupel
              !------------------------------------------------------
@@ -1546,7 +1624,8 @@ contains
             if (l_pos2) call ensure_positive(nz, step_length,                  &
               qfields(:,:,ixy_inner), procs(:,:,ixy_inner), ice_params,        &
               (/i_raci, i_saci, i_gaci, i_saut, i_isub, i_imlt/),              &
-              (/i_ihal, i_idps, i_iics, i_gshd, i_inuc, i_homc, i_iacw, i_idep/))
+              (/i_ihal, i_idps, i_iics, i_imo1, i_imo2, i_gshd, i_inuc, i_homc,  &
+                i_iacw, i_idep/))
 
             if (l_pos3) call ensure_positive(nz, step_length,                  &
               qfields(:,:,ixy_inner), procs(:,:,ixy_inner), rain_params,       &
@@ -1557,8 +1636,21 @@ contains
 
             if (l_pos4) call ensure_positive(nz, step_length,                  &
               qfields(:,:,ixy_inner), procs(:,:,ixy_inner), snow_params,       &
-              (/i_gacs, i_smlt, i_sacr, i_ssub /),                             &
-              (/i_sdep, i_sacw, i_saut, i_saci, i_raci, i_gshd, i_ihal, i_iics/)) 
+              (/i_gacs, i_smlt, i_sacr, i_ssub, i_imo1, i_imo2/),              &
+              (/i_sdep, i_sacw, i_saut, i_saci, i_raci, i_gshd, i_ihal, i_iics/))
+
+            !-----------------------------------------------------------------
+            ! Phillips collisional breakup: limit each donor category against
+            ! the mass left after every other process (see limit_cb_donor)
+            !-----------------------------------------------------------------
+            if (pswitch%l_piicb) then
+              if (i_iicb_s%on) call limit_cb_donor(nz, step_length,          &
+                qfields(:,:,ixy_inner), procs(:,:,ixy_inner),                  &
+                snow_params%i_1m, i_iicb_s%id)
+              if (i_iicb_g%on) call limit_cb_donor(nz, step_length,          &
+                qfields(:,:,ixy_inner), procs(:,:,ixy_inner),                  &
+                graupel_params%i_1m, i_iicb_g%id)
+            end if
          else
             if (pswitch%l_praut .and. pswitch%l_pracw) then
                 if (l_pos5) call ensure_positive(nz, step_length,              &
@@ -1592,6 +1684,7 @@ contains
              call sum_procs(ixy_inner, step_length, nz, procs(:,:,ixy_inner), tend(:,:,ixy_inner),      &
                 (/i_idep, i_sdep, i_gdep, i_iacw, i_sacr, i_sacw, i_saci, i_raci,&
                 i_gacw, i_gacr, i_gaci, i_gacs, i_ihal, i_iics, i_idps,  i_gshd, i_sbrk,&
+                i_imo1, i_imo2, i_iicb_i, i_iicb_s, i_iicb_g,                   &
                 i_saut, i_sagg, i_isub, i_ssub, i_gsub/),        &
                 l_thermalexchange=.true., qfields=qfields(:,:,ixy_inner),&
                 l_passive=l_passive, i_thirdmoment=2)
@@ -1599,6 +1692,7 @@ contains
              call sum_procs(ixy_inner, step_length, nz, procs(:,:,ixy_inner), tend(:,:,ixy_inner),      &
                 (/i_idep, i_sdep, i_gdep, i_iacw, i_sacr, i_sacw, i_saci, i_raci,&
                 i_gacw, i_gacr, i_gaci, i_ihal, i_iics, i_idps, i_gshd, i_sbrk,&
+                i_imo1, i_imo2, i_iicb_i, i_iicb_s, i_iicb_g,                   &
                 i_saut, i_sagg, i_isub, i_ssub, i_gsub/),        &
                 l_thermalexchange=.true., qfields=qfields(:,:,ixy_inner),&
                 l_passive=l_passive, i_thirdmoment=2)
@@ -3368,6 +3462,42 @@ contains
         END DO
       ELSE
         casdiags % niics_i(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_nimo1) THEN
+      IF ((pswitch%l_pimo1) .and. (ice_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % nimo1(i,j,k) = procs(ice_params%i_2m,i_imo1%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % nimo1(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_nimo2) THEN
+      IF ((pswitch%l_pimo2) .and. (ice_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % nimo2(i,j,k) = procs(ice_params%i_2m,i_imo2%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % nimo2(i,j,:) = ZERO_REAL_WP
+      END IF
+    END IF
+
+    IF (casdiags % l_niicb) THEN
+      IF ((pswitch%l_piicb) .and. (ice_params%l_2m)) THEN
+        DO k = k_start, k_end
+          kc = k - k_start + 1
+          casdiags % niicb(i,j,k) =                                            &
+               procs(ice_params%i_2m,i_iicb_i%id,ixy_inner)%column_data(kc) +  &
+               procs(ice_params%i_2m,i_iicb_s%id,ixy_inner)%column_data(kc) +  &
+               procs(ice_params%i_2m,i_iicb_g%id,ixy_inner)%column_data(kc)
+        END DO
+      ELSE
+        casdiags % niicb(i,j,:) = ZERO_REAL_WP
       END IF
     END IF
 

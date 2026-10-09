@@ -295,6 +295,9 @@ contains
     !use mphys_parameters, only: cloud_params, rain_params, ice_params, snow_params, &
     !     graupel_params
     use special, only: Gammafunc
+    use sip_numerics, only: inverse_gamma_p
+    use mphys_parameters, only: probthresh, pthreshr, pthreshi, pthreshs,      &
+                                pthreshg, gam1r, gam2r
 
     USE yomhook, ONLY: lhook, dr_hook
     USE parkind1, ONLY: jprb, jpim
@@ -520,6 +523,17 @@ contains
     graupel_params%gam_1_mu_dx_bx = GammaFunc(1.0 + graupel_params%fix_mu + graupel_params%d_x + graupel_params%b_x)
     graupel_params%gam_1_mu_dx = GammaFunc(1.0 + graupel_params%fix_mu + graupel_params%d_x) 
     
+    !------------------------------------------------------------------------
+    ! Size-distribution truncation and rain gamma functions used by the
+    ! Phillips et al. secondary ice production schemes (ice_multiplication)
+    !------------------------------------------------------------------------
+    pthreshr = inverse_gamma_p(probthresh, 1.0_wp+rain_params%fix_mu)
+    pthreshi = inverse_gamma_p(probthresh, 1.0_wp+ice_params%fix_mu)
+    pthreshs = inverse_gamma_p(probthresh, 1.0_wp+snow_params%fix_mu)
+    pthreshg = inverse_gamma_p(probthresh, 1.0_wp+graupel_params%fix_mu)
+    gam1r = GammaFunc(1.0_wp+rain_params%fix_mu)
+    gam2r = GammaFunc(1.0_wp+rain_params%fix_mu+rain_params%d_x)
+
 
     !--------------------------------------------------------------------------
     ! End of header, no more declarations beyond here
