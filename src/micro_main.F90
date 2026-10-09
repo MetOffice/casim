@@ -1557,8 +1557,8 @@ contains
 
             if (l_pos4) call ensure_positive(nz, step_length,                  &
               qfields(:,:,ixy_inner), procs(:,:,ixy_inner), snow_params,       &
-              (/i_gacs, i_smlt, i_sacr, i_ssub /),                             &
-              (/i_sdep, i_sacw, i_saut, i_saci, i_raci, i_gshd, i_ihal, i_iics/)) 
+              (/i_gacs, i_smlt, i_sacr, i_ssub, i_ihal/),                      &
+              (/i_sdep, i_sacw, i_saut, i_saci, i_raci, i_gshd, i_iics/))
          else
             if (pswitch%l_praut .and. pswitch%l_pracw) then
                 if (l_pos5) call ensure_positive(nz, step_length,              &

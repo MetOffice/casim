@@ -7,3 +7,4 @@
 | yaswant         | Yaswant Pradhan  | Met Office  | 2027-07-17 |
 | iboutle         | Ian Boutle       | Met Office  | 2026-08-12 |
 | paulfield2024   | Paul Field       | Met Office  | 2026-08-14 |
+| maul1609        | Paul Connolly    | The University of Manchester | 2026-10-09 |
