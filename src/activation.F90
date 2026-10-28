@@ -273,9 +273,6 @@ contains
 
             if ( dustphys%N(1) > ni_tidy ) then
               dmass_d = dactive * dustphys%M(1) / dustphys%N(1)
-            else
-              ! Prevent divide by zero generating nonsense.
-              dmass_d = zero_real_wp
             end if ! dustphys%N(1) > ni_tidy
 
           end if ! iopt_inuc
