@@ -172,9 +172,11 @@ contains
        if (active_rain(isol)) then
           do k = 1, ubound(qfields,1)
              dmass = procs(i_qr, i_pracw%id)%column_data(k)
-             damass=dmass/cloud_mass*aerofields(k,i_am4)
-             aerosol_procs(i_am4, i_aacw%id)%column_data(k)=-damass
-             aerosol_procs(i_am5, i_aacw%id)%column_data(k)=damass
+             if (dmass /= 0.0_wp .and. qfields(k, i_ql) > 0.0_wp) then
+                damass=dmass/qfields(k, i_ql)*aerofields(k,i_am4)
+                aerosol_procs(i_am4, i_aacw%id)%column_data(k)=-damass
+                aerosol_procs(i_am5, i_aacw%id)%column_data(k)=damass
+             end if
           enddo
        end if
     end if

@@ -157,13 +157,15 @@ contains
              ! end if
 
              if (l_process) then
-                dmac = dnumber*aeroact(k)%mact2_mean
+                dmac = dnumber*aeroact(k)%mact2_mean*aeroact(k)%nratio2
+                dmac=min(dmac,aeroact(k)%mact2/dt)
 
                 aerosol_procs(i_am8, i_dhomr%id)%column_data(k) = dmac
                 aerosol_procs(i_am4, i_dhomr%id)%column_data(k) = -dmac
                 
                 ! Dust already in the liquid phase
                 dmadl = dnumber*dustliq(k)%mact2_mean*dustliq(k)%nratio2
+                dmadl=min(dmadl,dustliq(k)%mact2/dt)
                 if (dmadl /=0.0) then
                    aerosol_procs(i_am9, i_dhomr%id)%column_data(k) = -dmadl
                    aerosol_procs(i_am7, i_dhomr%id)%column_data(k) = dmadl
@@ -295,13 +297,15 @@ contains
 !!!NB if we keep l_use_critical_w approach need to deal with dnumber=/=dnumberi for processing!!
 
              if (l_process) then
-                dmac=dnumber*aeroact(k)%mact1_mean
+                dmac=dnumber*aeroact(k)%mact1_mean*aeroact(k)%nratio1
+                dmac=min(dmac,aeroact(k)%mact1/dt)
                 
                 aerosol_procs(i_am8, i_dhomc%id)%column_data(k)=dmac
                 aerosol_procs(i_am4, i_dhomc%id)%column_data(k)=-dmac
                 
                 ! Dust already in the liquid phase
                 dmadl=dnumber*dustliq(k)%mact1_mean*dustliq(k)%nratio1
+                dmadl=min(dmadl,dustliq(k)%mact1/dt)
                 if (dmadl /=0.0) then
                    aerosol_procs(i_am9, i_dhomc%id)%column_data(k)=-dmadl
                    aerosol_procs(i_am7, i_dhomc%id)%column_data(k)=dmadl
