@@ -149,7 +149,7 @@ contains
           if (l_process .and. abs(dnumber) >0) then
 
              dmac=dnumber*aeroact(k)%nratio2*aeroact(k)%mact2_mean
-             dmac=min(dmac,aeroact(k)%mact2/dt)
+             dmac=min(dmac,max(aeroact(k)%mact2,0.0_wp)/dt)
              if (l_separate_rain) then
                 aerosol_procs(i_am5, i_arevp%id)%column_data(k)=-dmac
              else
@@ -186,7 +186,12 @@ contains
                        call throw_mphys_error(incorrect_opt,ModuleName, std_msg)
                   endif
                 else
-                  call which_mode(dmac, dnumber*aeroact(k)%nratio2, aerophys(k)%rd(aero_index%i_accum), &
+                  dnumber_a=dnumber*aeroact(k)%nratio2
+                  if (dnumber_a*dmac <= 0.0) then !if signs don't match the change will be small
+                     dnumber_a=0.0
+                     dmac=0.0
+                  end if
+                  call which_mode(dmac, dnumber_a, aerophys(k)%rd(aero_index%i_accum), &
                      aerophys(k)%rd(aero_index%i_coarse), aerochem(k)%density(aero_index%i_accum),    &
                      aerophys(k)%sigma(aero_index%i_accum),                                           &
                      dmac1, dmac2, dnac1, dnac2)
@@ -210,6 +215,7 @@ contains
              end if
 
              dmacd=dnumber*dustliq(k)%nratio2*dustliq(k)%mact2_mean
+             dmacd=min(dmacd,max(dustliq(k)%mact2,0.0_wp)/dt)
              if (.not. l_warm .and. dmacd /=0.0) then
                 aerosol_procs(i_am9, i_arevp%id)%column_data(k)=-dmacd
                 aerosol_procs(i_am6, i_arevp%id)%column_data(k)=dmacd

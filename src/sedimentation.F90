@@ -945,30 +945,38 @@ do k=nz-1, 1, -1
     !============================
     if (l_ased .and. l_da_local) then
       if (params%id == cloud_params%id) then
-        dmac=(flux_n2(k+1)*aeroact(k+1)%nratio1*aeroact(k+1)%mact1_mean -      &
-             flux_n2(k)*aeroact(k)%nratio1*aeroact(k)%mact1_mean)* rdz_on_rho(k,ixy_inner)
+        dmac=(min(flux_n2(k+1)*aeroact(k+1)%nratio1*aeroact(k+1)%mact1_mean,   &
+                  aeroact(k+1)%mact1/(step_length*rdz_on_rho(k+1,ixy_inner))) &
+             -min(flux_n2(k)*aeroact(k)%nratio1*aeroact(k)%mact1_mean,        &
+                  aeroact(k)%mact1/(step_length*rdz_on_rho(k,ixy_inner))))* rdz_on_rho(k,ixy_inner)
         if (l_passivenumbers) then
           dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio1 -                       &
                     flux_n2(k)*aeroact(k)%nratio1)* rdz_on_rho(k,ixy_inner)
         end if
         if (.not. l_warm) then
-          dmad=(flux_n2(k+1)*dustact(k+1)%nratio1*dustact(k+1)%mact1_mean-     &
-               flux_n2(k)*dustact(k)%nratio1*dustact(k)%mact1_mean)*rdz_on_rho(k,ixy_inner)
+          dmad=(min(flux_n2(k+1)*dustact(k+1)%nratio1*dustact(k+1)%mact1_mean, &
+                    dustact(k+1)%mact1/(step_length*rdz_on_rho(k+1,ixy_inner)))&
+               -min(flux_n2(k)*dustact(k)%nratio1*dustact(k)%mact1_mean,      &
+                    dustact(k)%mact1/(step_length*rdz_on_rho(k,ixy_inner))))*rdz_on_rho(k,ixy_inner)
           if (l_passivenumbers_ice .and. dustact(k)%mact_mean > 0.0) then
             dnumber_d=(flux_n2(k+1)*dustact(k+1)%nratio1-                      &
                       flux_n2(k)*dustact(k)%nratio1)*rdz_on_rho(k,ixy_inner)
           end if
         end if
       else if (params%id == rain_params%id) then
-        dmac=(flux_n2(k+1)*aeroact(k+1)%nratio2*aeroact(k+1)%mact2_mean-       &
-             flux_n2(k)*aeroact(k)%nratio2*aeroact(k)%mact2_mean)*rdz_on_rho(k,ixy_inner)
+        dmac=(min(flux_n2(k+1)*aeroact(k+1)%nratio2*aeroact(k+1)%mact2_mean,   &
+                  aeroact(k+1)%mact2/(step_length*rdz_on_rho(k+1,ixy_inner))) &
+             -min(flux_n2(k)*aeroact(k)%nratio2*aeroact(k)%mact2_mean,        &
+                  aeroact(k)%mact2/(step_length*rdz_on_rho(k,ixy_inner))))*rdz_on_rho(k,ixy_inner)
         if (l_passivenumbers .and. aeroact(k)%mact_mean > 0.0) then
           dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio2-                        &
                     flux_n2(k)*aeroact(k)%nratio2)*rdz_on_rho(k,ixy_inner)
         end if
         if (.not. l_warm) then
-          dmad=(flux_n2(k+1)*dustact(k+1)%nratio2*dustact(k+1)%mact2_mean-     &
-               flux_n2(k)*dustact(k)%nratio2*dustact(k)%mact2_mean)*rdz_on_rho(k,ixy_inner)
+          dmad=(min(flux_n2(k+1)*dustact(k+1)%nratio2*dustact(k+1)%mact2_mean, &
+                    dustact(k+1)%mact2/(step_length*rdz_on_rho(k+1,ixy_inner)))&
+               -min(flux_n2(k)*dustact(k)%nratio2*dustact(k)%mact2_mean,      &
+                    dustact(k)%mact2/(step_length*rdz_on_rho(k,ixy_inner))))*rdz_on_rho(k,ixy_inner)
           if (l_passivenumbers_ice) then
             dnumber_d=(flux_n2(k+1)*dustact(k+1)%nratio2-                      &
                       flux_n2(k)*dustact(k)%nratio2)*rdz_on_rho(k,ixy_inner)
@@ -977,10 +985,14 @@ do k=nz-1, 1, -1
       end if
 
       if (params%id == ice_params%id) then
-        dmac = (flux_n2(k+1)*aeroact(k+1)%nratio1*aeroact(k+1)%mact1_mean-     &
-             flux_n2(k)*aeroact(k)%nratio1*aeroact(k)%mact1_mean)*rdz_on_rho(k,ixy_inner)
-        dmad = (flux_n2(k+1)*dustact(k+1)%nratio1*dustact(k+1)%mact1_mean-     &
-             flux_n2(k)*dustact(k)%nratio1*dustact(k)%mact1_mean)*rdz_on_rho(k,ixy_inner)
+        dmac = (min(flux_n2(k+1)*aeroact(k+1)%nratio1*aeroact(k+1)%mact1_mean, &
+                    aeroact(k+1)%mact1/(step_length*rdz_on_rho(k+1,ixy_inner)))&
+               -min(flux_n2(k)*aeroact(k)%nratio1*aeroact(k)%mact1_mean,      &
+                    aeroact(k)%mact1/(step_length*rdz_on_rho(k,ixy_inner))))*rdz_on_rho(k,ixy_inner)
+        dmad = (min(flux_n2(k+1)*dustact(k+1)%nratio1*dustact(k+1)%mact1_mean, &
+                    dustact(k+1)%mact1/(step_length*rdz_on_rho(k+1,ixy_inner)))&
+               -min(flux_n2(k)*dustact(k)%nratio1*dustact(k)%mact1_mean,      &
+                    dustact(k)%mact1/(step_length*rdz_on_rho(k,ixy_inner))))*rdz_on_rho(k,ixy_inner)
         if (l_passivenumbers) then
           dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio1-                        &
                     flux_n2(k)*aeroact(k)%nratio1)*rdz_on_rho(k,ixy_inner)
@@ -990,10 +1002,14 @@ do k=nz-1, 1, -1
                     flux_n2(k)*dustact(k)%nratio1)*rdz_on_rho(k,ixy_inner)
         end if
       else if (params%id == snow_params%id) then
-        dmac=(flux_n2(k+1)*aeroact(k+1)%nratio2*aeroact(k+1)%mact2_mean-       &
-             flux_n2(k)*aeroact(k)%nratio2*aeroact(k)%mact2_mean)*rdz_on_rho(k,ixy_inner)
-        dmad=(flux_n2(k+1)*dustact(k+1)%nratio2*dustact(k+1)%mact2_mean-       &
-             flux_n2(k)*dustact(k)%nratio2*dustact(k)%mact2_mean)*rdz_on_rho(k,ixy_inner)
+        dmac=(min(flux_n2(k+1)*aeroact(k+1)%nratio2*aeroact(k+1)%mact2_mean,   &
+                  aeroact(k+1)%mact2/(step_length*rdz_on_rho(k+1,ixy_inner))) &
+             -min(flux_n2(k)*aeroact(k)%nratio2*aeroact(k)%mact2_mean,        &
+                  aeroact(k)%mact2/(step_length*rdz_on_rho(k,ixy_inner))))*rdz_on_rho(k,ixy_inner)
+        dmad=(min(flux_n2(k+1)*dustact(k+1)%nratio2*dustact(k+1)%mact2_mean,   &
+                  dustact(k+1)%mact2/(step_length*rdz_on_rho(k+1,ixy_inner))) &
+             -min(flux_n2(k)*dustact(k)%nratio2*dustact(k)%mact2_mean,        &
+                  dustact(k)%mact2/(step_length*rdz_on_rho(k,ixy_inner))))*rdz_on_rho(k,ixy_inner)
         if (l_passivenumbers) then
           dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio2-                        &
                     flux_n2(k)*aeroact(k)%nratio2)*rdz_on_rho(k,ixy_inner)
@@ -1003,10 +1019,14 @@ do k=nz-1, 1, -1
                     flux_n2(k)*dustact(k)%nratio2)*rdz_on_rho(k,ixy_inner)
         end if
       else if (params%id == graupel_params%id) then
-        dmac=(flux_n2(k+1)*aeroact(k+1)%nratio3*aeroact(k+1)%mact3_mean-       &
-             flux_n2(k)*aeroact(k)%nratio3*aeroact(k)%mact3_mean)*rdz_on_rho(k,ixy_inner)
-        dmad=(flux_n2(k+1)*dustact(k+1)%nratio3*dustact(k+1)%mact3_mean-       &
-             flux_n2(k)*dustact(k)%nratio3*dustact(k)%mact3_mean)*rdz_on_rho(k,ixy_inner)
+        dmac=(min(flux_n2(k+1)*aeroact(k+1)%nratio3*aeroact(k+1)%mact3_mean,   &
+                  aeroact(k+1)%mact3/(step_length*rdz_on_rho(k+1,ixy_inner))) &
+             -min(flux_n2(k)*aeroact(k)%nratio3*aeroact(k)%mact3_mean,        &
+                  aeroact(k)%mact3/(step_length*rdz_on_rho(k,ixy_inner))))*rdz_on_rho(k,ixy_inner)
+        dmad=(min(flux_n2(k+1)*dustact(k+1)%nratio3*dustact(k+1)%mact3_mean,   &
+                  dustact(k+1)%mact3/(step_length*rdz_on_rho(k+1,ixy_inner))) &
+             -min(flux_n2(k)*dustact(k)%nratio3*dustact(k)%mact3_mean,        &
+                  dustact(k)%mact3/(step_length*rdz_on_rho(k,ixy_inner))))*rdz_on_rho(k,ixy_inner)
 
         if (l_passivenumbers) then
           dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio3-                        &
@@ -1027,23 +1047,27 @@ do k=nz-1, 1, -1
     !============================
     if (l_ased .and. l_da_local) then
       if (params%id == cloud_params%id) then
-        dmac=(flux_n2(k+1)*aeroact(k+1)%nratio1*aeroact(k+1)%mact1_mean)*rdz_on_rho(k,ixy_inner)
+        dmac=min(flux_n2(k+1)*aeroact(k+1)%nratio1*aeroact(k+1)%mact1_mean,    &
+                 aeroact(k+1)%mact1/(step_length*rdz_on_rho(k+1,ixy_inner)))*rdz_on_rho(k,ixy_inner)
         if (l_passivenumbers) then
           dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio1)*rdz_on_rho(k,ixy_inner)
         end if
         if (.not. l_warm) then
-          dmad=(flux_n2(k+1)*dustact(k+1)%nratio1*dustact(k+1)%mact1_mean)*rdz_on_rho(k,ixy_inner)
+          dmad=min(flux_n2(k+1)*dustact(k+1)%nratio1*dustact(k+1)%mact1_mean,  &
+                   dustact(k+1)%mact1/(step_length*rdz_on_rho(k+1,ixy_inner)))*rdz_on_rho(k,ixy_inner)
           if (l_passivenumbers_ice) then
             dnumber_d=(flux_n2(k+1)*dustact(k+1)%nratio1)*rdz_on_rho(k,ixy_inner)
           end if
         end if
       else if (params%id == rain_params%id) then
-        dmac=(flux_n2(k+1)*aeroact(k+1)%nratio2*aeroact(k+1)%mact2_mean)*rdz_on_rho(k,ixy_inner)
+        dmac=min(flux_n2(k+1)*aeroact(k+1)%nratio2*aeroact(k+1)%mact2_mean,    &
+                 aeroact(k+1)%mact2/(step_length*rdz_on_rho(k+1,ixy_inner)))*rdz_on_rho(k,ixy_inner)
         if (l_passivenumbers) then
           dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio2)*rdz_on_rho(k,ixy_inner)
         end if
         if (.not. l_warm) then
-          dmad=(flux_n2(k+1)*dustact(k+1)%nratio2*dustact(k+1)%mact2_mean)*rdz_on_rho(k,ixy_inner)
+          dmad=min(flux_n2(k+1)*dustact(k+1)%nratio2*dustact(k+1)%mact2_mean,  &
+                   dustact(k+1)%mact2/(step_length*rdz_on_rho(k+1,ixy_inner)))*rdz_on_rho(k,ixy_inner)
           if (l_passivenumbers_ice) then
             dnumber_d=flux_n2(k+1)*dustact(k+1)%nratio2*rdz_on_rho(k,ixy_inner)
           end if
@@ -1051,8 +1075,10 @@ do k=nz-1, 1, -1
       end if
 
       if (params%id == ice_params%id) then
-        dmac=(flux_n2(k+1)*aeroact(k+1)%nratio1*aeroact(k+1)%mact1_mean)*rdz_on_rho(k,ixy_inner)
-        dmad=(flux_n2(k+1)*dustact(k+1)%nratio1*dustact(k+1)%mact1_mean)*rdz_on_rho(k,ixy_inner)
+        dmac=min(flux_n2(k+1)*aeroact(k+1)%nratio1*aeroact(k+1)%mact1_mean,    &
+                 aeroact(k+1)%mact1/(step_length*rdz_on_rho(k+1,ixy_inner)))*rdz_on_rho(k,ixy_inner)
+        dmad=min(flux_n2(k+1)*dustact(k+1)%nratio1*dustact(k+1)%mact1_mean,    &
+                 dustact(k+1)%mact1/(step_length*rdz_on_rho(k+1,ixy_inner)))*rdz_on_rho(k,ixy_inner)
         if (l_passivenumbers) then
           dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio1)*rdz_on_rho(k,ixy_inner)
         end if
@@ -1060,8 +1086,10 @@ do k=nz-1, 1, -1
           dnumber_d=(flux_n2(k+1)*dustact(k+1)%nratio1)*rdz_on_rho(k,ixy_inner)
         end if
       else if (params%id == snow_params%id) then
-        dmac=(flux_n2(k+1)*aeroact(k+1)%nratio2*aeroact(k+1)%mact2_mean)*rdz_on_rho(k,ixy_inner)
-        dmad=(flux_n2(k+1)*dustact(k+1)%nratio2*dustact(k+1)%mact2_mean)*rdz_on_rho(k,ixy_inner)
+        dmac=min(flux_n2(k+1)*aeroact(k+1)%nratio2*aeroact(k+1)%mact2_mean,    &
+                 aeroact(k+1)%mact2/(step_length*rdz_on_rho(k+1,ixy_inner)))*rdz_on_rho(k,ixy_inner)
+        dmad=min(flux_n2(k+1)*dustact(k+1)%nratio2*dustact(k+1)%mact2_mean,    &
+                 dustact(k+1)%mact2/(step_length*rdz_on_rho(k+1,ixy_inner)))*rdz_on_rho(k,ixy_inner)
         if (l_passivenumbers) then
           dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio2)*rdz_on_rho(k,ixy_inner)
         end if
@@ -1070,8 +1098,10 @@ do k=nz-1, 1, -1
         end if
       else if (params%id == graupel_params%id) then
         if (i_aerosed_method==1) then
-          dmac=(flux_n2(k+1)*aeroact(k+1)%nratio3*aeroact(k+1)%mact3_mean)*rdz_on_rho(k,ixy_inner)
-          dmad=(flux_n2(k+1)*dustact(k+1)%nratio3*dustact(k+1)%mact3_mean)*rdz_on_rho(k,ixy_inner)
+          dmac=min(flux_n2(k+1)*aeroact(k+1)%nratio3*aeroact(k+1)%mact3_mean,  &
+                   aeroact(k+1)%mact3/(step_length*rdz_on_rho(k+1,ixy_inner)))*rdz_on_rho(k,ixy_inner)
+          dmad=min(flux_n2(k+1)*dustact(k+1)%nratio3*dustact(k+1)%mact3_mean,  &
+                   dustact(k+1)%mact3/(step_length*rdz_on_rho(k+1,ixy_inner)))*rdz_on_rho(k,ixy_inner)
           if (l_passivenumbers) then
             dnumber_a=(flux_n2(k+1)*aeroact(k+1)%nratio3)*rdz_on_rho(k,ixy_inner)
           end if

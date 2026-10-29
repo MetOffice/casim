@@ -438,16 +438,24 @@ do k = 1, nz
      
         if (params_Y%id == cloud_params%id) then
           dmac=abs(dnumber_Y)*aeroact(k)%mact1_mean*aeroact(k)%nratio1
+          dmac=min(dmac,aeroact(k)%mact1/dt)
           dmad=abs(dnumber_Y)*dustliq(k)%mact1_mean*dustliq(k)%nratio1
+          dmad=min(dmad,dustliq(k)%mact1/dt)
         else if (params_Y%id == rain_params%id) then
           dmac=abs(dnumber_Y)*aeroact(k)%mact2_mean*aeroact(k)%nratio2
+          dmac=min(dmac,aeroact(k)%mact2/dt)
           dmad=abs(dnumber_Y)*dustliq(k)%mact2_mean*dustliq(k)%nratio2
+          dmad=min(dmad,dustliq(k)%mact2/dt)
         else if (params_X%id == cloud_params%id) then ! This is never the case !
           dmac=abs(dnumber_X)*aeroact(k)%mact1_mean*aeroact(k)%nratio1
+          dmac=min(dmac,aeroact(k)%mact1/dt)
           dmad=abs(dnumber_X)*dustliq(k)%mact1_mean*dustliq(k)%nratio1
+          dmad=min(dmad,dustliq(k)%mact1/dt)
         else if (params_X%id == rain_params%id) then
           dmac=abs(dnumber_X)*aeroact(k)%mact2_mean*aeroact(k)%nratio2
+          dmac=min(dmac,aeroact(k)%mact2/dt)
           dmad=abs(dnumber_X)*dustliq(k)%mact2_mean*dustliq(k)%nratio2
+          dmad=min(dmad,dustliq(k)%mact2/dt)
         end if
 
         aerosol_procs(i_am8, iaproc%id)%column_data(k)=dmac
