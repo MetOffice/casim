@@ -118,9 +118,11 @@ contains
       a0=haild(nn)/2.0 ! convert to radius at melting level
       a=a0
       do k = k_ml,1,-1
-        v=a_v*(2.0*a*100.0)**b_v * sqrt(rho0/rhoa(k)) !diam in cm
-        da=mason_melt(a,a0,dz_in(k),MAX(t(k)-T0,0.0),v,rhoi,rhoa(k)) !stop T going negative if layers cool below
-        a=a-da
+        if ( a .gt. 0.0 ) then
+          v=a_v*(2.0*a*100.0)**b_v * sqrt(rho0/rhoa(k)) !diam in cm
+          da=mason_melt(a,a0,dz_in(k),MAX(t(k)-T0,0.0),v,rhoi,rhoa(k)) !stop T going negative if layers cool below
+          a=a-da
+        end if
       end do
       if ( a .gt. 0.0 .and. hailconc(nn) .gt. Nthresh) then
         haildf(nn)=2.0*a
@@ -181,13 +183,9 @@ contains
     beta=0.0 ! ignore condensation/evap
     
     Re=v*(2*a)/visc*rhoa
-    IF ( Re .gt. 0.0 ) THEN
-      C=1.6+0.3*Re**0.5
-      da=(Kw0*t*dz/Lf/rhoi/v)/ &
-        ((a0-a)*a/a0+(Kw0/(C*(Ka+Lv*Dv*beta)))*a**2/a0)
-    ELSE
-      da=0.0
-    END IF
+    C=1.6+0.3*Re**0.5
+    da=(Kw0*t*dz/Lf/rhoi/v)/ &
+      ((a0-a)*a/a0+(Kw0/(C*(Ka+Lv*Dv*beta)))*a**2/a0)
 
   end function mason_melt
 
