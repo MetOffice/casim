@@ -185,7 +185,7 @@ contains
                 call gaussfunclookup(params%id, gaussterm)
              end if
              
-             dnumber=-1.0*gaussterm * pi*0.125*                                &
+             dnumber=-rho(k,ixy_inner)*1.0*gaussterm * pi*0.125*                                &
                  (rho0/rho(k,ixy_inner))**params%g_x*params%a_x*n0*n0*         &
                  Eff*lam**(-(4.0 + 2.0*mu + params%b_x))
       
