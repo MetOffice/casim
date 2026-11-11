@@ -127,7 +127,7 @@ contains
            !the 2* lambda etc doesnt look the same as in reisner)
            *(rho0/rho(k,ixy_inner))**(2*snow_params%g_x) !in-graupel rate
              
-             dnembryo=max(snow_params%density*pgsacw/rhogms/embryo_mass/rho(k,ixy_inner), 0.0_wp)
+             dnembryo=max(snow_params%density*pgsacw/rhogms/embryo_mass, 0.0_wp)
              dnumber=min(dnembryo, 0.95*snow_number/dt)
              
              !use mixed-phase overlap function
